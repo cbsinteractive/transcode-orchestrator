@@ -11,7 +11,7 @@ import (
 	"github.com/NYTimes/video-transcoding-api/config"
 	"github.com/NYTimes/video-transcoding-api/db"
 	"github.com/NYTimes/video-transcoding-api/provider"
-	hwrapper "github.com/hybrik/hybrik-sdk-go"
+	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
 )
 
 const (
