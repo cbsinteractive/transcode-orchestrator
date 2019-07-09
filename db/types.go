@@ -32,6 +32,16 @@ type Job struct {
 	// required: false
 	StreamingParams StreamingParams `redis-hash:"streamingparams,expand" json:"streamingParams,omitempty"`
 
+	// configuration for execution features for the selected provider
+	//
+	// required: false
+	ExecutionFeatures ExecutionFeatures `redis-hash:"-" json:"executionFeatures,omitempty"`
+
+	// string value of the execution config for auditing jobs after the fact
+	//
+	// required: false
+	ExecutionCfgReport string `redis-hash:"execution-cfg,omitempty" json:"executionCfgReport,omitempty"`
+
 	// Time of the creation of the job in the API
 	//
 	// required: true
@@ -80,6 +90,10 @@ type StreamingParams struct {
 	// required: true
 	PlaylistFileName string `redis-hash:"playlistFileName" json:"playlistFileName,omitempty"`
 }
+
+// ExecutionFeatures is a map whose key is a custom feature name and value is a json string
+// representing the corresponding custom feature definition
+type ExecutionFeatures map[string]interface{}
 
 // LocalPreset is a struct to persist encoding configurations. Some providers don't have
 // the ability to store presets on it's side so we persist locally.

@@ -14,6 +14,10 @@ import (
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
 )
 
+type executionFeatures struct {
+	segmentedRendering *hwrapper.SegmentedRendering
+}
+
 const (
 	// Name describes the name of the transcoder
 	Name                       = "hybrik"
@@ -25,6 +29,8 @@ const (
 	activeWaiting              = "waiting"
 	hls                        = "hls"
 	transcodeElementIDTemplate = "transcode_task_%s"
+
+	featureSegmentedRendering = "segmentedRendering"
 )
 
 var (
@@ -94,7 +100,7 @@ func (hp *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, destination string, duration uint, preset hwrapper.Preset) hwrapper.Element {
+func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, destination string, duration uint, preset hwrapper.Preset, execFeatures executionFeatures) hwrapper.Element {
 	var e hwrapper.Element
 	var subLocation *hwrapper.TranscodeLocation
 
@@ -109,17 +115,9 @@ func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, d
 		}
 	}
 
-	// create the transcode element
-	e = hwrapper.Element{
-		UID:  fmt.Sprintf(transcodeElementIDTemplate, elementID),
-		Kind: "transcode",
-		Task: &hwrapper.ElementTaskOptions{
-			Name: "Transcode - " + preset.Name,
-		},
-		Preset: &hwrapper.TranscodePreset{
-			Key: preset.Name,
-		},
-		Payload: hwrapper.LocationTargetPayload{
+	transcodePayload := hwrapper.TranscodePayload{
+		LocationTargetPayload: hwrapper.LocationTargetPayload{
+
 			Location: hwrapper.TranscodeLocation{
 				StorageProvider: "s3",
 				Path:            fmt.Sprintf("%s/j%s", destination, id),
@@ -134,6 +132,23 @@ func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, d
 				},
 			},
 		},
+	}
+
+	if execFeatures.segmentedRendering != nil {
+		transcodePayload.SourcePipeline = &hwrapper.TranscodeSourcePipeline{SegmentedRendering: execFeatures.segmentedRendering}
+	}
+
+	// create the transcode element
+	e = hwrapper.Element{
+		UID:  fmt.Sprintf(transcodeElementIDTemplate, elementID),
+		Kind: "transcode",
+		Task: &hwrapper.ElementTaskOptions{
+			Name: "Transcode - " + preset.Name,
+		},
+		Preset: &hwrapper.TranscodePreset{
+			Key: preset.Name,
+		},
+		Payload: transcodePayload,
 	}
 
 	return e
@@ -173,6 +188,11 @@ func (hp *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 				URL:             job.SourceMedia,
 			},
 		},
+	}
+
+	execFeatures, err := executionFeaturesFrom(job)
+	if err != nil {
+		return "", err
 	}
 
 	elements = append(elements, sourceElement)
@@ -231,7 +251,7 @@ func (hp *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 		}
 
 		taskIndex := strconv.Itoa(len(transcodeElementIds))
-		e := hp.mountTranscodeElement(taskIndex, job.ID, output.FileName, hp.config.Destination, segmentDur, preset)
+		e := hp.mountTranscodeElement(taskIndex, job.ID, output.FileName, hp.config.Destination, segmentDur, preset, execFeatures)
 
 		transcodeElementIds = append(transcodeElementIds, e.UID)
 		elements = append(elements, e)
@@ -342,6 +362,33 @@ func (hp *hybrikProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 		Progress:      float64(ji.Progress),
 		Status:        status,
 	}, nil
+}
+
+func executionFeaturesFrom(job *db.Job) (executionFeatures, error) {
+	features := executionFeatures{}
+	if featureDefinition, ok := job.ExecutionFeatures[featureSegmentedRendering]; ok {
+		featureJSON, err := json.Marshal(featureDefinition)
+		if err != nil {
+			return executionFeatures{}, fmt.Errorf("could not marshal segmented rendering cfg to json: %v", err)
+		}
+
+		var feature SegmentedRendering
+		err = json.Unmarshal(featureJSON, &feature)
+		if err != nil {
+			return executionFeatures{}, fmt.Errorf("could not unmarshal %q into SegmentedRendering feature: %v",
+				featureDefinition, err)
+		}
+
+		features.segmentedRendering = &hwrapper.SegmentedRendering{
+			Duration:                  feature.Duration,
+			SceneChangeSearchDuration: feature.SceneChangeSearchDuration,
+			NumTotalSegments:          feature.NumTotalSegments,
+			EnableStrictCFR:           feature.EnableStrictCFR,
+			MuxTimebaseOffset:         feature.MuxTimebaseOffset,
+		}
+	}
+
+	return features, nil
 }
 
 func (hp *hybrikProvider) CancelJob(id string) error {
