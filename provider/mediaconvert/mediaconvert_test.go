@@ -35,6 +35,22 @@ var (
 		},
 	}
 
+	h265Preset = db.Preset{
+		Name:        "preset_name",
+		Description: "test_desc",
+		Container:   "mp4",
+		RateControl: "CBR",
+		TwoPass:     false,
+		Video: db.VideoPreset{
+			Width:         "300",
+			Height:        "400",
+			Codec:         "h265",
+			Bitrate:       "400000",
+			GopSize:       "120",
+			InterlaceMode: "progressive",
+		},
+	}
+
 	defaultJob = db.Job{
 		ID:           "jobID",
 		ProviderName: Name,
@@ -119,6 +135,47 @@ func Test_mcProvider_CreatePreset(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:   "a valid h265/aac mp4 preset results in the expected mediaconvert preset sent to AWS API",
+			preset: h265Preset,
+			wantPresetReq: mediaconvert.CreatePresetInput{
+				Name:        aws.String("preset_name"),
+				Description: aws.String("test_desc"),
+				Settings: &mediaconvert.PresetSettings{
+					ContainerSettings: &mediaconvert.ContainerSettings{
+						Container: mediaconvert.ContainerTypeMp4,
+					},
+					VideoDescription: &mediaconvert.VideoDescription{
+						Height:            aws.Int64(400),
+						Width:             aws.Int64(300),
+						RespondToAfd:      mediaconvert.RespondToAfdNone,
+						ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+						TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+						AntiAlias:         mediaconvert.AntiAliasEnabled,
+						CodecSettings: &mediaconvert.VideoCodecSettings{
+							Codec: mediaconvert.VideoCodecH265,
+							H265Settings: &mediaconvert.H265Settings{
+								Bitrate:                        aws.Int64(400000),
+								GopSize:                        aws.Float64(120),
+								CodecLevel:                     mediaconvert.H265CodecLevelAuto,
+								CodecProfile:                   mediaconvert.H265CodecProfileMainMain,
+								InterlaceMode:                  mediaconvert.H265InterlaceModeProgressive,
+								QualityTuningLevel:             mediaconvert.H265QualityTuningLevelSinglePassHq,
+								RateControlMode:                mediaconvert.H265RateControlModeCbr,
+								WriteMp4PackagingType:          mediaconvert.H265WriteMp4PackagingTypeHvc1,
+								AlternateTransferFunctionSei:   mediaconvert.H265AlternateTransferFunctionSeiDisabled,
+								SpatialAdaptiveQuantization:    mediaconvert.H265SpatialAdaptiveQuantizationEnabled,
+								TemporalAdaptiveQuantization:   mediaconvert.H265TemporalAdaptiveQuantizationEnabled,
+								FlickerAdaptiveQuantization:    mediaconvert.H265FlickerAdaptiveQuantizationEnabled,
+								SceneChangeDetect:              mediaconvert.H265SceneChangeDetectEnabled,
+								UnregisteredSeiTimecode:        mediaconvert.H265UnregisteredSeiTimecodeDisabled,
+								SampleAdaptiveOffsetFilterMode: mediaconvert.H265SampleAdaptiveOffsetFilterModeAdaptive,
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -159,6 +216,54 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 			},
 		},
 		{
+			name: "cmaf presets are set correctly",
+			presetModifier: func(p db.Preset) db.Preset {
+				p.Container = "cmaf"
+				return p
+			},
+			assertion: func(input *mediaconvert.CreatePresetInput, t *testing.T) {
+				if g, e := input.Settings.ContainerSettings.Container, mediaconvert.ContainerTypeCmfc; g != e {
+					t.Fatalf("got %q, expected %q", g, e)
+				}
+			},
+		},
+		{
+			name: "hdr10 values in presets are set correctly",
+			presetModifier: func(p db.Preset) db.Preset {
+				p.Video.HDR10Settings.Enabled = true
+				p.Video.HDR10Settings.MaxCLL = 10000
+				p.Video.HDR10Settings.MaxFALL = 400
+				p.Video.HDR10Settings.MasterDisplay = "G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(100000000000,0)"
+				return p
+			},
+			assertion: func(input *mediaconvert.CreatePresetInput, t *testing.T) {
+				colorSpaceConversion := input.Settings.VideoDescription.VideoPreprocessors.ColorCorrector.ColorSpaceConversion
+				if g, e := colorSpaceConversion, mediaconvert.ColorSpaceConversionForceHdr10; g != e {
+					t.Fatalf("got %q, expected %q", g, e)
+				}
+
+				wantHDR10Metadata := &mediaconvert.Hdr10Metadata{
+					BluePrimaryX:              aws.Int64(6550),
+					BluePrimaryY:              aws.Int64(2300),
+					GreenPrimaryX:             aws.Int64(8500),
+					GreenPrimaryY:             aws.Int64(39850),
+					RedPrimaryX:               aws.Int64(35400),
+					RedPrimaryY:               aws.Int64(14600),
+					WhitePointX:               aws.Int64(15635),
+					WhitePointY:               aws.Int64(16450),
+					MaxLuminance:              aws.Int64(100000000000),
+					MinLuminance:              aws.Int64(0),
+					MaxContentLightLevel:      aws.Int64(10000),
+					MaxFrameAverageLightLevel: aws.Int64(400),
+				}
+
+				gotHDR10Metadata := input.Settings.VideoDescription.VideoPreprocessors.ColorCorrector.Hdr10Metadata
+				if g, e := gotHDR10Metadata, wantHDR10Metadata; !reflect.DeepEqual(g, e) {
+					t.Fatalf("got %q, expected %q", g, e)
+				}
+			},
+		},
+		{
 			name: "unrecognized containers return an error",
 			presetModifier: func(p db.Preset) db.Preset {
 				p.Container = "unrecognized"
@@ -180,7 +285,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 				p.Video.Profile = "8000"
 				return p
 			},
-			wantErrMsg: `generating video preset: h264 profile "8000" is not supported with mediaconvert`,
+			wantErrMsg: `generating video preset: building h264 codec settings: h264 profile "8000" is not supported with mediaconvert`,
 		},
 		{
 			name: "unrecognized h264 codec level returns an error",
@@ -188,7 +293,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 				p.Video.ProfileLevel = "9001"
 				return p
 			},
-			wantErrMsg: `generating video preset: h264 level "9001" is not supported with mediaconvert`,
+			wantErrMsg: `generating video preset: building h264 codec settings: h264 level "9001" is not supported with mediaconvert`,
 		},
 		{
 			name: "bad video width returns an error",
@@ -212,7 +317,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 				p.Video.Bitrate = "bitrate"
 				return p
 			},
-			wantErrMsg: `generating video preset: parsing video bitrate "bitrate" to int64: strconv.ParseInt: parsing "bitrate": invalid syntax`,
+			wantErrMsg: `generating video preset: building h264 codec settings: parsing video bitrate "bitrate" to int64: strconv.ParseInt: parsing "bitrate": invalid syntax`,
 		},
 		{
 			name: "bad video gop size returns an error",
@@ -220,7 +325,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 				p.Video.GopSize = "gop"
 				return p
 			},
-			wantErrMsg: `generating video preset: parsing gop size "gop" to int64: strconv.ParseFloat: parsing "gop": invalid syntax`,
+			wantErrMsg: `generating video preset: building h264 codec settings: parsing gop size "gop" to int64: strconv.ParseFloat: parsing "gop": invalid syntax`,
 		},
 		{
 			name: "unrecognized rate control mode returns an error",
@@ -228,7 +333,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 				p.RateControl = "not supported"
 				return p
 			},
-			wantErrMsg: `generating video preset: rate control mode "not supported" is not supported with mediaconvert`,
+			wantErrMsg: `generating video preset: building h264 codec settings: rate control mode "not supported" is not supported with mediaconvert`,
 		},
 		{
 			name: "unrecognized interlace modes return an error",
@@ -236,7 +341,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 				p.Video.InterlaceMode = "unsupported mode"
 				return p
 			},
-			wantErrMsg: `generating video preset: h264 interlace mode "unsupported mode" is not supported with mediaconvert`,
+			wantErrMsg: `generating video preset: building h264 codec settings: h264 interlace mode "unsupported mode" is not supported with mediaconvert`,
 		},
 		{
 			name: "unrecognized audio bitrate returns an error",
@@ -391,6 +496,59 @@ func Test_mcProvider_Transcode(t *testing.T) {
 									ManifestDurationFormat: mediaconvert.HlsManifestDurationFormatFloatingPoint,
 									OutputSelection:        mediaconvert.HlsOutputSelectionManifestsAndSegments,
 									SegmentControl:         mediaconvert.HlsSegmentControlSegmentedFiles,
+								},
+							},
+							Outputs: []mediaconvert.Output{
+								{
+									NameModifier: aws.String("file1"),
+									Preset:       aws.String("preset1"),
+									Extension:    aws.String("mp4"),
+								},
+								{
+									NameModifier: aws.String("file2"),
+									Preset:       aws.String("preset2"),
+									Extension:    aws.String("mp4"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:                "a valid cmaf transcode job is mapped correctly to a mediaconvert job input",
+			job:                 &defaultJob,
+			presetContainerType: mediaconvert.ContainerTypeCmfc,
+			destination:         "s3://some/destination",
+			wantJobReq: mediaconvert.CreateJobInput{
+				Role:  aws.String(""),
+				Queue: aws.String(""),
+				Settings: &mediaconvert.JobSettings{
+					Inputs: []mediaconvert.Input{
+						{
+							AudioSelectors: map[string]mediaconvert.AudioSelector{
+								"Audio Selector 1": {
+									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+								},
+							},
+							FileInput: aws.String("s3://some/path.mp4"),
+							VideoSelector: &mediaconvert.VideoSelector{
+								ColorSpace: mediaconvert.ColorSpaceFollow,
+							},
+						},
+					},
+					OutputGroups: []mediaconvert.OutputGroup{
+						{
+							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+								Type: mediaconvert.OutputGroupTypeCmafGroupSettings,
+								CmafGroupSettings: &mediaconvert.CmafGroupSettings{
+									Destination:            aws.String("s3://some/destination/jobID/"),
+									SegmentLength:          aws.Int64(6),
+									FragmentLength:         aws.Int64(6),
+									ManifestDurationFormat: mediaconvert.CmafManifestDurationFormatFloatingPoint,
+									SegmentControl:         mediaconvert.CmafSegmentControlSegmentedFiles,
+									WriteDashManifest:      mediaconvert.CmafWriteDASHManifestEnabled,
+									WriteHlsManifest:       mediaconvert.CmafWriteHLSManifestEnabled,
 								},
 							},
 							Outputs: []mediaconvert.Output{

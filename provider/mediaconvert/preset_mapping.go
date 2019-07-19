@@ -34,89 +34,12 @@ func containerFrom(container string) (mediaconvert.ContainerType, error) {
 	switch container {
 	case "m3u8":
 		return mediaconvert.ContainerTypeM3u8, nil
+	case "cmaf":
+		return mediaconvert.ContainerTypeCmfc, nil
 	case "mp4":
 		return mediaconvert.ContainerTypeMp4, nil
 	default:
 		return "", fmt.Errorf("container %q not supported with mediaconvert", container)
-	}
-}
-
-func h264RateControlModeFrom(rateControl string) (mediaconvert.H264RateControlMode, error) {
-	rateControl = strings.ToLower(rateControl)
-	switch rateControl {
-	case "vbr":
-		return mediaconvert.H264RateControlModeVbr, nil
-	case "", "cbr":
-		return mediaconvert.H264RateControlModeCbr, nil
-	case "qvbr":
-		return mediaconvert.H264RateControlModeQvbr, nil
-	default:
-		return "", fmt.Errorf("rate control mode %q is not supported with mediaconvert", rateControl)
-	}
-}
-
-func h264CodecProfileFrom(profile string) (mediaconvert.H264CodecProfile, error) {
-	profile = strings.ToLower(profile)
-	switch profile {
-	case "baseline":
-		return mediaconvert.H264CodecProfileBaseline, nil
-	case "main":
-		return mediaconvert.H264CodecProfileMain, nil
-	case "", "high":
-		return mediaconvert.H264CodecProfileHigh, nil
-	default:
-		return "", fmt.Errorf("h264 profile %q is not supported with mediaconvert", profile)
-	}
-}
-
-func h264CodecLevelFrom(level string) (mediaconvert.H264CodecLevel, error) {
-	switch level {
-	case "":
-		return mediaconvert.H264CodecLevelAuto, nil
-	case "1", "1.0":
-		return mediaconvert.H264CodecLevelLevel1, nil
-	case "1.1":
-		return mediaconvert.H264CodecLevelLevel11, nil
-	case "1.2":
-		return mediaconvert.H264CodecLevelLevel12, nil
-	case "1.3":
-		return mediaconvert.H264CodecLevelLevel13, nil
-	case "2", "2.0":
-		return mediaconvert.H264CodecLevelLevel2, nil
-	case "2.1":
-		return mediaconvert.H264CodecLevelLevel21, nil
-	case "2.2":
-		return mediaconvert.H264CodecLevelLevel22, nil
-	case "3", "3.0":
-		return mediaconvert.H264CodecLevelLevel3, nil
-	case "3.1":
-		return mediaconvert.H264CodecLevelLevel31, nil
-	case "3.2":
-		return mediaconvert.H264CodecLevelLevel32, nil
-	case "4", "4.0":
-		return mediaconvert.H264CodecLevelLevel4, nil
-	case "4.1":
-		return mediaconvert.H264CodecLevelLevel41, nil
-	case "4.2":
-		return mediaconvert.H264CodecLevelLevel42, nil
-	case "5", "5.0":
-		return mediaconvert.H264CodecLevelLevel5, nil
-	case "5.1":
-		return mediaconvert.H264CodecLevelLevel51, nil
-	case "5.2":
-		return mediaconvert.H264CodecLevelLevel52, nil
-	default:
-		return "", fmt.Errorf("h264 level %q is not supported with mediaconvert", level)
-	}
-}
-
-func h264InterlaceModeFrom(mode string) (mediaconvert.H264InterlaceMode, error) {
-	mode = strings.ToLower(mode)
-	switch mode {
-	case "", "progressive":
-		return mediaconvert.H264InterlaceModeProgressive, nil
-	default:
-		return "", fmt.Errorf("h264 interlace mode %q is not supported with mediaconvert", mode)
 	}
 }
 
@@ -144,56 +67,57 @@ func videoPresetFrom(preset db.Preset) (*mediaconvert.VideoDescription, error) {
 		videoPreset.Height = aws.Int64(height)
 	}
 
+	if hdr10 := preset.Video.HDR10Settings; hdr10.Enabled {
+		mcHDR10Metadata := &mediaconvert.Hdr10Metadata{}
+		if hdr10.MasterDisplay != "" {
+			display, err := parseMasterDisplay(hdr10.MasterDisplay)
+			if err != nil {
+				return nil, errors.Wrap(err, "parsing master display string")
+			}
+			mcHDR10Metadata.BluePrimaryX = aws.Int64(display.bluePrimaryX)
+			mcHDR10Metadata.BluePrimaryY = aws.Int64(display.bluePrimaryY)
+			mcHDR10Metadata.GreenPrimaryX = aws.Int64(display.greenPrimaryX)
+			mcHDR10Metadata.GreenPrimaryY = aws.Int64(display.greenPrimaryY)
+			mcHDR10Metadata.RedPrimaryX = aws.Int64(display.redPrimaryX)
+			mcHDR10Metadata.RedPrimaryY = aws.Int64(display.redPrimaryY)
+			mcHDR10Metadata.WhitePointX = aws.Int64(display.whitePointX)
+			mcHDR10Metadata.WhitePointY = aws.Int64(display.whitePointY)
+			mcHDR10Metadata.MaxLuminance = aws.Int64(display.maxLuminance)
+			mcHDR10Metadata.MinLuminance = aws.Int64(display.minLuminance)
+		}
+
+		if hdr10.MaxCLL != 0 {
+			mcHDR10Metadata.MaxContentLightLevel = aws.Int64(int64(hdr10.MaxCLL))
+		}
+
+		if hdr10.MaxFALL != 0 {
+			mcHDR10Metadata.MaxFrameAverageLightLevel = aws.Int64(int64(hdr10.MaxFALL))
+		}
+
+		videoPreset.VideoPreprocessors = &mediaconvert.VideoPreprocessor{
+			ColorCorrector: &mediaconvert.ColorCorrector{
+				Hdr10Metadata:        mcHDR10Metadata,
+				ColorSpaceConversion: mediaconvert.ColorSpaceConversionForceHdr10,
+			},
+		}
+	}
+
 	codec := strings.ToLower(preset.Video.Codec)
 	switch codec {
 	case "h264":
-		bitrate, err := strconv.ParseInt(preset.Video.Bitrate, 10, 64)
+		settings, err := h264CodecSettingsFrom(preset)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing video bitrate %q to int64", preset.Video.Bitrate)
+			return nil, errors.Wrap(err, "building h264 codec settings")
 		}
 
-		gopSize, err := strconv.ParseFloat(preset.Video.GopSize, 64)
+		videoPreset.CodecSettings = settings
+	case "h265":
+		settings, err := h265CodecSettingsFrom(preset)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing gop size %q to int64", preset.Video.GopSize)
+			return nil, errors.Wrap(err, "building h265 codec settings")
 		}
 
-		rateControl, err := h264RateControlModeFrom(preset.RateControl)
-		if err != nil {
-			return nil, err
-		}
-
-		profile, err := h264CodecProfileFrom(preset.Video.Profile)
-		if err != nil {
-			return nil, err
-		}
-
-		level, err := h264CodecLevelFrom(preset.Video.ProfileLevel)
-		if err != nil {
-			return nil, err
-		}
-
-		interlaceMode, err := h264InterlaceModeFrom(preset.Video.InterlaceMode)
-		if err != nil {
-			return nil, err
-		}
-
-		tuning := mediaconvert.H264QualityTuningLevelSinglePassHq
-		if preset.TwoPass {
-			tuning = mediaconvert.H264QualityTuningLevelMultiPassHq
-		}
-
-		videoPreset.CodecSettings = &mediaconvert.VideoCodecSettings{
-			Codec: mediaconvert.VideoCodecH264,
-			H264Settings: &mediaconvert.H264Settings{
-				Bitrate:            aws.Int64(bitrate),
-				GopSize:            aws.Float64(gopSize),
-				RateControlMode:    rateControl,
-				CodecProfile:       profile,
-				CodecLevel:         level,
-				InterlaceMode:      interlaceMode,
-				QualityTuningLevel: tuning,
-			},
-		}
+		videoPreset.CodecSettings = settings
 	default:
 		return nil, fmt.Errorf("video codec %q is not yet supported with mediaconvert", codec)
 	}
@@ -201,7 +125,7 @@ func videoPresetFrom(preset db.Preset) (*mediaconvert.VideoDescription, error) {
 	return &videoPreset, nil
 }
 
-func audioPresetFrom(preset db.Preset) (*mediaconvert.AudioDescription, error) {
+func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 	audioPreset := mediaconvert.AudioDescription{}
 
 	codec := strings.ToLower(preset.Audio.Codec)
@@ -209,7 +133,7 @@ func audioPresetFrom(preset db.Preset) (*mediaconvert.AudioDescription, error) {
 	case "aac":
 		bitrate, err := strconv.ParseInt(preset.Audio.Bitrate, 10, 64)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing audio bitrate %q to int64", preset.Audio.Bitrate)
+			return mediaconvert.AudioDescription{}, errors.Wrapf(err, "parsing audio bitrate %q to int64", preset.Audio.Bitrate)
 		}
 
 		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
@@ -223,8 +147,8 @@ func audioPresetFrom(preset db.Preset) (*mediaconvert.AudioDescription, error) {
 			},
 		}
 	default:
-		return nil, fmt.Errorf("audio codec %q is not yet supported with mediaconvert", codec)
+		return mediaconvert.AudioDescription{}, fmt.Errorf("audio codec %q is not yet supported with mediaconvert", codec)
 	}
 
-	return &audioPreset, nil
+	return audioPreset, nil
 }

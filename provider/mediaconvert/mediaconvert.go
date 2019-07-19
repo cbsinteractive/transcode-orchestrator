@@ -157,6 +157,19 @@ func (p *mcProvider) outputGroupsFrom(job *db.Job, presets map[string]mediaconve
 		destination := destinationPathFrom(p.cfg.Destination, job.ID)
 
 		switch container {
+		case mediaconvert.ContainerTypeCmfc:
+			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
+				Type: mediaconvert.OutputGroupTypeCmafGroupSettings,
+				CmafGroupSettings: &mediaconvert.CmafGroupSettings{
+					Destination:            aws.String(destination),
+					FragmentLength:         aws.Int64(int64(job.StreamingParams.SegmentDuration)),
+					ManifestDurationFormat: mediaconvert.CmafManifestDurationFormatFloatingPoint,
+					SegmentControl:         mediaconvert.CmafSegmentControlSegmentedFiles,
+					SegmentLength:          aws.Int64(int64(job.StreamingParams.SegmentDuration)),
+					WriteDashManifest:      mediaconvert.CmafWriteDASHManifestEnabled,
+					WriteHlsManifest:       mediaconvert.CmafWriteHLSManifestEnabled,
+				},
+			}
 		case mediaconvert.ContainerTypeM3u8:
 			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
 				Type: mediaconvert.OutputGroupTypeHlsGroupSettings,
@@ -218,14 +231,21 @@ func (p *mcProvider) CreatePreset(preset db.Preset) (string, error) {
 		return "", errors.Wrap(err, "mapping preset container to MediaConvert container")
 	}
 
-	videoPreset, err := videoPresetFrom(preset)
-	if err != nil {
-		return "", errors.Wrap(err, "generating video preset")
+	var videoPreset *mediaconvert.VideoDescription
+	if preset.Video != (db.VideoPreset{}) {
+		videoPreset, err = videoPresetFrom(preset)
+		if err != nil {
+			return "", errors.Wrap(err, "generating video preset")
+		}
 	}
 
-	audioPreset, err := audioPresetFrom(preset)
-	if err != nil {
-		return "", errors.Wrap(err, "generating audio preset")
+	var audioPresets []mediaconvert.AudioDescription
+	if preset.Audio != (db.AudioPreset{}) {
+		audioPreset, err := audioPresetFrom(preset)
+		if err != nil {
+			return "", errors.Wrap(err, "generating audio preset")
+		}
+		audioPresets = append(audioPresets, audioPreset)
 	}
 
 	presetInput := mediaconvert.CreatePresetInput{
@@ -236,7 +256,7 @@ func (p *mcProvider) CreatePreset(preset db.Preset) (string, error) {
 				Container: container,
 			},
 			VideoDescription:  videoPreset,
-			AudioDescriptions: []mediaconvert.AudioDescription{*audioPreset},
+			AudioDescriptions: audioPresets,
 		},
 	}
 
@@ -361,8 +381,8 @@ func (p *mcProvider) Healthcheck() error {
 
 func (p *mcProvider) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
-		InputFormats:  []string{"h264"},
-		OutputFormats: []string{"mp4", "hls"},
+		InputFormats:  []string{"h264", "h265", "hdr10"},
+		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf"},
 		Destinations:  []string{"s3"},
 	}
 }
