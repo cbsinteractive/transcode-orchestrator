@@ -142,6 +142,9 @@ func (s *Storage) structToFieldList(value reflect.Value, prefixes ...string) (ma
 			myPrefixes := append(prefixes, parts.name)
 			switch fieldValue.Kind() {
 			case reflect.Struct:
+				if _, ok := parts.characteristics["omitempty"]; ok && reflect.Zero(fieldValue.Type()).Interface() == fieldValue.Interface() {
+					continue
+				}
 				expandedFields, err := s.structToFieldList(fieldValue, myPrefixes...)
 				if err != nil {
 					return nil, err

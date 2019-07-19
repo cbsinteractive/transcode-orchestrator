@@ -124,15 +124,24 @@ type Preset struct {
 
 // VideoPreset defines the set of parameters for video on a given preset
 type VideoPreset struct {
-	Profile       string `json:"profile,omitempty" redis-hash:"profile,omitempty"`
-	ProfileLevel  string `json:"profileLevel,omitempty" redis-hash:"profilelevel,omitempty"`
-	Width         string `json:"width,omitempty" redis-hash:"width,omitempty"`
-	Height        string `json:"height,omitempty" redis-hash:"height,omitempty"`
-	Codec         string `json:"codec,omitempty" redis-hash:"codec,omitempty"`
-	Bitrate       string `json:"bitrate,omitempty" redis-hash:"bitrate,omitempty"`
-	GopSize       string `json:"gopSize,omitempty" redis-hash:"gopsize,omitempty"`
-	GopMode       string `json:"gopMode,omitempty" redis-hash:"gopmode,omitempty"`
-	InterlaceMode string `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
+	Profile       string        `json:"profile,omitempty" redis-hash:"profile,omitempty"`
+	ProfileLevel  string        `json:"profileLevel,omitempty" redis-hash:"profilelevel,omitempty"`
+	Width         string        `json:"width,omitempty" redis-hash:"width,omitempty"`
+	Height        string        `json:"height,omitempty" redis-hash:"height,omitempty"`
+	Codec         string        `json:"codec,omitempty" redis-hash:"codec,omitempty"`
+	Bitrate       string        `json:"bitrate,omitempty" redis-hash:"bitrate,omitempty"`
+	GopSize       string        `json:"gopSize,omitempty" redis-hash:"gopsize,omitempty"`
+	GopMode       string        `json:"gopMode,omitempty" redis-hash:"gopmode,omitempty"`
+	InterlaceMode string        `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
+	HDR10Settings HDR10Settings `json:"hdr10" redis-hash:"hdr10,expand,omitempty"`
+}
+
+// HDR10Settings defines a set of configurations for defining HDR10 metadata
+type HDR10Settings struct {
+	Enabled       bool   `json:"enabled" redis-hash:"enabled"`
+	MaxCLL        uint   `json:"maxCLL,omitempty" redis-hash:"maxcll,omitempty"`
+	MaxFALL       uint   `json:"maxFALL,omitempty" redis-hash:"maxfll,omitempty"`
+	MasterDisplay string `json:"masterDisplay,omitempty" redis-hash:"masterdisplay,omitempty"`
 }
 
 // AudioPreset defines the set of parameters for audio on a given preset
