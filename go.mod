@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.20.20
 	github.com/aws/aws-sdk-go-v2 v0.9.0
 	github.com/bitmovin/bitmovin-go v1.29.0
-	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20170516091026-ec18f6003023
+	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20170516091026-6a0558d3cef5
 	github.com/flavioribeiro/zencoder v0.0.0-20161215190743-745874544382
 	github.com/fsouza/ctxlogger v1.5.5
 	github.com/fsouza/gizmo-stackdriver-logging v1.3.0

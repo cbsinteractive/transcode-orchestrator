@@ -2,7 +2,6 @@ package hybrik // import "github.com/NYTimes/video-transcoding-api/provider/hybr
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"github.com/NYTimes/video-transcoding-api/db"
 	"github.com/NYTimes/video-transcoding-api/provider"
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
+	"github.com/pkg/errors"
 )
 
 type executionFeatures struct {
@@ -135,7 +135,7 @@ func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, d
 	}
 
 	if execFeatures.segmentedRendering != nil {
-		transcodePayload.SourcePipeline = &hwrapper.TranscodeSourcePipeline{SegmentedRendering: execFeatures.segmentedRendering}
+		transcodePayload.SourcePipeline = hwrapper.TranscodeSourcePipeline{SegmentedRendering: execFeatures.segmentedRendering}
 	}
 
 	// create the transcode element
@@ -396,11 +396,25 @@ func (hp *hybrikProvider) CancelJob(id string) error {
 }
 
 func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
+	hybrikPreset, err := hp.hybrikPresetFrom(preset)
+	if err != nil {
+		return "", err
+	}
+
+	resultPreset, err := hp.c.CreatePreset(hybrikPreset)
+	if err != nil {
+		return "", err
+	}
+
+	return resultPreset.Name, nil
+}
+
+func (hp *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, error) {
 	var minGOPFrames, maxGOPFrames, gopSize int
 
 	gopSize, err := strconv.Atoi(preset.Video.GopSize)
 	if err != nil {
-		return "", err
+		return hwrapper.Preset{}, err
 	}
 
 	if preset.Video.GopMode == "fixed" {
@@ -418,17 +432,17 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 	}
 
 	if container == "" {
-		return "", ErrUnsupportedContainer
+		return hwrapper.Preset{}, ErrUnsupportedContainer
 	}
 
 	bitrate, err := strconv.Atoi(preset.Video.Bitrate)
 	if err != nil {
-		return "", ErrBitrateNan
+		return hwrapper.Preset{}, ErrBitrateNan
 	}
 
 	audioBitrate, err := strconv.Atoi(preset.Audio.Bitrate)
 	if err != nil {
-		return "", ErrBitrateNan
+		return hwrapper.Preset{}, ErrBitrateNan
 	}
 
 	var videoWidth *int
@@ -438,7 +452,7 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 		var presetWidth int
 		presetWidth, err = strconv.Atoi(preset.Video.Width)
 		if err != nil {
-			return "", ErrVideoWidthNan
+			return hwrapper.Preset{}, ErrVideoWidthNan
 		}
 		videoWidth = &presetWidth
 	}
@@ -447,7 +461,7 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 		var presetHeight int
 		presetHeight, err = strconv.Atoi(preset.Video.Height)
 		if err != nil {
-			return "", ErrVideoHeightNan
+			return hwrapper.Preset{}, ErrVideoHeightNan
 		}
 		videoHeight = &presetHeight
 	}
@@ -472,7 +486,9 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 			Targets: []hwrapper.PresetTarget{
 				{
 					FilePattern: "",
-					Container:   hwrapper.TranscodeContainer{Kind: container},
+					Container: hwrapper.TranscodeContainer{
+						Kind: container,
+					},
 					Video: hwrapper.VideoTarget{
 						Width:         videoWidth,
 						Height:        videoHeight,
@@ -497,12 +513,12 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 		},
 	}
 
-	resultPreset, err := hp.c.CreatePreset(p)
+	p, err = enrichPresetWithHDRMetadata(p, preset)
 	if err != nil {
-		return "", err
+		return hwrapper.Preset{}, errors.Wrap(err, "enriching preset with HDR metadata")
 	}
 
-	return resultPreset.Name, nil
+	return p, nil
 }
 
 func (hp *hybrikProvider) DeletePreset(presetID string) error {
@@ -531,7 +547,7 @@ func (hp *hybrikProvider) Healthcheck() error {
 func (hp *hybrikProvider) Capabilities() provider.Capabilities {
 	// we can support quite a bit more format wise, but unsure of schema so limiting to known supported video-transcoding-api formats for now...
 	return provider.Capabilities{
-		InputFormats:  []string{"prores", "h264"},
+		InputFormats:  []string{"prores", "h264", "h265"},
 		OutputFormats: []string{"mp4", "hls", "webm", "mov"},
 		Destinations:  []string{"s3"},
 	}
