@@ -2,3 +2,7 @@ access.log
 video-transcoding-api
 secrets.yml
 coverage.txt
+.DS_Store
+.idea/
+set_vars.sh
+

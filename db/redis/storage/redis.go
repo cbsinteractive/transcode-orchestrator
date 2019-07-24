@@ -133,15 +133,18 @@ func (s *Storage) structToFieldList(value reflect.Value, prefixes ...string) (ma
 		if fieldName == "-" {
 			continue
 		}
-		parts := strings.Split(fieldName, ",")
+		parts := tagPartsFrom(fieldName)
 		fieldValue := value.Field(i)
-		if len(parts) > 1 && parts[len(parts)-1] == "expand" {
+		if _, ok := parts.characteristics["expand"]; ok {
 			if fieldValue.Kind() == reflect.Ptr {
 				fieldValue = fieldValue.Elem()
 			}
-			myPrefixes := append(prefixes, parts[0])
+			myPrefixes := append(prefixes, parts.name)
 			switch fieldValue.Kind() {
 			case reflect.Struct:
+				if _, ok := parts.characteristics["omitempty"]; ok && reflect.Zero(fieldValue.Type()).Interface() == fieldValue.Interface() {
+					continue
+				}
 				expandedFields, err := s.structToFieldList(fieldValue, myPrefixes...)
 				if err != nil {
 					return nil, err
@@ -160,8 +163,8 @@ func (s *Storage) structToFieldList(value reflect.Value, prefixes ...string) (ma
 			default:
 				return nil, errors.New("can only expand structs and maps")
 			}
-		} else if parts[0] != "" {
-			key := strings.Join(append(prefixes, parts[0]), "_")
+		} else if parts.name != "" {
+			key := strings.Join(append(prefixes, parts.name), "_")
 			var strValue string
 			iface := fieldValue.Interface()
 			switch v := iface.(type) {
@@ -172,7 +175,7 @@ func (s *Storage) structToFieldList(value reflect.Value, prefixes ...string) (ma
 			default:
 				strValue = fmt.Sprintf("%v", v)
 			}
-			if parts[len(parts)-1] == "omitempty" && strValue == "" {
+			if _, ok := parts.characteristics["omitempty"]; ok && strValue == "" {
 				continue
 			}
 			fields[key] = strValue
@@ -234,10 +237,10 @@ func (s *Storage) loadStruct(in map[string]string, out reflect.Value, prefixes .
 		if tagValue == "-" {
 			continue
 		}
-		parts := strings.Split(tagValue, ",")
+		parts := tagPartsFrom(tagValue)
 		fieldValue := out.Field(i)
-		if len(parts) > 1 && parts[len(parts)-1] == "expand" {
-			myPrefixes := append(prefixes, parts[0])
+		if _, ok := parts.characteristics["expand"]; ok {
+			myPrefixes := append(prefixes, parts.name)
 			if fieldValue.Kind() == reflect.Ptr {
 				fieldValue = fieldValue.Elem()
 			}
@@ -256,7 +259,7 @@ func (s *Storage) loadStruct(in map[string]string, out reflect.Value, prefixes .
 				return errors.New("can only expand values to structs or maps")
 			}
 		} else {
-			key := strings.Join(append(prefixes, parts[0]), "_")
+			key := strings.Join(append(prefixes, parts.name), "_")
 			if value, ok := in[key]; ok {
 				switch fieldValue.Kind() {
 				case reflect.Slice:
@@ -303,6 +306,27 @@ func (s *Storage) loadStruct(in map[string]string, out reflect.Value, prefixes .
 		}
 	}
 	return nil
+}
+
+type tagParts struct {
+	name            string
+	characteristics map[string]struct{}
+}
+
+func tagPartsFrom(rawTagStr string) tagParts {
+	var parts tagParts
+	for idx, part := range strings.Split(rawTagStr, ",") {
+		if idx == 0 {
+			parts = tagParts{
+				name:            part,
+				characteristics: map[string]struct{}{},
+			}
+			continue
+		}
+		parts.characteristics[part] = struct{}{}
+	}
+
+	return parts
 }
 
 // Delete deletes the given key from redis, returning ErrNotFound when it

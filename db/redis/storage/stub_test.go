@@ -74,15 +74,23 @@ type Preset struct {
 }
 
 type VideoPreset struct {
-	Profile       string `redis-hash:"profile,omitempty"`
-	ProfileLevel  string `redis-hash:"profilelevel,omitempty"`
-	Width         string `redis-hash:"width,omitempty"`
-	Height        string `redis-hash:"height,omitempty"`
-	Codec         string `redis-hash:"codec,omitempty"`
-	Bitrate       string `redis-hash:"bitrate,omitempty"`
-	GopSize       string `redis-hash:"gopsize,omitempty"`
-	GopMode       string `redis-hash:"gopmode,omitempty"`
-	InterlaceMode string `redis-hash:"interlacemode,omitempty"`
+	Profile       string        `redis-hash:"profile,omitempty"`
+	ProfileLevel  string        `redis-hash:"profilelevel,omitempty"`
+	Width         string        `redis-hash:"width,omitempty"`
+	Height        string        `redis-hash:"height,omitempty"`
+	Codec         string        `redis-hash:"codec,omitempty"`
+	Bitrate       string        `redis-hash:"bitrate,omitempty"`
+	GopSize       string        `redis-hash:"gopsize,omitempty"`
+	GopMode       string        `redis-hash:"gopmode,omitempty"`
+	InterlaceMode string        `redis-hash:"interlacemode,omitempty"`
+	HDR10Settings HDR10Settings `redis-hash:"hdr10,expand,omitempty"`
+}
+
+type HDR10Settings struct {
+	Enabled       bool   `redis-hash:"enabled"`
+	MaxCLL        uint   `redis-hash:"maxcll,omitempty"`
+	MaxFLL        uint   `redis-hash:"maxfll,omitempty"`
+	MasterDisplay string `redis-hash:"masterdisplay,omitempty"`
 }
 
 type AudioPreset struct {

@@ -2,7 +2,6 @@ package hybrik // import "github.com/NYTimes/video-transcoding-api/provider/hybr
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path"
 	"strconv"
@@ -11,19 +10,27 @@ import (
 	"github.com/NYTimes/video-transcoding-api/config"
 	"github.com/NYTimes/video-transcoding-api/db"
 	"github.com/NYTimes/video-transcoding-api/provider"
-	hwrapper "github.com/hybrik/hybrik-sdk-go"
+	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
+	"github.com/pkg/errors"
 )
+
+type executionFeatures struct {
+	segmentedRendering *hwrapper.SegmentedRendering
+}
 
 const (
 	// Name describes the name of the transcoder
-	Name          = "hybrik"
-	queued        = "queued"
-	active        = "active"
-	completed     = "completed"
-	failed        = "failed"
-	activeRunning = "running"
-	activeWaiting = "waiting"
-	hls           = "hls"
+	Name                       = "hybrik"
+	queued                     = "queued"
+	active                     = "active"
+	completed                  = "completed"
+	failed                     = "failed"
+	activeRunning              = "running"
+	activeWaiting              = "waiting"
+	hls                        = "hls"
+	transcodeElementIDTemplate = "transcode_task_%s"
+
+	featureSegmentedRendering = "segmentedRendering"
 )
 
 var (
@@ -93,7 +100,7 @@ func (hp *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, destination string, duration uint, preset hwrapper.Preset) hwrapper.Element {
+func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, destination string, duration uint, preset hwrapper.Preset, execFeatures executionFeatures) hwrapper.Element {
 	var e hwrapper.Element
 	var subLocation *hwrapper.TranscodeLocation
 
@@ -108,17 +115,9 @@ func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, d
 		}
 	}
 
-	// create the transcode element
-	e = hwrapper.Element{
-		UID:  "transcode_task" + elementID,
-		Kind: "transcode",
-		Task: &hwrapper.ElementTaskOptions{
-			Name: "Transcode - " + preset.Name,
-		},
-		Preset: &hwrapper.TranscodePreset{
-			Key: preset.Name,
-		},
-		Payload: hwrapper.LocationTargetPayload{
+	transcodePayload := hwrapper.TranscodePayload{
+		LocationTargetPayload: hwrapper.LocationTargetPayload{
+
 			Location: hwrapper.TranscodeLocation{
 				StorageProvider: "s3",
 				Path:            fmt.Sprintf("%s/j%s", destination, id),
@@ -133,6 +132,23 @@ func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, d
 				},
 			},
 		},
+	}
+
+	if execFeatures.segmentedRendering != nil {
+		transcodePayload.SourcePipeline = hwrapper.TranscodeSourcePipeline{SegmentedRendering: execFeatures.segmentedRendering}
+	}
+
+	// create the transcode element
+	e = hwrapper.Element{
+		UID:  fmt.Sprintf(transcodeElementIDTemplate, elementID),
+		Kind: "transcode",
+		Task: &hwrapper.ElementTaskOptions{
+			Name: "Transcode - " + preset.Name,
+		},
+		Preset: &hwrapper.TranscodePreset{
+			Key: preset.Name,
+		},
+		Payload: transcodePayload,
 	}
 
 	return e
@@ -158,6 +174,7 @@ func makeGetPresetRequest(hp *hybrikProvider, presetID string, ch chan *presetRe
 
 func (hp *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 	elements := []hwrapper.Element{}
+	transcodeElementIds := []string{}
 	var hlsElementIds []int
 
 	// create a source element
@@ -171,6 +188,11 @@ func (hp *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 				URL:             job.SourceMedia,
 			},
 		},
+	}
+
+	execFeatures, err := executionFeaturesFrom(job)
+	if err != nil {
+		return "", err
 	}
 
 	elements = append(elements, sourceElement)
@@ -224,18 +246,21 @@ func (hp *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 		var segmentDur uint
 		// track the hls outputs so we can later connect them to a manifest creator task
 		if len(preset.Payload.Targets) > 0 && preset.Payload.Targets[0].Container.Kind == hls {
-			hlsElementIds = append(hlsElementIds, len(elements))
+			hlsElementIds = append(hlsElementIds, len(transcodeElementIds))
 			segmentDur = job.StreamingParams.SegmentDuration
 		}
 
-		e := hp.mountTranscodeElement(strconv.Itoa(len(elements)), job.ID, output.FileName, hp.config.Destination, segmentDur, preset)
+		taskIndex := strconv.Itoa(len(transcodeElementIds))
+		e := hp.mountTranscodeElement(taskIndex, job.ID, output.FileName, hp.config.Destination, segmentDur, preset, execFeatures)
+
+		transcodeElementIds = append(transcodeElementIds, e.UID)
 		elements = append(elements, e)
 	}
 
 	// connect the source element to each of the transcode elements
-	transcodeSuccessConnections := make([]hwrapper.ToSuccess, len(elements))
-	for i := range elements {
-		transcodeSuccessConnections[i] = hwrapper.ToSuccess{Element: "transcode_task" + strconv.Itoa(i)}
+	transcodeSuccessConnections := make([]hwrapper.ToSuccess, len(transcodeElementIds))
+	for i, id := range transcodeElementIds {
+		transcodeSuccessConnections[i] = hwrapper.ToSuccess{Element: id}
 	}
 
 	// create the full job structure
@@ -285,7 +310,7 @@ func (hp *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 
 		var manifestFromConnections []hwrapper.ConnectionFrom
 		for _, hlsElementID := range hlsElementIds {
-			manifestFromConnections = append(manifestFromConnections, hwrapper.ConnectionFrom{Element: "transcode_task" + strconv.Itoa(hlsElementID)})
+			manifestFromConnections = append(manifestFromConnections, hwrapper.ConnectionFrom{Element: fmt.Sprintf(transcodeElementIDTemplate, strconv.Itoa(hlsElementID))})
 		}
 
 		cj.Payload.Connections = append(cj.Payload.Connections,
@@ -339,16 +364,57 @@ func (hp *hybrikProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
+func executionFeaturesFrom(job *db.Job) (executionFeatures, error) {
+	features := executionFeatures{}
+	if featureDefinition, ok := job.ExecutionFeatures[featureSegmentedRendering]; ok {
+		featureJSON, err := json.Marshal(featureDefinition)
+		if err != nil {
+			return executionFeatures{}, fmt.Errorf("could not marshal segmented rendering cfg to json: %v", err)
+		}
+
+		var feature SegmentedRendering
+		err = json.Unmarshal(featureJSON, &feature)
+		if err != nil {
+			return executionFeatures{}, fmt.Errorf("could not unmarshal %q into SegmentedRendering feature: %v",
+				featureDefinition, err)
+		}
+
+		features.segmentedRendering = &hwrapper.SegmentedRendering{
+			Duration:                  feature.Duration,
+			SceneChangeSearchDuration: feature.SceneChangeSearchDuration,
+			NumTotalSegments:          feature.NumTotalSegments,
+			EnableStrictCFR:           feature.EnableStrictCFR,
+			MuxTimebaseOffset:         feature.MuxTimebaseOffset,
+		}
+	}
+
+	return features, nil
+}
+
 func (hp *hybrikProvider) CancelJob(id string) error {
 	return hp.c.StopJob(id)
 }
 
 func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
+	hybrikPreset, err := hp.hybrikPresetFrom(preset)
+	if err != nil {
+		return "", err
+	}
+
+	resultPreset, err := hp.c.CreatePreset(hybrikPreset)
+	if err != nil {
+		return "", err
+	}
+
+	return resultPreset.Name, nil
+}
+
+func (hp *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, error) {
 	var minGOPFrames, maxGOPFrames, gopSize int
 
 	gopSize, err := strconv.Atoi(preset.Video.GopSize)
 	if err != nil {
-		return "", err
+		return hwrapper.Preset{}, err
 	}
 
 	if preset.Video.GopMode == "fixed" {
@@ -366,17 +432,17 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 	}
 
 	if container == "" {
-		return "", ErrUnsupportedContainer
+		return hwrapper.Preset{}, ErrUnsupportedContainer
 	}
 
 	bitrate, err := strconv.Atoi(preset.Video.Bitrate)
 	if err != nil {
-		return "", ErrBitrateNan
+		return hwrapper.Preset{}, ErrBitrateNan
 	}
 
 	audioBitrate, err := strconv.Atoi(preset.Audio.Bitrate)
 	if err != nil {
-		return "", ErrBitrateNan
+		return hwrapper.Preset{}, ErrBitrateNan
 	}
 
 	var videoWidth *int
@@ -386,7 +452,7 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 		var presetWidth int
 		presetWidth, err = strconv.Atoi(preset.Video.Width)
 		if err != nil {
-			return "", ErrVideoWidthNan
+			return hwrapper.Preset{}, ErrVideoWidthNan
 		}
 		videoWidth = &presetWidth
 	}
@@ -395,7 +461,7 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 		var presetHeight int
 		presetHeight, err = strconv.Atoi(preset.Video.Height)
 		if err != nil {
-			return "", ErrVideoHeightNan
+			return hwrapper.Preset{}, ErrVideoHeightNan
 		}
 		videoHeight = &presetHeight
 	}
@@ -420,7 +486,9 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 			Targets: []hwrapper.PresetTarget{
 				{
 					FilePattern: "",
-					Container:   hwrapper.TranscodeContainer{Kind: container},
+					Container: hwrapper.TranscodeContainer{
+						Kind: container,
+					},
 					Video: hwrapper.VideoTarget{
 						Width:         videoWidth,
 						Height:        videoHeight,
@@ -445,12 +513,12 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 		},
 	}
 
-	resultPreset, err := hp.c.CreatePreset(p)
+	p, err = enrichPresetWithHDRMetadata(p, preset)
 	if err != nil {
-		return "", err
+		return hwrapper.Preset{}, errors.Wrap(err, "enriching preset with HDR metadata")
 	}
 
-	return resultPreset.Name, nil
+	return p, nil
 }
 
 func (hp *hybrikProvider) DeletePreset(presetID string) error {
@@ -479,7 +547,7 @@ func (hp *hybrikProvider) Healthcheck() error {
 func (hp *hybrikProvider) Capabilities() provider.Capabilities {
 	// we can support quite a bit more format wise, but unsure of schema so limiting to known supported video-transcoding-api formats for now...
 	return provider.Capabilities{
-		InputFormats:  []string{"prores", "h264"},
+		InputFormats:  []string{"prores", "h264", "h265"},
 		OutputFormats: []string{"mp4", "hls", "webm", "mov"},
 		Destinations:  []string{"s3"},
 	}

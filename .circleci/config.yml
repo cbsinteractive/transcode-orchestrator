@@ -1,0 +1,59 @@
+version: 2.1
+jobs:
+
+  build:
+    docker:
+      - image: zsiec/go-1-12-5-redis:latest
+    steps:
+      - run:
+          name: Start redis server
+          command: sudo service redis-server start
+      - checkout
+      - run:
+          name: Enforce code format
+          command: "! go fmt ./... 2>&1 | read"
+      - run:
+          name: Run tests & coverage report
+          command: make coverage
+      - run:
+          name: Upload coverage results
+          command: bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN
+
+  deploy_dev:
+    docker:
+      - image: circleci/golang:1.12.5
+    steps:
+      - deploy:
+          name: Trigger deploy to dev
+          command: |
+            curl -u ${CIRCLE_CI_PROJECT_TOKEN}: -d build_parameters[CIRCLE_JOB]=build \
+            https://circleci.com/api/v1.1/project/github/cbsinteractive/video-transcoding-api-deploy/tree/master
+
+workflows:
+  version: 2
+
+  build_only:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: master
+            tags:
+              ignore: /.*/
+
+  build_and_deploy_dev:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only: master
+            tags:
+              ignore: /.*/
+      - deploy_dev:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+            tags:
+              ignore: /.*/
