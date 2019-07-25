@@ -29,6 +29,7 @@ const (
 	activeWaiting              = "waiting"
 	hls                        = "hls"
 	transcodeElementIDTemplate = "transcode_task_%s"
+	dolbyVisionElementID       = "dolby_vision_task"
 
 	featureSegmentedRendering = "segmentedRendering"
 )
@@ -59,7 +60,7 @@ type hybrikProvider struct {
 	config *config.Hybrik
 }
 
-func (hp hybrikProvider) String() string {
+func (p hybrikProvider) String() string {
 	return "Hybrik"
 }
 
@@ -82,13 +83,13 @@ func hybrikTranscoderFactory(cfg *config.Config) (provider.TranscodingProvider, 
 	}, nil
 }
 
-func (hp *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
-	cj, err := hp.presetsToTranscodeJob(job)
+func (p *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
+	cj, err := p.presetsToTranscodeJob(job)
 	if err != nil {
 		return &provider.JobStatus{}, err
 	}
 
-	id, err := hp.c.QueueJob(cj)
+	id, err := p.c.QueueJob(cj)
 	if err != nil {
 		return &provider.JobStatus{}, err
 	}
@@ -100,7 +101,7 @@ func (hp *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, destination string, duration uint, preset hwrapper.Preset, execFeatures executionFeatures) hwrapper.Element {
+func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, destination string, duration uint, preset hwrapper.Preset, execFeatures executionFeatures) hwrapper.Element {
 	var e hwrapper.Element
 	var subLocation *hwrapper.TranscodeLocation
 
@@ -120,7 +121,7 @@ func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, d
 
 			Location: hwrapper.TranscodeLocation{
 				StorageProvider: "s3",
-				Path:            fmt.Sprintf("%s/j%s", destination, id),
+				Path:            destination,
 			},
 			Targets: []hwrapper.TranscodeLocationTarget{
 				{
@@ -154,138 +155,62 @@ func (hp *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, d
 	return e
 }
 
-type presetResult struct {
-	presetID string
-	preset   interface{}
-}
-
-func makeGetPresetRequest(hp *hybrikProvider, presetID string, ch chan *presetResult) {
-	presetOutput, err := hp.GetPreset(presetID)
-	result := new(presetResult)
-	result.presetID = presetID
-	if err != nil {
-		result.preset = err
-		ch <- result
-	} else {
-		result.preset = presetOutput
-		ch <- result
-	}
-}
-
-func (hp *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
-	elements := []hwrapper.Element{}
-	transcodeElementIds := []string{}
-	var hlsElementIds []int
-
-	// create a source element
-	sourceElement := hwrapper.Element{
-		UID:  "source_file",
-		Kind: "source",
-		Payload: hwrapper.ElementPayload{
-			Kind: "asset_url",
-			Payload: hwrapper.AssetPayload{
-				StorageProvider: "s3",
-				URL:             job.SourceMedia,
-			},
-		},
+func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
+	cfg := jobCfg{
+		jobID:           job.ID,
+		assetURL:        job.SourceMedia,
+		destBase:        fmt.Sprintf("%s/%s", p.config.Destination, job.ID),
+		streamingParams: job.StreamingParams,
+		source:          srcFrom(job),
 	}
 
 	execFeatures, err := executionFeaturesFrom(job)
 	if err != nil {
 		return "", err
 	}
+	cfg.executionFeatures = execFeatures
 
-	elements = append(elements, sourceElement)
+	outputCfgs, err := p.outputCfgsFrom(job)
+	if err != nil {
+		return "", err
+	}
+	cfg.outputCfgs = outputCfgs
 
-	presetCh := make(chan *presetResult)
-	presets := make(map[string]interface{})
-
-	for _, output := range job.Outputs {
-		presetID, ok := output.Preset.ProviderMapping[Name]
-		if !ok {
-			return "", provider.ErrPresetMapNotFound
-		}
-
-		if _, ok := presets[presetID]; ok {
-			continue
-		}
-
-		presets[presetID] = nil
-
-		go makeGetPresetRequest(hp, presetID, presetCh)
+	elmAssembler, err := p.elementAssemblerFrom(cfg.outputCfgs)
+	if err != nil {
+		return "", err
 	}
 
-	for i := 0; i < len(presets); i++ {
-		res := <-presetCh
-		err, isErr := res.preset.(error)
-		if isErr {
-			return "", fmt.Errorf("error getting preset info: %s", err)
-		}
-
-		presets[res.presetID] = res.preset
+	tasks, err := elmAssembler(cfg)
+	if err != nil {
+		return "", err
 	}
+	cfg.tasks = tasks
 
-	// create transcode elements for each target
-	// TODO: This can be optimized further with regards to combining tasks so that they run in the same machine. Requires some discussion
-	for _, output := range job.Outputs {
-		presetID, ok := output.Preset.ProviderMapping[Name]
-		if !ok {
-			return "", provider.ErrPresetMapNotFound
-		}
-
-		presetOutput, ok := presets[presetID]
-		if !ok {
-			return "", errors.New("hybrik preset not found in preset results")
-		}
-
-		preset, ok := presetOutput.(hwrapper.Preset)
-		if !ok {
-			return "", ErrPresetOutputMatch
-		}
-
-		var segmentDur uint
-		// track the hls outputs so we can later connect them to a manifest creator task
-		if len(preset.Payload.Targets) > 0 && preset.Payload.Targets[0].Container.Kind == hls {
-			hlsElementIds = append(hlsElementIds, len(transcodeElementIds))
-			segmentDur = job.StreamingParams.SegmentDuration
-		}
-
-		taskIndex := strconv.Itoa(len(transcodeElementIds))
-		e := hp.mountTranscodeElement(taskIndex, job.ID, output.FileName, hp.config.Destination, segmentDur, preset, execFeatures)
-
-		transcodeElementIds = append(transcodeElementIds, e.UID)
-		elements = append(elements, e)
-	}
-
-	// connect the source element to each of the transcode elements
-	transcodeSuccessConnections := make([]hwrapper.ToSuccess, len(transcodeElementIds))
-	for i, id := range transcodeElementIds {
-		transcodeSuccessConnections[i] = hwrapper.ToSuccess{Element: id}
+	transcodeSuccessConnections := []hwrapper.ToSuccess{}
+	for _, task := range tasks {
+		transcodeSuccessConnections = append(transcodeSuccessConnections, hwrapper.ToSuccess{Element: task.UID})
 	}
 
 	// create the full job structure
 	cj := hwrapper.CreateJob{
-		Name: fmt.Sprintf("Job %s [%s]", job.ID, path.Base(job.SourceMedia)),
+		Name: fmt.Sprintf("Job %s [%s]", cfg.jobID, path.Base(cfg.assetURL)),
 		Payload: hwrapper.CreateJobPayload{
-			Elements: elements,
-			Connections: []hwrapper.Connection{
-				{
-					From: []hwrapper.ConnectionFrom{
-						{
-							Element: "source_file",
-						},
-					},
-					To: hwrapper.ConnectionTo{
-						Success: transcodeSuccessConnections,
-					},
+			Elements: append([]hwrapper.Element{cfg.source}, tasks...),
+			Connections: []hwrapper.Connection{{
+				From: []hwrapper.ConnectionFrom{{
+					Element: cfg.source.UID,
+				}},
+				To: hwrapper.ConnectionTo{
+					Success: transcodeSuccessConnections,
 				},
-			},
+			}},
 		},
 	}
 
 	// check if we need to add a master manifest task element
 	if job.StreamingParams.Protocol == hls {
-		manifestOutputDir := fmt.Sprintf("%s/j%s", hp.config.Destination, job.ID)
+		manifestOutputDir := fmt.Sprintf("%s/%s", p.config.Destination, job.ID)
 		manifestSubDir := path.Dir(job.StreamingParams.PlaylistFileName)
 		manifestFilePattern := path.Base(job.StreamingParams.PlaylistFileName)
 
@@ -309,8 +234,8 @@ func (hp *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 		cj.Payload.Elements = append(cj.Payload.Elements, manifestElement)
 
 		var manifestFromConnections []hwrapper.ConnectionFrom
-		for _, hlsElementID := range hlsElementIds {
-			manifestFromConnections = append(manifestFromConnections, hwrapper.ConnectionFrom{Element: fmt.Sprintf(transcodeElementIDTemplate, strconv.Itoa(hlsElementID))})
+		for _, task := range tasks {
+			manifestFromConnections = append(manifestFromConnections, hwrapper.ConnectionFrom{Element: task.UID})
 		}
 
 		cj.Payload.Connections = append(cj.Payload.Connections,
@@ -334,8 +259,8 @@ func (hp *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 	return string(resp), nil
 }
 
-func (hp *hybrikProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
-	ji, err := hp.c.GetJobInfo(job.ProviderJobID)
+func (p *hybrikProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
+	ji, err := p.c.GetJobInfo(job.ProviderJobID)
 	if err != nil {
 		return &provider.JobStatus{}, err
 	}
@@ -358,7 +283,7 @@ func (hp *hybrikProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 
 	return &provider.JobStatus{
 		ProviderJobID: job.ProviderJobID,
-		ProviderName:  hp.String(),
+		ProviderName:  p.String(),
 		Progress:      float64(ji.Progress),
 		Status:        status,
 	}, nil
@@ -391,17 +316,17 @@ func executionFeaturesFrom(job *db.Job) (executionFeatures, error) {
 	return features, nil
 }
 
-func (hp *hybrikProvider) CancelJob(id string) error {
-	return hp.c.StopJob(id)
+func (p *hybrikProvider) CancelJob(id string) error {
+	return p.c.StopJob(id)
 }
 
-func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
-	hybrikPreset, err := hp.hybrikPresetFrom(preset)
+func (p *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
+	hybrikPreset, err := p.hybrikPresetFrom(preset)
 	if err != nil {
 		return "", err
 	}
 
-	resultPreset, err := hp.c.CreatePreset(hybrikPreset)
+	resultPreset, err := p.c.CreatePreset(hybrikPreset)
 	if err != nil {
 		return "", err
 	}
@@ -409,7 +334,11 @@ func (hp *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 	return resultPreset.Name, nil
 }
 
-func (hp *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, error) {
+type customPresetData struct {
+	DolbyVisionEnabled bool `json:"dolbyVision"`
+}
+
+func (p *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, error) {
 	var minGOPFrames, maxGOPFrames, gopSize int
 
 	gopSize, err := strconv.Atoi(preset.Video.GopSize)
@@ -425,7 +354,7 @@ func (hp *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, e
 	}
 
 	container := ""
-	for _, c := range hp.Capabilities().OutputFormats {
+	for _, c := range p.Capabilities().OutputFormats {
 		if preset.Container == c || (preset.Container == "m3u8" && c == hls) {
 			container = c
 		}
@@ -476,12 +405,12 @@ func (hp *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, e
 		videoLevel = ""
 	}
 
-	p := hwrapper.Preset{
+	hybrikPreset := hwrapper.Preset{
 		Key:         preset.Name,
 		Name:        preset.Name,
 		Description: preset.Description,
 		Kind:        "transcode",
-		Path:        hp.config.PresetPath,
+		Path:        p.config.PresetPath,
 		Payload: hwrapper.PresetPayload{
 			Targets: []hwrapper.PresetTarget{
 				{
@@ -513,20 +442,20 @@ func (hp *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, e
 		},
 	}
 
-	p, err = enrichPresetWithHDRMetadata(p, preset)
+	hybrikPreset, err = enrichPresetWithHDRMetadata(hybrikPreset, preset)
 	if err != nil {
 		return hwrapper.Preset{}, errors.Wrap(err, "enriching preset with HDR metadata")
 	}
 
-	return p, nil
+	return hybrikPreset, nil
 }
 
-func (hp *hybrikProvider) DeletePreset(presetID string) error {
-	return hp.c.DeletePreset(presetID)
+func (p *hybrikProvider) DeletePreset(presetID string) error {
+	return p.c.DeletePreset(presetID)
 }
 
-func (hp *hybrikProvider) GetPreset(presetID string) (interface{}, error) {
-	preset, err := hp.c.GetPreset(presetID)
+func (p *hybrikProvider) GetPreset(presetID string) (interface{}, error) {
+	preset, err := p.c.GetPreset(presetID)
 	if err != nil {
 		return nil, err
 	}
@@ -537,14 +466,14 @@ func (hp *hybrikProvider) GetPreset(presetID string) (interface{}, error) {
 // Healthcheck should return nil if the provider is currently available
 // for transcoding videos, otherwise it should return an error
 // explaining what's going on.
-func (hp *hybrikProvider) Healthcheck() error {
+func (p *hybrikProvider) Healthcheck() error {
 	// For now, just call list jobs. If this errors, then we can consider the service unhealthy
-	_, err := hp.c.CallAPI("GET", "/jobs/info", nil, nil)
+	_, err := p.c.CallAPI("GET", "/jobs/info", nil, nil)
 	return err
 }
 
 // Capabilities describes the capabilities of the provider.
-func (hp *hybrikProvider) Capabilities() provider.Capabilities {
+func (p *hybrikProvider) Capabilities() provider.Capabilities {
 	// we can support quite a bit more format wise, but unsure of schema so limiting to known supported video-transcoding-api formats for now...
 	return provider.Capabilities{
 		InputFormats:  []string{"prores", "h264", "h265"},

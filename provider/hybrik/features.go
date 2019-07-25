@@ -18,3 +18,15 @@ type SegmentedRendering struct {
 	// Timebase offset to be used by the muxer
 	MuxTimebaseOffset int `json:"muxOffsetOTB,omitempty"`
 }
+
+// DolbyVision hold configuration options for the DEE
+type DolbyVision struct {
+	InputEDRAspect  string `json:"inputEDRAspect"`
+	InputEDRPad     string `json:"inputEDRPad"`
+	InputEDRCrop    string `json:"inputEDRCrop"`
+	VesQCVersion    string `json:"vesQCVersion"`
+	MezzQCVersion   string `json:"mezzQCVersion"`
+	Mp4QCVersion    string `json:"mp4QCVersion"`
+	Mp4MuxerVersion string `json:"mp4MuxerVersion"`
+	SDKVersion      string `json:"sdkVersion"`
+}

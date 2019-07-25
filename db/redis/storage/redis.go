@@ -153,6 +153,9 @@ func (s *Storage) structToFieldList(value reflect.Value, prefixes ...string) (ma
 					fields[k] = v
 				}
 			case reflect.Map:
+				if _, ok := parts.characteristics["omitempty"]; ok && fieldValue.Len() == 0 {
+					continue
+				}
 				expandedFields, err := s.mapToFieldList(fieldValue.Interface(), myPrefixes...)
 				if err != nil {
 					return nil, err
