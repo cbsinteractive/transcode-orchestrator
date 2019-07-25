@@ -38,6 +38,7 @@ const (
 	codecAAC    = "aac"
 	codecVP8    = "vp8"
 	codecH264   = "h264"
+	codecH265   = "h265"
 
 	containerWebM mediaContainer = "webm"
 	containerHLS  mediaContainer = "m3u8"
@@ -45,6 +46,7 @@ const (
 	containerMOV  mediaContainer = "mov"
 
 	h264AAC   cfgStore = "h264aac"
+	h265AAC   cfgStore = "h265aac"
 	vp8Vorbis cfgStore = "vp8vorbis"
 )
 
@@ -107,6 +109,7 @@ func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 		providerCfg: cfg.Bitmovin,
 		cfgStores: map[cfgStore]configuration.Store{
 			h264AAC:   configuration.NewH264AAC(api),
+			h265AAC:   configuration.NewH265AAC(api),
 			vp8Vorbis: configuration.NewVP8Vorbis(api),
 		},
 		containerSvcs: map[mediaContainer]containerSvc{
@@ -416,6 +419,8 @@ func (p *bitmovinProvider) cfgServiceFrom(vcodec, acodec string) (configuration.
 	vcodec, acodec = strings.ToLower(vcodec), strings.ToLower(acodec)
 	if vcodec == codecH264 && acodec == codecAAC {
 		return p.cfgStores[h264AAC], nil
+	} else if vcodec == codecH265 && acodec == codecAAC {
+		return p.cfgStores[h265AAC], nil
 	} else if vcodec == codecVP8 && acodec == codecVorbis {
 		return p.cfgStores[vp8Vorbis], nil
 	}
