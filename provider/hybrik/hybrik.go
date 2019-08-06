@@ -15,7 +15,8 @@ import (
 )
 
 type executionFeatures struct {
-	segmentedRendering *hwrapper.SegmentedRendering
+	segmentedRendering      *hwrapper.SegmentedRendering
+	doViPreProcSegmentation doViPreProcSegmentation
 }
 
 const (
@@ -318,6 +319,11 @@ func executionFeaturesFrom(job *db.Job) (executionFeatures, error) {
 			NumTotalSegments:          feature.NumTotalSegments,
 			EnableStrictCFR:           feature.EnableStrictCFR,
 			MuxTimebaseOffset:         feature.MuxTimebaseOffset,
+		}
+
+		features.doViPreProcSegmentation = doViPreProcSegmentation{
+			numTasks:       feature.DoViPreProcNumTasks,
+			intervalLength: feature.DoViPreProcIntervalLength,
 		}
 	}
 

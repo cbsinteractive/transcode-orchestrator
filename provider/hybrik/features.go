@@ -17,6 +17,12 @@ type SegmentedRendering struct {
 
 	// Timebase offset to be used by the muxer
 	MuxTimebaseOffset int `json:"muxOffsetOTB,omitempty"`
+
+	// DoViPreProcNumTasks sets the number of tasks to use or "auto" for DolbyVision PreProc tasks
+	DoViPreProcNumTasks string `json:"doViPreProcNumTasks,omitempty"`
+
+	// DoViPreProcIntervalLength sets the interval length to split for DolbyVision PreProc tasks
+	DoViPreProcIntervalLength int `json:"doViPreProcIntervalLength,omitempty"`
 }
 
 // DolbyVision hold configuration options for the DEE
@@ -29,4 +35,9 @@ type DolbyVision struct {
 	Mp4QCVersion    string `json:"mp4QCVersion"`
 	Mp4MuxerVersion string `json:"mp4MuxerVersion"`
 	SDKVersion      string `json:"sdkVersion"`
+}
+
+type doViPreProcSegmentation struct {
+	numTasks       string
+	intervalLength int
 }

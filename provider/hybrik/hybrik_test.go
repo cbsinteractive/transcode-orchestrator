@@ -428,14 +428,14 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 									"metadata_postproc": map[string]interface{}{
 										"dovi_sdk_version": "4.2.1_ga",
 										"enabled":          true,
-										"file_pattern":     "ves.265",
+										"file_pattern":     "postproc.265",
 										"location": map[string]interface{}{
 											"path":             "/jobID/metadata_postproc",
 											"storage_provider": "s3",
 										},
 										"qc": map[string]interface{}{
 											"enabled":      true,
-											"file_pattern": "metadata_postproc_ves_qc_report.txt",
+											"file_pattern": "metadata_postproc_qc_report.txt",
 											"location": map[string]interface{}{
 												"path":             "/jobID/metadata_postproc_qc",
 												"storage_provider": "s3",
@@ -467,9 +467,9 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 											},
 										},
 										"enabled":      true,
-										"file_pattern": "mux_output.mp4",
+										"file_pattern": "dolbyVision_muxed.mp4",
 										"location": map[string]interface{}{
-											"path":             "/jobID/mp4muxer",
+											"path":             "/jobID",
 											"storage_provider": "s3",
 										},
 										"qc": map[string]interface{}{
