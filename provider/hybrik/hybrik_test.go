@@ -626,6 +626,37 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "when a destination base path is defined, the defined destination is used instead of the" +
+				" globally configured one",
+			jobModifier: func(job db.Job) db.Job {
+				job.DestinationBasePath = "s3://per-job-defined-bucket/some/base/path"
+				return job
+			},
+			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+				if len(createJob.Payload.Elements) < 2 {
+					t.Error("job has less than two elements, tried to pull the second element (transcode)")
+					return
+				}
+				gotTranscode := createJob.Payload.Elements[1]
+
+				payload, ok := gotTranscode.Payload.(map[string]interface{})
+				if !ok {
+					t.Error("transcode payload was not a map of string to map[string]interface{}")
+					return
+				}
+
+				location, ok := payload["location"].(map[string]interface{})
+				if !ok {
+					t.Error("transcode payload location was not a map of string to map[string]interface{}")
+					return
+				}
+
+				if g, e := location["path"].(string), "s3://per-job-defined-bucket/some/base/path/jobID"; g != e {
+					t.Errorf("destination location path: got %q, expected %q", g, e)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

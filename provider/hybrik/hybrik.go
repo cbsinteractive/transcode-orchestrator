@@ -159,7 +159,7 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 	cfg := jobCfg{
 		jobID:           job.ID,
 		assetURL:        job.SourceMedia,
-		destBase:        fmt.Sprintf("%s/%s", p.config.Destination, job.ID),
+		destBase:        fmt.Sprintf("%s/%s", p.destinationForJob(job), job.ID),
 		streamingParams: job.StreamingParams,
 		source:          srcFrom(job),
 	}
@@ -210,7 +210,7 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 
 	// check if we need to add a master manifest task element
 	if job.StreamingParams.Protocol == hls {
-		manifestOutputDir := fmt.Sprintf("%s/%s", p.config.Destination, job.ID)
+		manifestOutputDir := fmt.Sprintf("%s/%s", p.destinationForJob(job), job.ID)
 		manifestSubDir := path.Dir(job.StreamingParams.PlaylistFileName)
 		manifestFilePattern := path.Base(job.StreamingParams.PlaylistFileName)
 
@@ -257,6 +257,14 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 	}
 
 	return string(resp), nil
+}
+
+func (p *hybrikProvider) destinationForJob(job *db.Job) string {
+	if path := job.DestinationBasePath; path != "" {
+		return path
+	}
+
+	return p.config.Destination
 }
 
 func (p *hybrikProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {

@@ -52,6 +52,11 @@ type Job struct {
 	// required: true
 	SourceMedia string `redis-hash:"source" json:"source"`
 
+	// Base Destination of the job
+	//
+	// required: false
+	DestinationBasePath string `redis-hash:"destbasepath,omitempty" json:"d,omitempty"`
+
 	// SidecarAssets contain a map of string keys to file locations
 	//
 	// required: false

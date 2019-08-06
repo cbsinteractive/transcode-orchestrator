@@ -27,6 +27,12 @@ type NewTranscodeJobInputPayload struct {
 	// ExecutionFeatures holds custom provider-specific execution features configuration
 	ExecutionFeatures db.ExecutionFeatures `json:"executionFeatures,omitempty"`
 
+	// SidecarAssets holds the location of any sidecar assets associated with the transcode
+	SidecarAssets map[db.SidecarAssetKind]string `json:"sidecarAssets,omitempty"`
+
+	// DestinationBasePath is an optional param allowing users to overwrite the location of outputs pre job
+	DestinationBasePath string `json:"destinationBasePath,omitempty"`
+
 	// provider Adaptive Streaming parameters
 	StreamingParams db.StreamingParams `json:"streamingParams,omitempty"`
 }
