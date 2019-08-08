@@ -27,6 +27,9 @@ type NewTranscodeJobInputPayload struct {
 	// ExecutionFeatures holds custom provider-specific execution features configuration
 	ExecutionFeatures db.ExecutionFeatures `json:"executionFeatures,omitempty"`
 
+	// ExecutionEnv contains configurations for the environment used while transcoding
+	ExecutionEnv db.ExecutionEnvironment `json:"executionEnv,omitempty"`
+
 	// SidecarAssets holds the location of any sidecar assets associated with the transcode
 	SidecarAssets map[db.SidecarAssetKind]string `json:"sidecarAssets,omitempty"`
 

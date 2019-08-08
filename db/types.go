@@ -32,6 +32,11 @@ type Job struct {
 	// required: false
 	StreamingParams StreamingParams `redis-hash:"streamingparams,expand" json:"streamingParams,omitempty"`
 
+	// ExecutionEnv contains configurations for the environment used while transcoding
+	//
+	// required: false
+	ExecutionEnv ExecutionEnvironment `redis-hash:"executionenvironment,expand" json:"executionEnv,omitempty"`
+
 	// configuration for execution features for the selected provider
 	//
 	// required: false
@@ -71,6 +76,12 @@ type Job struct {
 type SidecarAssetKind = string
 
 const SidecarAssetKindDolbyVisionMetadata SidecarAssetKind = "dolbyVisionMetadata"
+
+// ExecutionEnv contains configurations for the environment used while transcoding
+type ExecutionEnvironment struct {
+	Cloud  string `json:"cloud"`
+	Region string `json:"region"`
+}
 
 // TranscodeOutput represents a transcoding output. It's a combination of the
 // preset and the output file name.
