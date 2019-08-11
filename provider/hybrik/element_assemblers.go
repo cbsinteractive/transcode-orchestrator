@@ -19,7 +19,7 @@ const (
 	doViMetadataPostProcFilenameDefault   = "postproc.265"
 	doViMetadataPostProcQCOutputPathTmpl  = "%s/metadata_postproc_qc"
 	doViMetadataPostProcQCFilenameDefault = "metadata_postproc_qc_report.txt"
-	doViMP4MuxFilenameDefault             = "dolbyVision_muxed.mp4"
+	doViMP4MuxFilenameDefault             = "{source_basename}.mp4"
 	doViMP4MuxQCOutputPathTmpl            = "%s/mp4_qc"
 	doViMP4MuxQCFilenameDefault           = "mp4_qc_report.txt"
 	doViSourceDemuxOutputPathTmpl         = "%s/source_demux"

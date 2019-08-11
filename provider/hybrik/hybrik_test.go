@@ -467,7 +467,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 											},
 										},
 										"enabled":      true,
-										"file_pattern": "dolbyVision_muxed.mp4",
+										"file_pattern": "{source_basename}.mp4",
 										"location": map[string]interface{}{
 											"path":             "/jobID",
 											"storage_provider": "s3",
@@ -500,7 +500,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 										"kind": "transcode",
 										"payload": map[string]interface{}{
 											"location": map[string]interface{}{
-												"path":             "/jobID",
+												"path":             "/jobID/elementary",
 												"storage_provider": "s3",
 											},
 											"source_pipeline": map[string]interface{}{

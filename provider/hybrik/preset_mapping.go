@@ -49,7 +49,7 @@ func transcodeElementFromPreset(preset hybrik.Preset, uid string, baseDestinatio
 		LocationTargetPayload: hybrik.LocationTargetPayload{
 			Location: hybrik.TranscodeLocation{
 				StorageProvider: storageProviderS3,
-				Path:            baseDestination,
+				Path:            fmt.Sprintf("%s/elementary", baseDestination),
 			},
 			Targets: []hybrik.PresetTarget{{
 				FilePattern:   filename,
