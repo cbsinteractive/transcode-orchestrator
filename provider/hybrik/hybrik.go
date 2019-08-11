@@ -102,7 +102,8 @@ func (p *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, destination string, duration uint, preset hwrapper.Preset, execFeatures executionFeatures) hwrapper.Element {
+func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename string, destination storageLocation,
+	segmentDuration uint, preset hwrapper.Preset, execFeatures executionFeatures) hwrapper.Element {
 	var e hwrapper.Element
 	var subLocation *hwrapper.TranscodeLocation
 
@@ -119,17 +120,16 @@ func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, de
 
 	transcodePayload := hwrapper.TranscodePayload{
 		LocationTargetPayload: hwrapper.LocationTargetPayload{
-
 			Location: hwrapper.TranscodeLocation{
-				StorageProvider: "s3",
-				Path:            destination,
+				StorageProvider: destination.provider,
+				Path:            destination.path,
 			},
 			Targets: []hwrapper.TranscodeLocationTarget{
 				{
 					Location:    subLocation,
 					FilePattern: outputFilePattern,
 					Container: hwrapper.TranscodeTargetContainer{
-						SegmentDuration: duration,
+						SegmentDuration: segmentDuration,
 					},
 				},
 			},
@@ -157,12 +157,35 @@ func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename, de
 }
 
 func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
+	srcStorageProvider, err := storageProviderFrom(job.SourceMedia)
+	if err != nil {
+		return "", errors.Wrap(err, "parsing source storage provider")
+	}
+	srcLocation := storageLocation{
+		provider: srcStorageProvider,
+		path:     job.SourceMedia,
+	}
+
+	destinationPath := p.destinationForJob(job)
+	destStorageProvider, err := storageProviderFrom(destinationPath)
+	if err != nil {
+		return "", errors.Wrap(err, "parsing destination storage provider")
+	}
+
+	srcElement, err := srcFrom(job, srcLocation)
+	if err != nil {
+		return "", errors.Wrap(err, "creating the hybrik source element")
+	}
+
 	cfg := jobCfg{
-		jobID:           job.ID,
-		assetURL:        job.SourceMedia,
-		destBase:        fmt.Sprintf("%s/%s", p.destinationForJob(job), job.ID),
+		jobID:          job.ID,
+		sourceLocation: srcLocation,
+		destination: storageLocation{
+			provider: destStorageProvider,
+			path:     fmt.Sprintf("%s/%s", destinationPath, job.ID),
+		},
 		streamingParams: job.StreamingParams,
-		source:          srcFrom(job),
+		source:          srcElement,
 	}
 
 	execFeatures, err := executionFeaturesFrom(job)
@@ -195,7 +218,7 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 
 	// create the full job structure
 	cj := hwrapper.CreateJob{
-		Name: fmt.Sprintf("Job %s [%s]", cfg.jobID, path.Base(cfg.assetURL)),
+		Name: fmt.Sprintf("Job %s [%s]", cfg.jobID, path.Base(cfg.sourceLocation.path)),
 		Payload: hwrapper.CreateJobPayload{
 			Elements: append([]hwrapper.Element{cfg.source}, tasks...),
 			Connections: []hwrapper.Connection{{
@@ -211,7 +234,7 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 
 	// check if we need to add a master manifest task element
 	if job.StreamingParams.Protocol == hls {
-		manifestOutputDir := fmt.Sprintf("%s/%s", p.destinationForJob(job), job.ID)
+		manifestOutputDir := fmt.Sprintf("%s/%s", destinationPath, job.ID)
 		manifestSubDir := path.Dir(job.StreamingParams.PlaylistFileName)
 		manifestFilePattern := path.Base(job.StreamingParams.PlaylistFileName)
 
@@ -224,7 +247,7 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 			Kind: "manifest_creator",
 			Payload: hwrapper.ManifestCreatorPayload{
 				Location: hwrapper.TranscodeLocation{
-					StorageProvider: "s3",
+					StorageProvider: cfg.destination.provider,
 					Path:            manifestOutputDir,
 				},
 				FilePattern: manifestFilePattern,
@@ -492,6 +515,6 @@ func (p *hybrikProvider) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
 		InputFormats:  []string{"prores", "h264", "h265"},
 		OutputFormats: []string{"mp4", "hls", "webm", "mov"},
-		Destinations:  []string{"s3"},
+		Destinations:  []string{storageProviderS3, storageProviderGCS},
 	}
 }

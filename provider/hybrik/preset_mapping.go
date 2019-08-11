@@ -17,16 +17,18 @@ const (
 
 type storageProvider = string
 
+const storageProviderUnrecognized storageProvider = "unrecognized"
 const storageProviderS3 storageProvider = "s3"
+const storageProviderGCS storageProvider = "gs"
 
-func transcodeElementsFromPresets(presets map[string]hybrik.Preset, baseDestination string,
+func transcodeElementsFromPresets(presets map[string]hybrik.Preset, destination storageLocation,
 	execFeatures executionFeatures) ([]hybrik.Element, error) {
 	elements := []hybrik.Element{}
 
 	idx := 0
 	for filename, preset := range presets {
 		element, err := transcodeElementFromPreset(preset, fmt.Sprintf("transcode_task_%d", idx),
-			baseDestination, filename, execFeatures)
+			destination, filename, execFeatures)
 		if err != nil {
 			return nil, errors.Wrapf(err, "mapping hybrik preset %v into a transcode element", preset)
 		}
@@ -38,7 +40,7 @@ func transcodeElementsFromPresets(presets map[string]hybrik.Preset, baseDestinat
 	return elements, nil
 }
 
-func transcodeElementFromPreset(preset hybrik.Preset, uid string, baseDestination string, filename string,
+func transcodeElementFromPreset(preset hybrik.Preset, uid string, destination storageLocation, filename string,
 	execFeatures executionFeatures) (hybrik.Element, error) {
 	if len(preset.Payload.Targets) != 1 {
 		return hybrik.Element{}, errors.New("the hybrik provider only supports presets with a single target")
@@ -48,8 +50,8 @@ func transcodeElementFromPreset(preset hybrik.Preset, uid string, baseDestinatio
 	payload := hybrik.TranscodePayload{
 		LocationTargetPayload: hybrik.LocationTargetPayload{
 			Location: hybrik.TranscodeLocation{
-				StorageProvider: storageProviderS3,
-				Path:            fmt.Sprintf("%s/elementary", baseDestination),
+				StorageProvider: destination.provider,
+				Path:            fmt.Sprintf("%s/elementary", destination.path),
 			},
 			Targets: []hybrik.PresetTarget{{
 				FilePattern:   filename,

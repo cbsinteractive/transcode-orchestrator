@@ -315,7 +315,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 							Preset: &hybrik.TranscodePreset{Key: "preset_name"},
 							Payload: map[string]interface{}{
 								"location": map[string]interface{}{
-									"path":             "/jobID",
+									"path":             "s3://some-dest/path/jobID",
 									"storage_provider": "s3",
 								},
 								"source_pipeline": map[string]interface{}{
@@ -400,7 +400,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 									"enabled":      false,
 									"file_pattern": "jobID_mezz_qc_report.txt",
 									"location": map[string]interface{}{
-										"path":             "/jobID/mezzanine_qc",
+										"path":             "s3://some-dest/path/jobID/mezzanine_qc",
 										"storage_provider": "s3",
 									},
 									"task":         map[string]interface{}{},
@@ -416,7 +416,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 									"dovi_sdk_version": "4.2.1_ga",
 									"interval_length":  float64(48),
 									"location": map[string]interface{}{
-										"path":             "/jobID/nbc_preproc",
+										"path":             "s3://some-dest/path/jobID/nbc_preproc",
 										"storage_provider": "s3",
 									},
 									"num_tasks": "auto",
@@ -430,14 +430,14 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 										"enabled":          true,
 										"file_pattern":     "postproc.265",
 										"location": map[string]interface{}{
-											"path":             "/jobID/metadata_postproc",
+											"path":             "s3://some-dest/path/jobID/metadata_postproc",
 											"storage_provider": "s3",
 										},
 										"qc": map[string]interface{}{
 											"enabled":      true,
 											"file_pattern": "metadata_postproc_qc_report.txt",
 											"location": map[string]interface{}{
-												"path":             "/jobID/metadata_postproc_qc",
+												"path":             "s3://some-dest/path/jobID/metadata_postproc_qc",
 												"storage_provider": "s3",
 											},
 											"tool_version": "0.9.0.9",
@@ -453,7 +453,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 												},
 												"extract_audio": true,
 												"extract_location": map[string]interface{}{
-													"path":             "/jobID/source_demux",
+													"path":             "s3://some-dest/path/jobID/source_demux",
 													"storage_provider": "s3",
 												},
 												"extract_task": map[string]interface{}{
@@ -469,14 +469,14 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 										"enabled":      true,
 										"file_pattern": "{source_basename}.mp4",
 										"location": map[string]interface{}{
-											"path":             "/jobID",
+											"path":             "s3://some-dest/path/jobID",
 											"storage_provider": "s3",
 										},
 										"qc": map[string]interface{}{
 											"enabled":      true,
 											"file_pattern": "mp4_qc_report.txt",
 											"location": map[string]interface{}{
-												"path":             "/jobID/mp4_qc",
+												"path":             "s3://some-dest/path/jobID/mp4_qc",
 												"storage_provider": "s3",
 											},
 											"tool_version": "1.1.4",
@@ -489,7 +489,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 										"enabled":          true,
 										"file_pattern":     "ves.h265",
 										"location": map[string]interface{}{
-											"path":             "/jobID/vesmuxer",
+											"path":             "s3://some-dest/path/jobID/vesmuxer",
 											"storage_provider": "s3",
 										},
 									},
@@ -500,7 +500,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 										"kind": "transcode",
 										"payload": map[string]interface{}{
 											"location": map[string]interface{}{
-												"path":             "/jobID/elementary",
+												"path":             "s3://some-dest/path/jobID/elementary",
 												"storage_provider": "s3",
 											},
 											"source_pipeline": map[string]interface{}{
@@ -550,14 +550,18 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &hybrikProvider{
 				config: &config.Hybrik{
-					PresetPath: "some_preset_path",
+					Destination: "s3://some-dest/path",
+					PresetPath:  "some_preset_path",
 				},
 				c: &testClient{getPresetReturn: tt.preset},
 			}
 
 			got, err := p.presetsToTranscodeJob(tt.job)
-			if err != nil && tt.wantErr != err.Error() {
-				t.Errorf("hybrikProvider.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErr)
+			if err != nil {
+				if tt.wantErr != err.Error() {
+					t.Errorf("hybrikProvider.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErr)
+				}
+
 				return
 			}
 
@@ -586,7 +590,7 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			name: "when a dolby vision sidecar asset is included, it is correctly added to the source element",
 			jobModifier: func(job db.Job) db.Job {
 				job.SidecarAssets = map[db.SidecarAssetKind]string{
-					db.SidecarAssetKindDolbyVisionMetadata: "test_sidecar_location",
+					db.SidecarAssetKindDolbyVisionMetadata: "s3://test_sidecar_location/path/file.xml",
 				}
 
 				return job
@@ -606,7 +610,7 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 							},
 							map[string]interface{}{
 								"storage_provider": "s3",
-								"url":              "test_sidecar_location",
+								"url":              "s3://test_sidecar_location/path/file.xml",
 								"contents": []interface{}{
 									map[string]interface{}{
 										"kind": assetContentsKindMetadata,
@@ -664,7 +668,8 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &hybrikProvider{
 				config: &config.Hybrik{
-					PresetPath: "some_preset_path",
+					Destination: "s3://some-dest/path",
+					PresetPath:  "some_preset_path",
 				},
 				c: &testClient{getPresetReturn: defaultHybrikPreset},
 			}

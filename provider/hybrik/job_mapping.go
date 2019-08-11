@@ -10,8 +10,8 @@ import (
 
 type jobCfg struct {
 	jobID             string
-	destBase          string
-	assetURL          string
+	destination       storageLocation
+	sourceLocation    storageLocation
 	source            hybrik.Element
 	tasks             []hybrik.Element
 	outputCfgs        map[string]outputCfg
@@ -30,17 +30,22 @@ const (
 	assetContentsStandardDolbyVisionMetadata = "dolbyvision_metadata"
 )
 
-func srcFrom(job *db.Job) hybrik.Element {
+func srcFrom(job *db.Job, src storageLocation) (hybrik.Element, error) {
 	assets := []hybrik.AssetPayload{
 		{
-			StorageProvider: storageProviderS3,
-			URL:             job.SourceMedia,
+			StorageProvider: src.provider,
+			URL:             src.path,
 		},
 	}
 
 	if sidecarLocation, ok := job.SidecarAssets[db.SidecarAssetKindDolbyVisionMetadata]; ok {
+		sidecarStorageProvider, err := storageProviderFrom(sidecarLocation)
+		if err != nil {
+			return hybrik.Element{}, err
+		}
+
 		assets = append(assets, hybrik.AssetPayload{
-			StorageProvider: storageProviderS3,
+			StorageProvider: sidecarStorageProvider,
 			URL:             sidecarLocation,
 			Contents: []hybrik.AssetContents{{
 				Kind: assetContentsKindMetadata,
@@ -58,7 +63,7 @@ func srcFrom(job *db.Job) hybrik.Element {
 			Kind:    "asset_urls",
 			Payload: assets,
 		},
-	}
+	}, nil
 }
 
 func (p *hybrikProvider) outputCfgsFrom(job *db.Job) (map[string]outputCfg, error) {

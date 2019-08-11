@@ -41,7 +41,7 @@ func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([]hybrik.Element, 
 
 	idx := 0
 	for _, outputCfg := range cfg.outputCfgs {
-		e := p.mountTranscodeElement(strconv.Itoa(idx), cfg.jobID, outputCfg.filename, cfg.destBase,
+		e := p.mountTranscodeElement(strconv.Itoa(idx), cfg.jobID, outputCfg.filename, cfg.destination,
 			cfg.streamingParams.SegmentDuration, outputCfg.preset, cfg.executionFeatures)
 		elements = append(elements, e)
 		idx++
@@ -56,7 +56,7 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 		presets[outputCfg.filename] = outputCfg.preset
 	}
 
-	transcodeElements, err := transcodeElementsFromPresets(presets, cfg.destBase, cfg.executionFeatures)
+	transcodeElements, err := transcodeElementsFromPresets(presets, cfg.destination, cfg.executionFeatures)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +80,8 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 			MezzanineQC: hybrik.DoViMezzanineQC{
 				Enabled: false,
 				Location: hybrik.TranscodeLocation{
-					StorageProvider: storageProviderS3,
-					Path:            fmt.Sprintf(doViMezzQCOutputPathTmpl, cfg.destBase),
+					StorageProvider: cfg.destination.provider,
+					Path:            fmt.Sprintf(doViMezzQCOutputPathTmpl, cfg.destination.path),
 				},
 				FilePattern: fmt.Sprintf(doViMezzQCReportFilenameTmpl, cfg.jobID),
 				ToolVersion: hybrik.DoViMezzQCVersionDefault,
@@ -91,8 +91,8 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 					Tags: []string{computeTagPreProc},
 				},
 				Location: hybrik.TranscodeLocation{
-					StorageProvider: storageProviderS3,
-					Path:            fmt.Sprintf(doViNBCPreProcOutputPathTmpl, cfg.destBase),
+					StorageProvider: cfg.destination.provider,
+					Path:            fmt.Sprintf(doViNBCPreProcOutputPathTmpl, cfg.destination.path),
 				},
 				SDKVersion:     hybrik.DoViSDKVersionDefault,
 				NumTasks:       doViPreProcNumTasks,
@@ -108,8 +108,8 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 				VESMux: hybrik.DoViVESMux{
 					Enabled: true,
 					Location: hybrik.TranscodeLocation{
-						StorageProvider: storageProviderS3,
-						Path:            fmt.Sprintf(doViVESMuxOutputPathTmpl, cfg.destBase),
+						StorageProvider: cfg.destination.provider,
+						Path:            fmt.Sprintf(doViVESMuxOutputPathTmpl, cfg.destination.path),
 					},
 					FilePattern: doViVESMuxFilenameDefault,
 					SDKVersion:  hybrik.DoViSDKVersionDefault,
@@ -117,8 +117,8 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 				MetadataPostProc: hybrik.DoViMetadataPostProc{
 					Enabled: true,
 					Location: hybrik.TranscodeLocation{
-						StorageProvider: storageProviderS3,
-						Path:            fmt.Sprintf(doViMetadataPostProcOutputPathTmpl, cfg.destBase),
+						StorageProvider: cfg.destination.provider,
+						Path:            fmt.Sprintf(doViMetadataPostProcOutputPathTmpl, cfg.destination.path),
 					},
 					FilePattern: doViMetadataPostProcFilenameDefault,
 					SDKVersion:  hybrik.DoViSDKVersionDefault,
@@ -126,8 +126,8 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 						Enabled:     true,
 						ToolVersion: hybrik.DoViVesQCVersionDefault,
 						Location: hybrik.TranscodeLocation{
-							StorageProvider: storageProviderS3,
-							Path:            fmt.Sprintf(doViMetadataPostProcQCOutputPathTmpl, cfg.destBase),
+							StorageProvider: cfg.destination.provider,
+							Path:            fmt.Sprintf(doViMetadataPostProcQCOutputPathTmpl, cfg.destination.path),
 						},
 						FilePattern: doViMetadataPostProcQCFilenameDefault,
 					},
@@ -135,8 +135,8 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 				MP4Mux: hybrik.DoViMP4Mux{
 					Enabled: true,
 					Location: hybrik.TranscodeLocation{
-						StorageProvider: storageProviderS3,
-						Path:            cfg.destBase,
+						StorageProvider: cfg.destination.provider,
+						Path:            cfg.destination.path,
 					},
 					FilePattern:        doViMP4MuxFilenameDefault,
 					ToolVersion:        hybrik.DoViMP4MuxerVersionDefault,
@@ -145,20 +145,20 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 						Enabled:     true,
 						ToolVersion: hybrik.DoViMP4QCVersionDefault,
 						Location: hybrik.TranscodeLocation{
-							StorageProvider: storageProviderS3,
-							Path:            fmt.Sprintf(doViMP4MuxQCOutputPathTmpl, cfg.destBase),
+							StorageProvider: cfg.destination.provider,
+							Path:            fmt.Sprintf(doViMP4MuxQCOutputPathTmpl, cfg.destination.path),
 						},
 						FilePattern: doViMP4MuxQCFilenameDefault,
 					},
 					ElementaryStreams: []hybrik.DoViMP4MuxElementaryStream{{
 						AssetURL: hybrik.AssetURL{
-							StorageProvider: storageProviderS3,
-							URL:             cfg.assetURL,
+							StorageProvider: cfg.sourceLocation.provider,
+							URL:             cfg.sourceLocation.path,
 						},
 						ExtractAudio: true,
 						ExtractLocation: hybrik.TranscodeLocation{
-							StorageProvider: storageProviderS3,
-							Path:            fmt.Sprintf(doViSourceDemuxOutputPathTmpl, cfg.destBase),
+							StorageProvider: cfg.destination.provider,
+							Path:            fmt.Sprintf(doViSourceDemuxOutputPathTmpl, cfg.destination.path),
 						},
 						ExtractTask: hybrik.DoViMP4MuxExtractTask{
 							RetryMethod: retryMethodRetry,
