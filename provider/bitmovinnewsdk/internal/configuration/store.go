@@ -2,7 +2,7 @@ package configuration
 
 import (
 	"github.com/NYTimes/video-transcoding-api/db"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/types"
+	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/types"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/pkg/errors"
 )

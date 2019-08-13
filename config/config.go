@@ -65,15 +65,18 @@ type ElementalConductor struct {
 // Bitmovin represents the set of configurations for the Bitmovin
 // provider.
 type Bitmovin struct {
-	APIKey           string `envconfig:"BITMOVIN_API_KEY"`
-	Endpoint         string `envconfig:"BITMOVIN_ENDPOINT" default:"https://api.bitmovin.com/v1/"`
-	Timeout          uint   `envconfig:"BITMOVIN_TIMEOUT" default:"5"`
-	AccessKeyID      string `envconfig:"BITMOVIN_AWS_ACCESS_KEY_ID"`
-	SecretAccessKey  string `envconfig:"BITMOVIN_AWS_SECRET_ACCESS_KEY"`
-	Destination      string `envconfig:"BITMOVIN_DESTINATION"`
-	AWSStorageRegion string `envconfig:"BITMOVIN_AWS_STORAGE_REGION" default:"US_EAST_1"`
-	EncodingRegion   string `envconfig:"BITMOVIN_ENCODING_REGION" default:"AWS_US_EAST_1"`
-	EncodingVersion  string `envconfig:"BITMOVIN_ENCODING_VERSION" default:"STABLE"`
+	APIKey             string `envconfig:"BITMOVIN_API_KEY"`
+	Endpoint           string `envconfig:"BITMOVIN_ENDPOINT" default:"https://api.bitmovin.com/v1/"`
+	Timeout            uint   `envconfig:"BITMOVIN_TIMEOUT" default:"5"`
+	AccessKeyID        string `envconfig:"BITMOVIN_AWS_ACCESS_KEY_ID"`
+	SecretAccessKey    string `envconfig:"BITMOVIN_AWS_SECRET_ACCESS_KEY"`
+	AWSStorageRegion   string `envconfig:"BITMOVIN_AWS_STORAGE_REGION" default:"US_EAST_1"`
+	GCSAccessKeyID     string `envconfig:"BITMOVIN_GCS_ACCESS_KEY_ID"`
+	GCSSecretAccessKey string `envconfig:"BITMOVIN_GCS_SECRET_ACCESS_KEY"`
+	GCSStorageRegion   string `envconfig:"BITMOVIN_GCS_STORAGE_REGION"`
+	Destination        string `envconfig:"BITMOVIN_DESTINATION"`
+	EncodingRegion     string `envconfig:"BITMOVIN_ENCODING_REGION" default:"AWS_US_EAST_1"`
+	EncodingVersion    string `envconfig:"BITMOVIN_ENCODING_VERSION" default:"STABLE"`
 }
 
 // Hybrik represents the set of configurations for the Hybrik

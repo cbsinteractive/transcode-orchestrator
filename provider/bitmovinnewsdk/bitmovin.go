@@ -8,11 +8,10 @@ import (
 	"github.com/NYTimes/video-transcoding-api/config"
 	"github.com/NYTimes/video-transcoding-api/db"
 	"github.com/NYTimes/video-transcoding-api/provider"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/configuration"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/container"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/input"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/output"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/status"
+	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/configuration"
+	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/container"
+	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/status"
+	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/storage"
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/common"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
@@ -71,6 +70,22 @@ var cloudRegions = map[model.CloudRegion]struct{}{
 	model.CloudRegion_AFRICA: {}, model.CloudRegion_ASIA: {}, model.CloudRegion_AUSTRALIA: {},
 	model.CloudRegion_AWS: {}, model.CloudRegion_GOOGLE: {}, model.CloudRegion_KUBERNETES: {},
 	model.CloudRegion_EXTERNAL: {}, model.CloudRegion_AUTO: {},
+}
+
+var regionByCloud = map[string]map[string]model.CloudRegion{
+	provider.CloudAWS: {
+		provider.AWSRegionUSEast1: model.CloudRegion_AWS_US_EAST_1,
+		provider.AWSRegionUSEast2: model.CloudRegion_AWS_US_EAST_2,
+		provider.AWSRegionUSWest1: model.CloudRegion_AWS_US_WEST_1,
+		provider.AWSRegionUSWest2: model.CloudRegion_AWS_US_WEST_2,
+	},
+	provider.CloudGCP: {
+		provider.GCPRegionUSEast1:    model.CloudRegion_GOOGLE_US_EAST_1,
+		provider.GCPRegionUSEast4:    model.CloudRegion_GOOGLE_US_EAST_4,
+		provider.GCPRegionUSWest1:    model.CloudRegion_GOOGLE_US_WEST_1,
+		provider.GCPRegionUSWest2:    model.CloudRegion_GOOGLE_US_WEST_2,
+		provider.GCPRegionUSCentral1: model.CloudRegion_GOOGLE_US_CENTRAL_1,
+	},
 }
 
 var awsCloudRegions = map[model.AwsCloudRegion]struct{}{
@@ -141,12 +156,20 @@ type bitmovinProvider struct {
 }
 
 func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
-	inputID, mediaPath, err := input.New(job.SourceMedia, p.api, p.providerCfg)
+	inputID, mediaPath, err := storage.NewInput(job.SourceMedia, storage.InputAPI{
+		S3:    p.api.Encoding.Inputs.S3,
+		GCS:   p.api.Encoding.Inputs.Gcs,
+		HTTP:  p.api.Encoding.Inputs.Http,
+		HTTPS: p.api.Encoding.Inputs.Https,
+	}, p.providerCfg)
 	if err != nil {
 		return nil, err
 	}
 
-	outputID, destPath, err := output.New(p.providerCfg.Destination, p.api, p.providerCfg)
+	outputID, destPath, err := storage.NewOutput(p.destinationForJob(job), storage.OutputAPI{
+		S3:  p.api.Encoding.Outputs.S3,
+		GCS: p.api.Encoding.Outputs.Gcs,
+	}, p.providerCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -210,10 +233,15 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		}
 	}
 
+	encodingCloudRegion, err := p.encodingCloudRegionFrom(job)
+	if err != nil {
+		return nil, errors.Wrap(err, "validating and setting encoding cloud region")
+	}
+
 	enc, err := p.api.Encoding.Encodings.Create(model.Encoding{
 		Name:           "encoding",
 		CustomData:     &encCustomData,
-		CloudRegion:    model.CloudRegion(p.providerCfg.EncodingRegion),
+		CloudRegion:    encodingCloudRegion,
 		EncoderVersion: p.providerCfg.EncodingVersion,
 	})
 	if err != nil {
@@ -306,6 +334,24 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
+func (p *bitmovinProvider) encodingCloudRegionFrom(job *db.Job) (model.CloudRegion, error) {
+	if cloud, region := job.ExecutionEnv.Cloud, job.ExecutionEnv.Region; cloud+region != "" {
+		regions, found := regionByCloud[cloud]
+		if !found {
+			return "", fmt.Errorf("unsupported cloud %q", cloud)
+		}
+
+		bitmovinRegion, found := regions[region]
+		if !found {
+			return "", fmt.Errorf("region %q is not supported with cloud %q", region, cloud)
+		}
+
+		return bitmovinRegion, nil
+	}
+
+	return model.CloudRegion(p.providerCfg.EncodingRegion), nil
+}
+
 func (p *bitmovinProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 	task, err := p.api.Encoding.Encodings.Status(job.ProviderJobID)
 	if err != nil {
@@ -327,7 +373,7 @@ func (p *bitmovinProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 			"originalStatus": task.Status,
 		},
 		Output: provider.JobOutput{
-			Destination: strings.TrimRight(p.providerCfg.Destination, "/") + "/" + job.ID + "/",
+			Destination: strings.TrimRight(p.destinationForJob(job), "/") + "/" + job.ID + "/",
 		},
 	}
 
@@ -393,6 +439,14 @@ func (p *bitmovinProvider) cfgDetailsFrom(presetID string) (configuration.Detail
 	return configuration.Details{}, errors.New("preset not found")
 }
 
+func (p *bitmovinProvider) destinationForJob(job *db.Job) string {
+	if path := job.DestinationBasePath; path != "" {
+		return path
+	}
+
+	return p.providerCfg.Destination
+}
+
 // Healthcheck returns an error if a call to List Encodings with a limit of one
 // returns an error
 func (p *bitmovinProvider) Healthcheck() error {
@@ -411,7 +465,7 @@ func (bitmovinProvider) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
 		InputFormats:  []string{"prores", "h264"},
 		OutputFormats: []string{containerMP4, containerMOV, containerHLS, containerWebM},
-		Destinations:  []string{"s3"},
+		Destinations:  []string{"s3", "gcs"},
 	}
 }
 
