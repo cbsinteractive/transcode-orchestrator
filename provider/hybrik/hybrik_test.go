@@ -251,6 +251,46 @@ func TestHybrikProvider_hybrikPresetFrom_fields(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "hevc/hdr10 presets with mxf sources are set correctly",
+			presetModifier: func(p db.Preset) db.Preset {
+				p.Video.Codec = "h265"
+				p.Video.Profile = ""
+				p.SourceContainer = "mxf"
+				p.Video.HDR10Settings = db.HDR10Settings{
+					Enabled:       true,
+					MaxCLL:        10000,
+					MaxFALL:       400,
+					MasterDisplay: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
+				}
+
+				// setting twoPass to false to ensure it's forced to true
+				p.TwoPass = false
+
+				return p
+			},
+			assertion: func(input hybrik.Preset, t *testing.T) {
+				firstTarget := input.Payload.Targets[0]
+
+				tests := []struct {
+					name      string
+					got, want interface{}
+				}{
+					{"ffmpeg params", firstTarget.Video.FFMPEGArgs, ""},
+					{"number of passes", firstTarget.NumPasses, 2},
+					{"hdr10 input type", firstTarget.Video.HDR10.Source, "source_metadata"},
+				}
+
+				for _, tt := range tests {
+					tt := tt
+					t.Run(tt.name, func(t *testing.T) {
+						if g, e := tt.got, tt.want; !reflect.DeepEqual(g, e) {
+							t.Fatalf("%s: got %q, expected %q", tt.name, g, e)
+						}
+					})
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

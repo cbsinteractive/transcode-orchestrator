@@ -167,3 +167,11 @@ func dolbyVisionEnabledOnAllPresets(cfgs map[string]outputCfg) (bool, error) {
 
 	return record.doViPresetFound && !record.nonDoViPresetFound, mixedPresetsErr
 }
+
+func hdr10TranscodePayloadModifier(transcodePayload hwrapper.TranscodePayload) hwrapper.TranscodePayload {
+	// hybrik has a bug where HDR10 jobs break when run with segmented rendering
+	// this disables configurations from enabling this feature until they fix it TODO (TS)
+	transcodePayload.SourcePipeline.SegmentedRendering = nil
+
+	return transcodePayload
+}

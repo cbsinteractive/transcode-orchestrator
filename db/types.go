@@ -55,7 +55,7 @@ type Job struct {
 	// Base Destination of the job
 	//
 	// required: false
-	DestinationBasePath string `redis-hash:"destbasepath,omitempty" json:"d,omitempty"`
+	DestinationBasePath string `redis-hash:"destbasepath,omitempty" json:"destinationBasePath,omitempty"`
 
 	// SidecarAssets contain a map of string keys to file locations
 	//
@@ -127,13 +127,14 @@ type LocalPreset struct {
 
 // Preset defines the set of parameters of a given preset
 type Preset struct {
-	Name        string      `json:"name,omitempty" redis-hash:"name"`
-	Description string      `json:"description,omitempty" redis-hash:"description,omitempty"`
-	Container   string      `json:"container,omitempty" redis-hash:"container,omitempty"`
-	RateControl string      `json:"rateControl,omitempty" redis-hash:"ratecontrol,omitempty"`
-	TwoPass     bool        `json:"twoPass" redis-hash:"twopass"`
-	Video       VideoPreset `json:"video" redis-hash:"video,expand"`
-	Audio       AudioPreset `json:"audio" redis-hash:"audio,expand"`
+	Name            string      `json:"name,omitempty" redis-hash:"name"`
+	Description     string      `json:"description,omitempty" redis-hash:"description,omitempty"`
+	SourceContainer string      `json:"sourceContainer,omitempty" redis-hash:"sourcecontainer,omitempty"`
+	Container       string      `json:"container,omitempty" redis-hash:"container,omitempty"`
+	RateControl     string      `json:"rateControl,omitempty" redis-hash:"ratecontrol,omitempty"`
+	TwoPass         bool        `json:"twoPass" redis-hash:"twopass"`
+	Video           VideoPreset `json:"video" redis-hash:"video,expand"`
+	Audio           AudioPreset `json:"audio" redis-hash:"audio,expand"`
 }
 
 // VideoPreset defines the set of parameters for video on a given preset
@@ -148,7 +149,7 @@ type VideoPreset struct {
 	GopMode             string              `json:"gopMode,omitempty" redis-hash:"gopmode,omitempty"`
 	InterlaceMode       string              `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
 	HDR10Settings       HDR10Settings       `json:"hdr10" redis-hash:"hdr10,expand,omitempty"`
-	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision" redus-hash:"dolbyvision,expand,omitempty"`
+	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision" redis-hash:"dolbyvision,expand,omitempty"`
 }
 
 // HDR10Settings defines a set of configurations for defining HDR10 metadata

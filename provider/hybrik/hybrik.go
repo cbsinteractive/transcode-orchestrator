@@ -140,6 +140,10 @@ func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename str
 		transcodePayload.SourcePipeline = hwrapper.TranscodeSourcePipeline{SegmentedRendering: execFeatures.segmentedRendering}
 	}
 
+	for _, modifier := range transcodePayloadModifiersFor(preset) {
+		transcodePayload = modifier.runFunc(transcodePayload)
+	}
+
 	// create the transcode element
 	e = hwrapper.Element{
 		UID:  fmt.Sprintf(transcodeElementIDTemplate, elementID),
@@ -154,6 +158,27 @@ func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename str
 	}
 
 	return e
+}
+
+type transcodePayloadModifier struct {
+	name    string
+	runFunc func(hwrapper.TranscodePayload) hwrapper.TranscodePayload
+}
+
+func transcodePayloadModifiersFor(preset hwrapper.Preset) []transcodePayloadModifier {
+	modifiers := []transcodePayloadModifier{}
+
+	for _, target := range preset.Payload.Targets {
+		if hdr10 := target.Video.HDR10; hdr10 != nil && hdr10.Source != "" {
+			modifiers = append(modifiers, transcodePayloadModifier{
+				name:    "hdr10",
+				runFunc: hdr10TranscodePayloadModifier,
+			})
+			break
+		}
+	}
+
+	return modifiers
 }
 
 func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
@@ -479,12 +504,35 @@ func (p *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, er
 		},
 	}
 
-	hybrikPreset, err = enrichPresetWithHDRMetadata(hybrikPreset, preset)
-	if err != nil {
-		return hwrapper.Preset{}, errors.Wrap(err, "enriching preset with HDR metadata")
+	for _, modifier := range presetModifiersFor(preset) {
+		hybrikPreset, err = modifier.runFunc(hybrikPreset, preset)
+		if err != nil {
+			return hwrapper.Preset{}, errors.Wrapf(err, "running %q preset modifier", modifier.name)
+		}
 	}
 
 	return hybrikPreset, nil
+}
+
+type presetModifier struct {
+	name    string
+	runFunc func(hybrikPreset hwrapper.Preset, preset db.Preset) (hwrapper.Preset, error)
+}
+
+func presetModifiersFor(preset db.Preset) []presetModifier {
+	modifiers := []presetModifier{}
+
+	// HDR
+	if _, hdrEnabled := hdrTypeFromPreset(preset); hdrEnabled {
+		modifiers = append(modifiers, presetModifier{name: "hdr", runFunc: enrichPresetWithHDRMetadata})
+	}
+
+	// MXF sources
+	if preset.SourceContainer == "mxf" {
+		modifiers = append(modifiers, presetModifier{name: "mxf", runFunc: modifyPresetForMXFSources})
+	}
+
+	return modifiers
 }
 
 func (p *hybrikProvider) DeletePreset(presetID string) error {
