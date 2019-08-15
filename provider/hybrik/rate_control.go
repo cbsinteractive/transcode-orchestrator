@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/NYTimes/video-transcoding-api/db"
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
+	"github.com/cbsinteractive/video-transcoding-api/db"
 )
 
 type rateControlMode = string

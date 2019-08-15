@@ -3,8 +3,8 @@ package hybrik
 import (
 	"fmt"
 
-	"github.com/NYTimes/video-transcoding-api/db"
 	"github.com/cbsinteractive/hybrik-sdk-go"
+	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/pkg/errors"
 )
 
