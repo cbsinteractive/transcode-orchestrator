@@ -534,6 +534,11 @@ type presetModifier struct {
 func presetModifiersFor(preset db.Preset) []presetModifier {
 	modifiers := []presetModifier{}
 
+	// Rate control
+	if preset.RateControl != "" {
+		modifiers = append(modifiers, presetModifier{name: "rateControl", runFunc: enrichPresetWithRateControl})
+	}
+
 	// HDR
 	if _, hdrEnabled := hdrTypeFromPreset(preset); hdrEnabled {
 		modifiers = append(modifiers, presetModifier{name: "hdr", runFunc: enrichPresetWithHDRMetadata})

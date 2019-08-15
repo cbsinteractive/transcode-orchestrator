@@ -16,7 +16,7 @@ var (
 		Name:        "preset_name",
 		Description: "test_desc",
 		Container:   "mp4",
-		RateControl: "VBR",
+		RateControl: "CBR",
 		TwoPass:     true,
 		Video: db.VideoPreset{
 			Profile:       "high",
@@ -116,6 +116,7 @@ func TestHybrikProvider_hybrikPresetFrom(t *testing.T) {
 								Codec:         defaultPreset.Video.Codec,
 								BitrateKb:     400,
 								MaxGOPFrames:  120,
+								BitrateMode:   "cbr",
 								Profile:       "high",
 								Level:         "4.1",
 								InterlaceMode: "progressive",
@@ -290,6 +291,45 @@ func TestHybrikProvider_hybrikPresetFrom_fields(t *testing.T) {
 					})
 				}
 			},
+		},
+		{
+			name: "vbr transcodes are constrained to a fixed percent of variability",
+			presetModifier: func(preset db.Preset) db.Preset {
+				preset.RateControl = "vbr"
+				preset.Video.Bitrate = "10000000"
+				return preset
+			},
+			assertion: func(input hybrik.Preset, t *testing.T) {
+				firstTarget := input.Payload.Targets[0]
+
+				tests := []struct {
+					name      string
+					got, want interface{}
+				}{
+					{"bitrate mode", firstTarget.Video.BitrateMode, rateControlModeVBR},
+					{"bitrate", firstTarget.Video.BitrateKb, 10000},
+					{"min bitrate", firstTarget.Video.MinBitrateKb, 10000 * (100 - vbrVariabilityPercent) / 100},
+					{"max bitrate", firstTarget.Video.MaxBitrateKb, 10000 * (100 + vbrVariabilityPercent) / 100},
+				}
+
+				for _, tt := range tests {
+					tt := tt
+					t.Run(tt.name, func(t *testing.T) {
+						if g, e := tt.got, tt.want; !reflect.DeepEqual(g, e) {
+							t.Fatalf("%s: got %v, expected %v", tt.name, g, e)
+						}
+					})
+				}
+			},
+		},
+		{
+			name: "transcodes sent with unsupported rate control modes result in an error",
+			presetModifier: func(preset db.Preset) db.Preset {
+				preset.RateControl = "fake_mode"
+				return preset
+			},
+			wantErrMsg: `running "rateControl" preset modifier: rate control mode "fake_mode" is not supported in ` +
+				`hybrik, the currently supported modes are map[cbr:{} vbr:{}]`,
 		},
 	}
 
