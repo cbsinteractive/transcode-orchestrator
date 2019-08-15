@@ -17,6 +17,7 @@ type jobCfg struct {
 	outputCfgs        map[string]outputCfg
 	streamingParams   db.StreamingParams
 	executionFeatures executionFeatures
+	computeTags       map[db.ComputeClass]string
 }
 
 type outputCfg struct {

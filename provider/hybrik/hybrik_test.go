@@ -538,6 +538,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 								"transcodes": []interface{}{
 									map[string]interface{}{
 										"kind": "transcode",
+										"task": map[string]interface{}{"name": ""},
 										"payload": map[string]interface{}{
 											"location": map[string]interface{}{
 												"path":             "s3://some-dest/path/jobID/elementary",
@@ -698,6 +699,26 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 
 				if g, e := location["path"].(string), "s3://per-job-defined-bucket/some/base/path/jobID"; g != e {
 					t.Errorf("destination location path: got %q, expected %q", g, e)
+				}
+			},
+		},
+		{
+			name: "when custom compute tags are specified, the right tags are added to the output",
+			jobModifier: func(job db.Job) db.Job {
+				job.ExecutionEnv.ComputeTags = map[db.ComputeClass]string{
+					db.ComputeClassTranscodeDefault: "custom_tag",
+				}
+
+				return job
+			},
+			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+				gotTask := createJob.Payload.Elements[1].Task
+
+				expectTask := &hybrik.ElementTaskOptions{Name: "Transcode - preset_name", Tags: []string{"custom_tag"}}
+
+				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
+					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
+						g, cmp.Diff(e, g))
 				}
 			},
 		},

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/NYTimes/video-transcoding-api/db"
+
 	"github.com/cbsinteractive/hybrik-sdk-go"
 )
 
@@ -33,7 +35,7 @@ const (
 	retryCountDefault = 3
 	retryDelayDefault = 30
 
-	computeTagPreProc = "preproc"
+	computeTagPreProcDefault = "preproc"
 )
 
 func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([]hybrik.Element, error) {
@@ -42,7 +44,7 @@ func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([]hybrik.Element, 
 	idx := 0
 	for _, outputCfg := range cfg.outputCfgs {
 		e := p.mountTranscodeElement(strconv.Itoa(idx), cfg.jobID, outputCfg.filename, cfg.destination,
-			cfg.streamingParams.SegmentDuration, outputCfg.preset, cfg.executionFeatures)
+			cfg.streamingParams.SegmentDuration, outputCfg.preset, cfg.executionFeatures, cfg.computeTags)
 		elements = append(elements, e)
 		idx++
 	}
@@ -56,7 +58,7 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 		presets[outputCfg.filename] = outputCfg.preset
 	}
 
-	transcodeElements, err := transcodeElementsFromPresets(presets, cfg.destination, cfg.executionFeatures)
+	transcodeElements, err := transcodeElementsFromPresets(presets, cfg.destination, cfg.executionFeatures, cfg.computeTags)
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +71,11 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 	doViPreProcIntervalLength := doViPreProcIntervalLengthDefault
 	if intervalLength := cfg.executionFeatures.doViPreProcSegmentation.intervalLength; intervalLength != 0 {
 		doViPreProcIntervalLength = intervalLength
+	}
+
+	preprocComputeTag := computeTagPreProcDefault
+	if tag, found := cfg.computeTags[db.ComputeClassDolbyVisionPreprocess]; found {
+		preprocComputeTag = tag
 	}
 
 	return []hybrik.Element{{
@@ -88,7 +95,7 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Eleme
 			},
 			NBCPreproc: hybrik.DoViNBCPreproc{
 				Task: hybrik.TaskTags{
-					Tags: []string{computeTagPreProc},
+					Tags: []string{preprocComputeTag},
 				},
 				Location: hybrik.TranscodeLocation{
 					StorageProvider: cfg.destination.provider,

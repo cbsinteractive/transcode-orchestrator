@@ -77,11 +77,26 @@ type SidecarAssetKind = string
 
 const SidecarAssetKindDolbyVisionMetadata SidecarAssetKind = "dolbyVisionMetadata"
 
-// ExecutionEnv contains configurations for the environment used while transcoding
+// ExecutionEnvironment contains configurations for the environment used while transcoding
 type ExecutionEnvironment struct {
-	Cloud  string `json:"cloud"`
-	Region string `json:"region"`
+	Cloud       string                  `redis-hash:"cloud,omitempty" json:"cloud"`
+	Region      string                  `redis-hash:"region,omitempty" json:"region"`
+	ComputeTags map[ComputeClass]string `redis-hash:"computetags,omitempty,expand" json:"computeTags,omitempty"`
 }
+
+// ComputeClass represents a group of resources with similar capability
+type ComputeClass = string
+
+const (
+	// ComputeClassTranscodeDefault runs any default transcodes
+	ComputeClassTranscodeDefault ComputeClass = "transcodeDefault"
+
+	// ComputeClassDolbyVisionTranscode runs Dolby Vision transcodes
+	ComputeClassDolbyVisionTranscode ComputeClass = "doViTranscode"
+
+	// ComputeClassDolbyVisionPreprocess runs Dolby Vision pre-processing
+	ComputeClassDolbyVisionPreprocess ComputeClass = "doViPreprocess"
+)
 
 // TranscodeOutput represents a transcoding output. It's a combination of the
 // preset and the output file name.

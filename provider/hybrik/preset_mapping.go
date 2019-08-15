@@ -3,6 +3,7 @@ package hybrik
 import (
 	"fmt"
 
+	"github.com/NYTimes/video-transcoding-api/db"
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/pkg/errors"
 )
@@ -22,13 +23,13 @@ const storageProviderS3 storageProvider = "s3"
 const storageProviderGCS storageProvider = "gs"
 
 func transcodeElementsFromPresets(presets map[string]hybrik.Preset, destination storageLocation,
-	execFeatures executionFeatures) ([]hybrik.Element, error) {
+	execFeatures executionFeatures, computeTags map[db.ComputeClass]string) ([]hybrik.Element, error) {
 	elements := []hybrik.Element{}
 
 	idx := 0
 	for filename, preset := range presets {
 		element, err := transcodeElementFromPreset(preset, fmt.Sprintf("transcode_task_%d", idx),
-			destination, filename, execFeatures)
+			destination, filename, execFeatures, computeTags)
 		if err != nil {
 			return nil, errors.Wrapf(err, "mapping hybrik preset %v into a transcode element", preset)
 		}
@@ -41,7 +42,7 @@ func transcodeElementsFromPresets(presets map[string]hybrik.Preset, destination 
 }
 
 func transcodeElementFromPreset(preset hybrik.Preset, uid string, destination storageLocation, filename string,
-	execFeatures executionFeatures) (hybrik.Element, error) {
+	execFeatures executionFeatures, computeTags map[db.ComputeClass]string) (hybrik.Element, error) {
 	if len(preset.Payload.Targets) != 1 {
 		return hybrik.Element{}, errors.New("the hybrik provider only supports presets with a single target")
 	}
@@ -71,9 +72,17 @@ func transcodeElementFromPreset(preset hybrik.Preset, uid string, destination st
 		payload.SourcePipeline = hybrik.TranscodeSourcePipeline{SegmentedRendering: execFeatures.segmentedRendering}
 	}
 
+	transcodeComputeTags := []string{}
+	if tag, found := computeTags[db.ComputeClassDolbyVisionTranscode]; found {
+		transcodeComputeTags = append(transcodeComputeTags, tag)
+	}
+
 	element := hybrik.Element{
-		UID:     uid,
-		Kind:    elementKindTranscode,
+		UID:  uid,
+		Kind: elementKindTranscode,
+		Task: &hybrik.ElementTaskOptions{
+			Tags: transcodeComputeTags,
+		},
 		Payload: payload,
 	}
 

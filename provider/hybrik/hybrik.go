@@ -102,8 +102,8 @@ func (p *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename string, destination storageLocation,
-	segmentDuration uint, preset hwrapper.Preset, execFeatures executionFeatures) hwrapper.Element {
+func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename string, destination storageLocation, segmentDuration uint,
+	preset hwrapper.Preset, execFeatures executionFeatures, computeTags map[db.ComputeClass]string) hwrapper.Element {
 	var e hwrapper.Element
 	var subLocation *hwrapper.TranscodeLocation
 
@@ -144,12 +144,18 @@ func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename str
 		transcodePayload = modifier.runFunc(transcodePayload)
 	}
 
+	transcodeComputeTags := []string{}
+	if tag, found := computeTags[db.ComputeClassTranscodeDefault]; found {
+		transcodeComputeTags = append(transcodeComputeTags, tag)
+	}
+
 	// create the transcode element
 	e = hwrapper.Element{
 		UID:  fmt.Sprintf(transcodeElementIDTemplate, elementID),
 		Kind: "transcode",
 		Task: &hwrapper.ElementTaskOptions{
 			Name: "Transcode - " + preset.Name,
+			Tags: transcodeComputeTags,
 		},
 		Preset: &hwrapper.TranscodePreset{
 			Key: preset.Name,
@@ -218,6 +224,12 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 		return "", err
 	}
 	cfg.executionFeatures = execFeatures
+
+	if job.ExecutionEnv.ComputeTags != nil {
+		cfg.computeTags = job.ExecutionEnv.ComputeTags
+	} else {
+		cfg.computeTags = map[db.ComputeClass]string{}
+	}
 
 	outputCfgs, err := p.outputCfgsFrom(job)
 	if err != nil {
