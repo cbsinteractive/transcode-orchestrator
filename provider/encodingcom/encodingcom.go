@@ -13,7 +13,7 @@
 //         factory, err := provider.GetProviderFactory(encodingcom.Name)
 //         // handle err and use factory to get an instance of the provider.
 //     }
-package encodingcom // import "github.com/NYTimes/video-transcoding-api/provider/encodingcom"
+package encodingcom
 
 import (
 	"errors"
@@ -25,9 +25,9 @@ import (
 	"strings"
 
 	"github.com/NYTimes/encoding-wrapper/encodingcom"
-	"github.com/NYTimes/video-transcoding-api/config"
-	"github.com/NYTimes/video-transcoding-api/db"
-	"github.com/NYTimes/video-transcoding-api/provider"
+	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/provider"
 )
 
 // Name is the name used for registering the Encoding.com provider in the

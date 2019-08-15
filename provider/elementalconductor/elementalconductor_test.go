@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/NYTimes/encoding-wrapper/elementalconductor"
-	"github.com/NYTimes/video-transcoding-api/config"
-	"github.com/NYTimes/video-transcoding-api/db"
-	"github.com/NYTimes/video-transcoding-api/provider"
+	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/provider"
 )
 
 func TestFactoryIsRegistered(t *testing.T) {

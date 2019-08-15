@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/NYTimes/gizmo/server"
-	"github.com/NYTimes/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/sirupsen/logrus"
 )
 

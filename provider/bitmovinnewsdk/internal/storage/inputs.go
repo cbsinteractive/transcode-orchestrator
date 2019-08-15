@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/NYTimes/video-transcoding-api/config"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
+	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/pkg/errors"
 )
 

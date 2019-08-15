@@ -1,8 +1,8 @@
 package hybrik
 
 import (
-	"github.com/NYTimes/video-transcoding-api/db"
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
+	"github.com/cbsinteractive/video-transcoding-api/db"
 )
 
 func modifyPresetForMXFSources(hybrikPreset hwrapper.Preset, preset db.Preset) (hwrapper.Preset, error) {

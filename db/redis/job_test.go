@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NYTimes/video-transcoding-api/config"
-	"github.com/NYTimes/video-transcoding-api/db"
-	"github.com/NYTimes/video-transcoding-api/db/redis/storage"
+	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/db/redis/storage"
 	"github.com/go-redis/redis"
 	"github.com/kr/pretty"
 )

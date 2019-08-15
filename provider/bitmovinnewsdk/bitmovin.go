@@ -5,17 +5,17 @@ import (
 	"path"
 	"strings"
 
-	"github.com/NYTimes/video-transcoding-api/config"
-	"github.com/NYTimes/video-transcoding-api/db"
-	"github.com/NYTimes/video-transcoding-api/provider"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/configuration"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/container"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/status"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/storage"
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/common"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/bitmovin/bitmovin-api-sdk-go/query"
+	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/provider"
+	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovinnewsdk/internal/configuration"
+	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovinnewsdk/internal/container"
+	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovinnewsdk/internal/status"
+	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovinnewsdk/internal/storage"
 	"github.com/pkg/errors"
 )
 
@@ -44,9 +44,10 @@ const (
 	containerMP4  mediaContainer = "mp4"
 	containerMOV  mediaContainer = "mov"
 
-	h264AAC   cfgStore = "h264aac"
-	h265AAC   cfgStore = "h265aac"
-	vp8Vorbis cfgStore = "vp8vorbis"
+	cfgStoreH264AAC   cfgStore = "h264aac"
+	cfgStoreH265AAC   cfgStore = "h265aac"
+	cfgStoreVP8Vorbis cfgStore = "vp8vorbis"
+	cfgStoreH265      cfgStore = "h265"
 )
 
 func init() {
@@ -123,9 +124,10 @@ func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 		api:         api,
 		providerCfg: cfg.Bitmovin,
 		cfgStores: map[cfgStore]configuration.Store{
-			h264AAC:   configuration.NewH264AAC(api),
-			h265AAC:   configuration.NewH265AAC(api),
-			vp8Vorbis: configuration.NewVP8Vorbis(api),
+			cfgStoreH265:      configuration.NewH265(api),
+			cfgStoreH264AAC:   configuration.NewH264AAC(api),
+			cfgStoreH265AAC:   configuration.NewH265AAC(api),
+			cfgStoreVP8Vorbis: configuration.NewVP8Vorbis(api),
 		},
 		containerSvcs: map[mediaContainer]containerSvc{
 			containerHLS: {
@@ -264,7 +266,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 
 		_, audCfgExists := audMuxingStreams[audCfgID]
 
-		if !audCfgExists {
+		if !audCfgExists && audCfgID != "" {
 			audStream, err := p.api.Encoding.Encodings.Streams.Create(enc.Id, model.Stream{
 				CodecConfigId: audCfgID,
 				InputStreams:  audInputStreams,
@@ -297,6 +299,11 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			return nil, fmt.Errorf("unknown container format %q", mediaContainer)
 		}
 
+		audStreamID := ""
+		if _, ok := audStreams[audCfgID]; ok {
+			audStreamID = audStreams[audCfgID].Id
+		}
+
 		if err = contnrSvcs.assembler.Assemble(container.AssemblerCfg{
 			EncID:              enc.Id,
 			OutputID:           outputID,
@@ -304,7 +311,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			OutputFilename:     o.FileName,
 			AudCfgID:           audCfgID,
 			VidCfgID:           presetID,
-			AudStreamID:        audStreams[audCfgID].Id,
+			AudStreamID:        audStreamID,
 			VidStreamID:        vidStream.Id,
 			AudMuxingStream:    audMuxingStreams[audCfgID],
 			VidMuxingStream:    vidMuxingStream,
@@ -472,11 +479,13 @@ func (bitmovinProvider) Capabilities() provider.Capabilities {
 func (p *bitmovinProvider) cfgServiceFrom(vcodec, acodec string) (configuration.Store, error) {
 	vcodec, acodec = strings.ToLower(vcodec), strings.ToLower(acodec)
 	if vcodec == codecH264 && acodec == codecAAC {
-		return p.cfgStores[h264AAC], nil
+		return p.cfgStores[cfgStoreH264AAC], nil
 	} else if vcodec == codecH265 && acodec == codecAAC {
-		return p.cfgStores[h265AAC], nil
+		return p.cfgStores[cfgStoreH265AAC], nil
 	} else if vcodec == codecVP8 && acodec == codecVorbis {
-		return p.cfgStores[vp8Vorbis], nil
+		return p.cfgStores[cfgStoreVP8Vorbis], nil
+	} else if vcodec == codecH265 && acodec == "" {
+		return p.cfgStores[cfgStoreH265], nil
 	}
 
 	return nil, fmt.Errorf("the pair of vcodec: %q and acodec: %q is not yet supported", vcodec, acodec)

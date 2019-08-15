@@ -1,4 +1,4 @@
-package service // import "github.com/NYTimes/video-transcoding-api/service"
+package service
 
 import (
 	"fmt"
@@ -6,10 +6,10 @@ import (
 
 	"github.com/NYTimes/gizmo/server"
 	"github.com/NYTimes/gziphandler"
-	"github.com/NYTimes/video-transcoding-api/config"
-	"github.com/NYTimes/video-transcoding-api/db"
-	"github.com/NYTimes/video-transcoding-api/db/redis"
-	"github.com/NYTimes/video-transcoding-api/swagger"
+	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/db/redis"
+	"github.com/cbsinteractive/video-transcoding-api/swagger"
 	"github.com/fsouza/ctxlogger"
 	"github.com/gorilla/handlers"
 	"github.com/sirupsen/logrus"

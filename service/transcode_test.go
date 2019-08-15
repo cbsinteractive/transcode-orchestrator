@@ -10,10 +10,10 @@ import (
 	"testing"
 
 	"github.com/NYTimes/gizmo/server"
-	"github.com/NYTimes/video-transcoding-api/config"
-	"github.com/NYTimes/video-transcoding-api/db"
-	"github.com/NYTimes/video-transcoding-api/db/dbtest"
-	"github.com/NYTimes/video-transcoding-api/provider"
+	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/db/dbtest"
+	"github.com/cbsinteractive/video-transcoding-api/provider"
 	"github.com/sirupsen/logrus"
 )
 

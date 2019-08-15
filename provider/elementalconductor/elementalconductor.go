@@ -13,7 +13,7 @@
 //         factory, err := provider.GetProviderFactory(elementalconductor.Name)
 //         // handle err and use factory to get an instance of the provider.
 //     }
-package elementalconductor // import "github.com/NYTimes/video-transcoding-api/provider/elementalconductor"
+package elementalconductor
 
 import (
 	"encoding/xml"
@@ -24,9 +24,9 @@ import (
 	"time"
 
 	"github.com/NYTimes/encoding-wrapper/elementalconductor"
-	"github.com/NYTimes/video-transcoding-api/config"
-	"github.com/NYTimes/video-transcoding-api/db"
-	"github.com/NYTimes/video-transcoding-api/provider"
+	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/provider"
 )
 
 // Name is the name used for registering the Elemental Conductor provider in the

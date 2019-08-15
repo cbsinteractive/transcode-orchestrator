@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/NYTimes/video-transcoding-api/config"
-	"github.com/NYTimes/video-transcoding-api/db"
 	"github.com/cbsinteractive/hybrik-sdk-go"
+	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/google/go-cmp/cmp"
 )
 

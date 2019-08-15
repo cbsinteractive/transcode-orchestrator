@@ -3,9 +3,9 @@ package storage
 import (
 	"testing"
 
-	"github.com/NYTimes/video-transcoding-api/config"
-	"github.com/NYTimes/video-transcoding-api/test"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
+	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/test"
 	"github.com/pkg/errors"
 )
 

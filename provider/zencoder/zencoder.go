@@ -13,7 +13,7 @@
 //         factory, err := provider.GetProviderFactory(Zencoder.Name)
 //         // handle err and use factory to get an instance of the provider.
 //     }
-package zencoder // import "github.com/NYTimes/video-transcoding-api/provider/zencoder"
+package zencoder
 
 import (
 	"fmt"
@@ -25,10 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NYTimes/video-transcoding-api/config"
-	"github.com/NYTimes/video-transcoding-api/db"
-	"github.com/NYTimes/video-transcoding-api/db/redis"
-	"github.com/NYTimes/video-transcoding-api/provider"
+	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/db/redis"
+	"github.com/cbsinteractive/video-transcoding-api/provider"
 	"github.com/flavioribeiro/zencoder"
 )
 

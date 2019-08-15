@@ -1,11 +1,11 @@
 package configuration
 
 import (
-	"github.com/NYTimes/video-transcoding-api/db"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/configuration/codec"
-	"github.com/NYTimes/video-transcoding-api/provider/bitmovinnewsdk/internal/types"
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
+	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovinnewsdk/internal/configuration/codec"
+	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovinnewsdk/internal/types"
 	"github.com/pkg/errors"
 )
 
@@ -43,6 +43,10 @@ func (c *VP8Vorbis) Get(cfgID string) (bool, Details, error) {
 
 	audCfgID, err := AudCfgIDFrom(customData)
 	if err != nil {
+		return false, Details{}, err
+	}
+
+	if audCfgID == "" {
 		return false, Details{}, err
 	}
 

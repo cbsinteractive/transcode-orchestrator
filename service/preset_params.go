@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/NYTimes/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/db"
 )
 
 type newPresetInput struct {

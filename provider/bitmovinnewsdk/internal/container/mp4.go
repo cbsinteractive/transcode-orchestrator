@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/NYTimes/video-transcoding-api/provider"
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/bitmovin/bitmovin-api-sdk-go/query"
+	"github.com/cbsinteractive/video-transcoding-api/provider"
 	"github.com/pkg/errors"
 )
 
@@ -23,9 +23,15 @@ func NewMP4Assembler(api *bitmovin.BitmovinApi) *MP4Assembler {
 
 // Assemble creates MP4 outputs
 func (a *MP4Assembler) Assemble(cfg AssemblerCfg) error {
+	streams := []model.MuxingStream{cfg.VidMuxingStream}
+
+	if !(cfg.AudMuxingStream == model.MuxingStream{}) {
+		streams = append(streams, cfg.AudMuxingStream)
+	}
+
 	_, err := a.api.Encoding.Encodings.Muxings.Mp4.Create(cfg.EncID, model.Mp4Muxing{
 		Filename:             path.Base(cfg.OutputFilename),
-		Streams:              []model.MuxingStream{cfg.VidMuxingStream, cfg.AudMuxingStream},
+		Streams:              streams,
 		StreamConditionsMode: model.StreamConditionsMode_DROP_STREAM,
 		Outputs: []model.EncodingOutput{{
 			OutputId:   cfg.OutputID,
