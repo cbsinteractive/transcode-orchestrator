@@ -2,7 +2,6 @@ package codec
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
@@ -109,12 +108,11 @@ func enrichH265CfgWithHDR10Settings(cfg model.H265VideoConfiguration, hdr10 db.H
 	}
 
 	if hdr10.MaxCLL != 0 {
-		cfg.MaxContentLightLevel = strconv.Itoa(int(hdr10.MaxCLL))
+		cfg.MaxContentLightLevel = int32ToPtr(int32(hdr10.MaxCLL))
 	}
 
 	if hdr10.MaxFALL != 0 {
-		convertedMaxFALL := int32(hdr10.MaxFALL)
-		cfg.MaxAverageLightLevel = &convertedMaxFALL
+		cfg.MaxPictureAverageLightLevel = int32ToPtr(int32(hdr10.MaxFALL))
 	}
 
 	cfg.PixelFormat = model.PixelFormat_YUV420P10LE

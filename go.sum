@@ -48,6 +48,8 @@ github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 h1:xJ4a3vCFaGF/jqvzLM
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/bitmovin/bitmovin-api-sdk-go v1.16.0-alpha.0 h1:rV4lVXEUBIHqqqCDNceOAQ/iq2HT1kr+CVxqConFqAo=
 github.com/bitmovin/bitmovin-api-sdk-go v1.16.0-alpha.0/go.mod h1:Ho8JxtJ2Yf6Gwi9z+5oXuEi2xaIFiFPSs70YuXA7eTo=
+github.com/bitmovin/bitmovin-api-sdk-go v1.21.0-alpha.0 h1:uGptc3p9WkcR14wyz2vMKkBtOM4kii57yLwC1AV1dzE=
+github.com/bitmovin/bitmovin-api-sdk-go v1.21.0-alpha.0/go.mod h1:Ho8JxtJ2Yf6Gwi9z+5oXuEi2xaIFiFPSs70YuXA7eTo=
 github.com/bitmovin/bitmovin-go v1.29.0 h1:xhTvsSRLTHy3KPl3wBD5X6c9nVelF5YPyJbQt2KlAAk=
 github.com/bitmovin/bitmovin-go v1.29.0/go.mod h1:FnQ++AxR0BZAH5UpAPU10bpSzeV4a7Gu5Sazpkpr7cE=
 github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 h1:DDGfHa7BWjL4YnC6+E63dPcxHo2sUxDIu8g3QgEJdRY=
