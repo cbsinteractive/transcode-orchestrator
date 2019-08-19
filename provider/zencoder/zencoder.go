@@ -29,7 +29,7 @@ import (
 	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/cbsinteractive/video-transcoding-api/db/redis"
 	"github.com/cbsinteractive/video-transcoding-api/provider"
-	"github.com/flavioribeiro/zencoder"
+	"github.com/video-dev/zencoder"
 )
 
 // Name is the name used for registering the Zencoder provider in the

@@ -11,9 +11,9 @@ import (
 	"github.com/cbsinteractive/video-transcoding-api/db/redis"
 	"github.com/cbsinteractive/video-transcoding-api/db/redis/storage"
 	"github.com/cbsinteractive/video-transcoding-api/provider"
-	"github.com/flavioribeiro/zencoder"
 	redisDriver "github.com/go-redis/redis"
 	"github.com/kr/pretty"
+	"github.com/video-dev/zencoder"
 )
 
 func TestFactoryIsRegistered(t *testing.T) {
