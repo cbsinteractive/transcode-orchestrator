@@ -11,7 +11,7 @@ require (
 	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20170516091026-c6103805ff6c
 	github.com/flavioribeiro/zencoder v0.0.0-20161215190743-745874544382
 	github.com/fsouza/ctxlogger v1.5.6
-	github.com/fsouza/gizmo-stackdriver-logging v1.3.0
+	github.com/fsouza/gizmo-stackdriver-logging v1.3.1
 	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/google/go-cmp v0.3.0
 	github.com/google/gops v0.3.6
