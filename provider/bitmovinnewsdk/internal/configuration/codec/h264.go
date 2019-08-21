@@ -104,7 +104,7 @@ func profileFrom(presetProfile string) (model.ProfileH264, error) {
 
 func levelFrom(presetLevel string) (model.LevelH264, error) {
 	if presetLevel == "" {
-		return "", fmt.Errorf("H264 codec level is missing")
+		return "", fmt.Errorf("h264 codec level is missing")
 	}
 
 	for _, l := range h264Levels {
