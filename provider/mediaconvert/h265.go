@@ -86,7 +86,7 @@ func h265RateControlModeFrom(rateControl string) (mediaconvert.H265RateControlMo
 func h265CodecLevelFrom(level string) (mediaconvert.H265CodecLevel, error) {
 	switch level {
 	case "":
-		return mediaconvert.H265CodecLevelAuto, nil
+		return "", fmt.Errorf("H265 codec level is missing")
 	case "1", "1.0":
 		return mediaconvert.H265CodecLevelLevel1, nil
 	case "2", "2.0":
