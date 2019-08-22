@@ -17,10 +17,6 @@ func modifyPresetForMXFSources(hybrikPreset hwrapper.Preset, preset db.Preset) (
 		if preset.Video.HDR10Settings.Enabled {
 			// overriding this value to tell hybrik where to fetch the HDR metadata
 			target.Video.HDR10.Source = "source_metadata"
-
-			// resetting the ffmpeg args to remove codec tags that break hybrik during
-			// hdr10 h265 jobs
-			target.Video.FFMPEGArgs = ""
 		}
 		modifiedTargets = append(modifiedTargets, target)
 	}

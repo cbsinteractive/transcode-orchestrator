@@ -18,9 +18,9 @@ const (
 	h265Codec                  = "h265"
 	h265CodecProfileMain10     = "main10"
 	h265VideoTagValueHVC1      = "hvc1"
-	h265DolbyVisionArgsDefualt = "vbv-init=0.6:vbv-end=0.6:annexb=1:hrd=1:aud=1:videoformat=5:range=full" +
-		":colorprim=2:transfer=2:colormatrix=2:rc-lookahead=48:qg-size=32:scenecut=0:no-open-gop=1:" +
-		"frame-threads=0:repeat-headers=1:nr-inter=400:nr-intra=100:psy-rd=0:cbqpoffs=0:crqpoffs=3"
+	h265DolbyVisionArgsDefualt = "concatenation={auto_concatenation_flag}:vbv-init=0.6:vbv-end=0.6:annexb=1:hrd=1:" +
+		"aud=1:videoformat=5:range=full:colorprim=2:transfer=2:colormatrix=2:rc-lookahead=48:qg-size=32:scenecut=0:" +
+		"no-open-gop=1:frame-threads=0:repeat-headers=1:nr-inter=400:nr-intra=100:psy-rd=0:cbqpoffs=0:crqpoffs=3"
 
 	ffmpegStrictTypeExperimental = "experimental"
 
@@ -30,6 +30,8 @@ const (
 	colorPrimaryBT2020      = "bt2020"
 	colorMatrixBT2020NC     = "bt2020nc"
 	colorTRCSMPTE2084       = "st2084"
+
+	presetSlow = "slow"
 )
 
 func enrichPresetWithHDRMetadata(hybrikPreset hwrapper.Preset, preset db.Preset) (hwrapper.Preset, error) {
@@ -47,7 +49,7 @@ func enrichPresetWithHDRMetadata(hybrikPreset hwrapper.Preset, preset db.Preset)
 					"the codec profile must be main10")
 			}
 
-			target.Video.FFMPEGArgs = fmt.Sprintf("-tag:v %s", h265VideoTagValueHVC1)
+			target.Video.VTag = h265VideoTagValueHVC1
 		}
 
 		hybrikPreset.Payload.Options = &hwrapper.TranscodeTaskOptions{
@@ -83,9 +85,6 @@ func enrichPresetWithHDRMetadata(hybrikPreset hwrapper.Preset, preset db.Preset)
 
 			// hybrik needs this format to feed into the DoVi mp4 muxer
 			target.Container.Kind = containerKindElementary
-
-			// zero out audio targets, we're processing video only
-			target.Audio = []hwrapper.AudioTarget{}
 
 			// set the enriched target back onto the preset
 			hybrikPreset.Payload.Targets[idx] = target
@@ -166,12 +165,4 @@ func dolbyVisionEnabledOnAllPresets(cfgs map[string]outputCfg) (bool, error) {
 	}
 
 	return record.doViPresetFound && !record.nonDoViPresetFound, mixedPresetsErr
-}
-
-func hdr10TranscodePayloadModifier(transcodePayload hwrapper.TranscodePayload) hwrapper.TranscodePayload {
-	// hybrik has a bug where HDR10 jobs break when run with segmented rendering
-	// this disables configurations from enabling this feature until they fix it TODO (TS)
-	transcodePayload.SourcePipeline.SegmentedRendering = nil
-
-	return transcodePayload
 }

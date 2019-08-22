@@ -30,7 +30,6 @@ const (
 	activeWaiting              = "waiting"
 	hls                        = "hls"
 	transcodeElementIDTemplate = "transcode_task_%s"
-	dolbyVisionElementID       = "dolby_vision_task"
 
 	featureSegmentedRendering = "segmentedRendering"
 )
@@ -140,10 +139,6 @@ func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename str
 		transcodePayload.SourcePipeline = hwrapper.TranscodeSourcePipeline{SegmentedRendering: execFeatures.segmentedRendering}
 	}
 
-	for _, modifier := range transcodePayloadModifiersFor(preset) {
-		transcodePayload = modifier.runFunc(transcodePayload)
-	}
-
 	transcodeComputeTags := []string{}
 	if tag, found := computeTags[db.ComputeClassTranscodeDefault]; found {
 		transcodeComputeTags = append(transcodeComputeTags, tag)
@@ -164,27 +159,6 @@ func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename str
 	}
 
 	return e
-}
-
-type transcodePayloadModifier struct {
-	name    string
-	runFunc func(hwrapper.TranscodePayload) hwrapper.TranscodePayload
-}
-
-func transcodePayloadModifiersFor(preset hwrapper.Preset) []transcodePayloadModifier {
-	modifiers := []transcodePayloadModifier{}
-
-	for _, target := range preset.Payload.Targets {
-		if hdr10 := target.Video.HDR10; hdr10 != nil && hdr10.Source != "" {
-			modifiers = append(modifiers, transcodePayloadModifier{
-				name:    "hdr10",
-				runFunc: hdr10TranscodePayloadModifier,
-			})
-			break
-		}
-	}
-
-	return modifiers
 }
 
 func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
@@ -242,74 +216,50 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 		return "", err
 	}
 
-	tasks, err := elmAssembler(cfg)
+	elementGroups, err := elmAssembler(cfg)
 	if err != nil {
 		return "", err
 	}
-	cfg.tasks = tasks
+	cfg.elementGroups = elementGroups
 
-	transcodeSuccessConnections := []hwrapper.ToSuccess{}
-	for _, task := range tasks {
-		transcodeSuccessConnections = append(transcodeSuccessConnections, hwrapper.ToSuccess{Element: task.UID})
+	connections := []hwrapper.Connection{}
+	prevElements := []hwrapper.Element{cfg.source}
+	allTaskElements := []hwrapper.Element{}
+
+	for _, elementGroup := range elementGroups {
+		fromConnections := []hwrapper.ConnectionFrom{}
+		for _, prevElement := range prevElements {
+			fromConnections = append(fromConnections, hwrapper.ConnectionFrom{Element: prevElement.UID})
+		}
+
+		toSuccessElements := []hwrapper.ToSuccess{}
+		for _, element := range elementGroup {
+			allTaskElements = append(allTaskElements, element)
+			toSuccessElements = append(toSuccessElements, hwrapper.ToSuccess{Element: element.UID})
+		}
+
+		toConnections := hwrapper.ConnectionTo{Success: toSuccessElements}
+		connections = append(connections, hwrapper.Connection{
+			From: fromConnections,
+			To:   toConnections,
+		})
+		prevElements = elementGroup
 	}
 
 	// create the full job structure
 	cj := hwrapper.CreateJob{
 		Name: fmt.Sprintf("Job %s [%s]", cfg.jobID, path.Base(cfg.sourceLocation.path)),
 		Payload: hwrapper.CreateJobPayload{
-			Elements: append([]hwrapper.Element{cfg.source}, tasks...),
-			Connections: []hwrapper.Connection{{
-				From: []hwrapper.ConnectionFrom{{
-					Element: cfg.source.UID,
-				}},
-				To: hwrapper.ConnectionTo{
-					Success: transcodeSuccessConnections,
-				},
-			}},
+			Elements:    append([]hwrapper.Element{cfg.source}, allTaskElements...),
+			Connections: connections,
 		},
 	}
 
-	// check if we need to add a master manifest task element
-	if job.StreamingParams.Protocol == hls {
-		manifestOutputDir := fmt.Sprintf("%s/%s", destinationPath, job.ID)
-		manifestSubDir := path.Dir(job.StreamingParams.PlaylistFileName)
-		manifestFilePattern := path.Base(job.StreamingParams.PlaylistFileName)
-
-		if manifestSubDir != "." && manifestSubDir != "/" {
-			manifestOutputDir = path.Join(manifestOutputDir, manifestSubDir)
+	if _, found := supportedPackagingProtocols[strings.ToLower(cfg.streamingParams.Protocol)]; found {
+		cj, err = p.enrichCreateJobWithPackagingCfg(cj, cfg, prevElements)
+		if err != nil {
+			return "", errors.Wrap(err, "creating packaging config")
 		}
-
-		manifestElement := hwrapper.Element{
-			UID:  "manifest_creator",
-			Kind: "manifest_creator",
-			Payload: hwrapper.ManifestCreatorPayload{
-				Location: hwrapper.TranscodeLocation{
-					StorageProvider: cfg.destination.provider,
-					Path:            manifestOutputDir,
-				},
-				FilePattern: manifestFilePattern,
-				Kind:        hls,
-			},
-		}
-
-		cj.Payload.Elements = append(cj.Payload.Elements, manifestElement)
-
-		var manifestFromConnections []hwrapper.ConnectionFrom
-		for _, task := range tasks {
-			manifestFromConnections = append(manifestFromConnections, hwrapper.ConnectionFrom{Element: task.UID})
-		}
-
-		cj.Payload.Connections = append(cj.Payload.Connections,
-			hwrapper.Connection{
-				From: manifestFromConnections,
-				To: hwrapper.ConnectionTo{
-					Success: []hwrapper.ToSuccess{
-						{Element: "manifest_creator"},
-					},
-				},
-			},
-		)
-
 	}
 
 	resp, err := json.Marshal(cj)
@@ -420,12 +370,8 @@ func (p *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, er
 		return hwrapper.Preset{}, err
 	}
 
-	if preset.Video.GopMode == "fixed" {
-		minGOPFrames = gopSize
-		maxGOPFrames = gopSize
-	} else {
-		maxGOPFrames = gopSize
-	}
+	minGOPFrames = gopSize
+	maxGOPFrames = gopSize
 
 	container := ""
 	for _, c := range p.Capabilities().OutputFormats {
@@ -439,11 +385,6 @@ func (p *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, er
 	}
 
 	bitrate, err := strconv.Atoi(preset.Video.Bitrate)
-	if err != nil {
-		return hwrapper.Preset{}, ErrBitrateNan
-	}
-
-	audioBitrate, err := strconv.Atoi(preset.Audio.Bitrate)
 	if err != nil {
 		return hwrapper.Preset{}, ErrBitrateNan
 	}
@@ -479,11 +420,16 @@ func (p *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, er
 		videoLevel = ""
 	}
 
+	audioTargets, err := audioTargetsFrom(preset.Audio)
+	if err != nil {
+		return hwrapper.Preset{}, errors.Wrap(err, "building audio targets")
+	}
+
 	hybrikPreset := hwrapper.Preset{
 		Key:         preset.Name,
 		Name:        preset.Name,
 		Description: preset.Description,
-		Kind:        "transcode",
+		Kind:        elementKindTranscode,
 		Path:        p.config.PresetPath,
 		Payload: hwrapper.PresetPayload{
 			Targets: []hwrapper.PresetTarget{
@@ -493,23 +439,20 @@ func (p *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, er
 						Kind: container,
 					},
 					Video: hwrapper.VideoTarget{
-						Width:         videoWidth,
-						Height:        videoHeight,
-						Codec:         preset.Video.Codec,
-						BitrateKb:     bitrate / 1000,
-						MinGOPFrames:  minGOPFrames,
-						MaxGOPFrames:  maxGOPFrames,
-						Profile:       videoProfile,
-						Level:         videoLevel,
-						InterlaceMode: preset.Video.InterlaceMode,
-					},
-					Audio: []hwrapper.AudioTarget{
-						{
-							Codec:     preset.Audio.Codec,
-							BitrateKb: audioBitrate / 1000,
-						},
+						Width:          videoWidth,
+						Height:         videoHeight,
+						Codec:          preset.Video.Codec,
+						Preset:         presetSlow,
+						BitrateKb:      bitrate / 1000,
+						MinGOPFrames:   minGOPFrames,
+						MaxGOPFrames:   maxGOPFrames,
+						ExactGOPFrames: maxGOPFrames,
+						Profile:        videoProfile,
+						Level:          videoLevel,
+						InterlaceMode:  preset.Video.InterlaceMode,
 					},
 					ExistingFiles: "replace",
+					Audio:         audioTargets,
 					UID:           "target",
 				},
 			},
@@ -524,6 +467,24 @@ func (p *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, er
 	}
 
 	return hybrikPreset, nil
+}
+
+func audioTargetsFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
+	if (preset == db.AudioPreset{}) {
+		return []hwrapper.AudioTarget{}, nil
+	}
+
+	audioBitrate, err := strconv.Atoi(preset.Bitrate)
+	if err != nil {
+		return nil, ErrBitrateNan
+	}
+	return []hwrapper.AudioTarget{
+		{
+			Codec:     preset.Codec,
+			Channels:  2,
+			BitrateKb: audioBitrate / 1000,
+		},
+	}, nil
 }
 
 type presetModifier struct {

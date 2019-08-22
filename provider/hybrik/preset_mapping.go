@@ -8,38 +8,26 @@ import (
 	"github.com/pkg/errors"
 )
 
+type transcodeElementWithPreset struct {
+	transcodeElement hybrik.Element
+	preset           hybrik.Preset
+}
+
 type elementKind = string
 
 const (
-	elementKindTranscode   elementKind = "transcode"
-	elementKindSource      elementKind = "source"
-	elementKindDolbyVision elementKind = "dolby_vision"
+	elementKindTranscode elementKind = "transcode"
+	elementKindSource    elementKind = "source"
+	elementKindPackage   elementKind = "package"
 )
 
 type storageProvider = string
 
-const storageProviderUnrecognized storageProvider = "unrecognized"
-const storageProviderS3 storageProvider = "s3"
-const storageProviderGCS storageProvider = "gs"
-
-func transcodeElementsFromPresets(presets map[string]hybrik.Preset, destination storageLocation,
-	execFeatures executionFeatures, computeTags map[db.ComputeClass]string) ([]hybrik.Element, error) {
-	elements := []hybrik.Element{}
-
-	idx := 0
-	for filename, preset := range presets {
-		element, err := transcodeElementFromPreset(preset, fmt.Sprintf("transcode_task_%d", idx),
-			destination, filename, execFeatures, computeTags)
-		if err != nil {
-			return nil, errors.Wrapf(err, "mapping hybrik preset %v into a transcode element", preset)
-		}
-
-		elements = append(elements, element)
-		idx++
-	}
-
-	return elements, nil
-}
+const (
+	storageProviderUnrecognized storageProvider = "unrecognized"
+	storageProviderS3           storageProvider = "s3"
+	storageProviderGCS          storageProvider = "gs"
+)
 
 func transcodeElementFromPreset(preset hybrik.Preset, uid string, destination storageLocation, filename string,
 	execFeatures executionFeatures, computeTags map[db.ComputeClass]string) (hybrik.Element, error) {
@@ -47,6 +35,9 @@ func transcodeElementFromPreset(preset hybrik.Preset, uid string, destination st
 		return hybrik.Element{}, errors.New("the hybrik provider only supports presets with a single target")
 	}
 	target := preset.Payload.Targets[0]
+
+	// default video preset to slow
+	target.Video.Preset = presetSlow
 
 	payload := hybrik.TranscodePayload{
 		LocationTargetPayload: hybrik.LocationTargetPayload{
@@ -87,4 +78,46 @@ func transcodeElementFromPreset(preset hybrik.Preset, uid string, destination st
 	}
 
 	return element, nil
+}
+
+func transcodeAudioElementFromPreset(target hybrik.AudioTarget, outputFilename string, idx int,
+	computeTags map[db.ComputeClass]string, destination storageLocation, container string) hybrik.Element {
+	transcodeComputeTags := []string{}
+	if tag, found := computeTags[db.ComputeClassTranscodeDefault]; found {
+		transcodeComputeTags = append(transcodeComputeTags, tag)
+	}
+
+	return hybrik.Element{
+		UID:  fmt.Sprintf("audio_%d", idx),
+		Kind: elementKindTranscode,
+		Task: &hybrik.ElementTaskOptions{
+			Tags: transcodeComputeTags,
+			Name: "Audio Encode",
+		},
+		Payload: hybrik.LocationTargetPayload{
+			Location: hybrik.TranscodeLocation{
+				StorageProvider: destination.provider,
+				Path:            destination.path,
+			},
+			Targets: []hybrik.TranscodeTarget{{
+				FilePattern:   outputFilename,
+				ExistingFiles: "replace",
+				Container: hybrik.TranscodeContainer{
+					Kind: container,
+				},
+				Audio: []map[string]interface{}{
+					{
+						"codec":      target.Codec,
+						"bitrate_kb": target.BitrateKb,
+						"channels":   2,
+						"source": []map[string]interface{}{
+							{
+								"track": 1,
+							},
+						},
+					},
+				},
+			}},
+		},
+	}
 }

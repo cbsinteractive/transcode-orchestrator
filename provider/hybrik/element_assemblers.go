@@ -6,38 +6,25 @@ import (
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/mitchellh/hashstructure"
+	"github.com/pkg/errors"
 )
 
 const (
-	doViModuleProfile                     = "profile"
-	doViProfile5                          = 5
-	doViMezzQCOutputPathTmpl              = "%s/mezzanine_qc"
-	doViMezzQCReportFilenameTmpl          = "%s_mezz_qc_report.txt"
-	doViNBCPreProcOutputPathTmpl          = "%s/nbc_preproc"
-	doViVESMuxOutputPathTmpl              = "%s/vesmuxer"
-	doViVESMuxFilenameDefault             = "ves.h265"
-	doViMetadataPostProcOutputPathTmpl    = "%s/metadata_postproc"
-	doViMetadataPostProcFilenameDefault   = "postproc.265"
-	doViMetadataPostProcQCOutputPathTmpl  = "%s/metadata_postproc_qc"
-	doViMetadataPostProcQCFilenameDefault = "metadata_postproc_qc_report.txt"
-	doViMP4MuxFilenameDefault             = "{source_basename}.mp4"
-	doViMP4MuxQCOutputPathTmpl            = "%s/mp4_qc"
-	doViMP4MuxQCFilenameDefault           = "mp4_qc_report.txt"
-	doViSourceDemuxOutputPathTmpl         = "%s/source_demux"
-	doViPreProcNumTasksAuto               = "auto"
-	doViPreProcIntervalLengthDefault      = 48
-	doViInputEDRAspectDefault             = "2"
-	doViInputEDRCropDefault               = "0x0x0x0"
-	doViInputEDRPadDefault                = "0x0x0x0"
-
-	retryMethodRetry  = "retry"
-	retryCountDefault = 3
-	retryDelayDefault = 30
+	doViProfile5                 = 5
+	doViElementKind              = "dolby_vision"
+	doViMezzQCElementUID         = "mezzanine_qc"
+	doViMezzQCElementModule      = "mezzanine_qc"
+	doViMezzQCElementName        = "Mezzanine QC"
+	doViMezzQCOutputPathTmpl     = "%s/mezzanine_qc"
+	doViMezzQCReportFilenameTmpl = "%s_mezz_qc_report.txt"
+	doViMP4MuxFilenameDefault    = "{source_basename}.mp4"
 
 	computeTagPreProcDefault = "preproc"
+	computeTagMezzQCDefault  = "preproc"
 )
 
-func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([]hybrik.Element, error) {
+func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([][]hybrik.Element, error) {
 	elements := []hybrik.Element{}
 
 	idx := 0
@@ -48,135 +35,201 @@ func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([]hybrik.Element, 
 		idx++
 	}
 
-	return elements, nil
+	return [][]hybrik.Element{elements}, nil
 }
 
-func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([]hybrik.Element, error) {
+func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Element, error) {
+	elementGroups := [][]hybrik.Element{}
+
 	presets := map[string]hybrik.Preset{}
 	for _, outputCfg := range cfg.outputCfgs {
 		presets[outputCfg.filename] = outputCfg.preset
 	}
 
-	transcodeElements, err := transcodeElementsFromPresets(presets, cfg.destination, cfg.executionFeatures, cfg.computeTags)
+	mezzQCComputeTag := computeTagMezzQCDefault
+	if tag, found := cfg.computeTags[db.ComputeClassDolbyVisionMezzQC]; found {
+		mezzQCComputeTag = tag
+	}
+
+	// initialize our pre-transcode execution group with a mezz qc task
+	preTranscodeElements := []hybrik.Element{dolbyVisionMezzQCElementFrom(mezzQCComputeTag, cfg)}
+
+	// then add any extracted audio elements to the pre-transcode group
+	audioElements, audioPresetsToFilename, err := audioElementsFrom(presets, cfg)
 	if err != nil {
 		return nil, err
 	}
+	preTranscodeElements = append(preTranscodeElements, audioElements...)
 
-	doViPreProcNumTasks := doViPreProcNumTasksAuto
-	if numTasks := cfg.executionFeatures.doViPreProcSegmentation.numTasks; numTasks != "" {
-		doViPreProcNumTasks = numTasks
-	}
-
-	doViPreProcIntervalLength := doViPreProcIntervalLengthDefault
-	if intervalLength := cfg.executionFeatures.doViPreProcSegmentation.intervalLength; intervalLength != 0 {
-		doViPreProcIntervalLength = intervalLength
-	}
+	// add pre-transcode tasks as the first element in the pipeline
+	elementGroups = append(elementGroups, preTranscodeElements)
 
 	preprocComputeTag := computeTagPreProcDefault
 	if tag, found := cfg.computeTags[db.ComputeClassDolbyVisionPreprocess]; found {
 		preprocComputeTag = tag
 	}
 
-	return []hybrik.Element{{
-		UID:  dolbyVisionElementID,
-		Kind: elementKindDolbyVision,
-		Payload: hybrik.DolbyVisionTaskPayload{
-			Module:  doViModuleProfile,
-			Profile: doViProfile5,
-			MezzanineQC: hybrik.DoViMezzanineQC{
-				Enabled: false,
+	transcodeElementsWithPreset, err := transcodeElementsWithPresetsFrom(presets, cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "converting presets into transcode elements")
+	}
+
+	// build up our transcode tasks
+	transcodeElements := []hybrik.Element{}
+	for idx, transcodeWithPreset := range transcodeElementsWithPreset {
+		elementaryAudioStreams := []hybrik.DoViMP4MuxElementaryStream{}
+		audioCfg, found, err := audioTargetFromPreset(transcodeWithPreset.preset)
+		if err != nil {
+			return nil, err
+		}
+
+		if found {
+			hash, err := hashstructure.Hash(audioCfg, nil)
+			if err != nil {
+				return nil, errors.Wrap(err, "hashing audio cfg struct")
+			}
+
+			if filename, found := audioPresetsToFilename[hash]; found {
+				elementaryAudioStreams = append(elementaryAudioStreams, hybrik.DoViMP4MuxElementaryStream{
+					AssetURL: hybrik.AssetURL{
+						StorageProvider: cfg.destination.provider,
+						URL:             fmt.Sprintf("%s/%s", cfg.destination.path, filename),
+					},
+				})
+			}
+		}
+
+		doViElement := hybrik.Element{
+			UID:  fmt.Sprintf("dolby_vision_%d", idx),
+			Kind: doViElementKind,
+			Task: &hybrik.ElementTaskOptions{
+				Name:              fmt.Sprintf("Encode #%d", idx),
+				RetryMethod:       "fail",
+				SourceElementUIDs: []string{cfg.source.UID},
+			},
+			Payload: hybrik.DolbyVisionV2TaskPayload{
+				Module:  "encoder",
+				Profile: doViProfile5,
+				Location: hybrik.TranscodeLocation{
+					StorageProvider: cfg.destination.provider,
+					Path:            cfg.destination.path,
+				},
+				Preprocessing: hybrik.DolbyVisionV2Preprocessing{
+					Task: hybrik.TaskTags{
+						Tags: []string{preprocComputeTag},
+					},
+				},
+				Transcodes: []hybrik.Element{transcodeWithPreset.transcodeElement},
+				PostTranscode: hybrik.DoViPostTranscode{
+					MP4Mux: hybrik.DoViMP4Mux{
+						Enabled:           true,
+						FilePattern:       doViMP4MuxFilenameDefault,
+						ElementaryStreams: elementaryAudioStreams,
+					},
+				},
+			},
+		}
+
+		transcodeElements = append(transcodeElements, doViElement)
+	}
+
+	// add all transcode tasks as the second element in the pipeline
+	elementGroups = append(elementGroups, transcodeElements)
+
+	return elementGroups, nil
+}
+
+func audioElementsFrom(presets map[string]hybrik.Preset, cfg jobCfg) ([]hybrik.Element, map[uint64]string, error) {
+	audioConfigurations := map[uint64]hybrik.AudioTarget{}
+	for _, preset := range presets {
+		audioCfg, found, err := audioTargetFromPreset(preset)
+		if err != nil {
+			return nil, nil, err
+		} else if !found {
+			continue
+		}
+
+		cfgHash, err := hashstructure.Hash(audioCfg, nil)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "hashing a preset audio cfg")
+		}
+
+		audioConfigurations[cfgHash] = audioCfg
+	}
+
+	audioElements := []hybrik.Element{}
+	audioPresetsToFilename := map[uint64]string{}
+	idx := 0
+	for hash, audioTarget := range audioConfigurations {
+		outputFilename := fmt.Sprintf("audio_output_%d.%s", idx, audioTarget.Codec)
+
+		audioElement := transcodeAudioElementFromPreset(audioTarget, outputFilename, idx, cfg.computeTags,
+			cfg.destination, containerKindElementary)
+		audioElements = append(audioElements, audioElement)
+
+		audioPresetsToFilename[hash] = outputFilename
+		idx++
+	}
+	return audioElements, audioPresetsToFilename, nil
+}
+
+func transcodeElementsWithPresetsFrom(presets map[string]hybrik.Preset, cfg jobCfg) ([]transcodeElementWithPreset, error) {
+	transcodeElementsWithPreset := []transcodeElementWithPreset{}
+	idx := 0
+	for filename, preset := range presets {
+		// removing audio as we're processing this separately
+		presetWithoutAudio := preset
+		for idx, target := range preset.Payload.Targets {
+			target.Audio = []hybrik.AudioTarget{}
+			presetWithoutAudio.Payload.Targets[idx] = target
+		}
+		element, err := transcodeElementFromPreset(presetWithoutAudio, fmt.Sprintf("transcode_task_%d", idx),
+			cfg.destination, filename, cfg.executionFeatures, cfg.computeTags)
+		if err != nil {
+			return nil, errors.Wrapf(err, "mapping hybrik preset %v into a transcode element", preset)
+		}
+
+		transcodeElementsWithPreset = append(transcodeElementsWithPreset, transcodeElementWithPreset{
+			transcodeElement: element,
+			preset:           preset,
+		})
+		idx++
+	}
+
+	return transcodeElementsWithPreset, nil
+}
+
+func dolbyVisionMezzQCElementFrom(mezzQCComputeTag string, cfg jobCfg) hybrik.Element {
+	mezzQCElement := hybrik.Element{
+		UID:  doViMezzQCElementUID,
+		Kind: doViElementKind,
+		Task: &hybrik.ElementTaskOptions{
+			Name: doViMezzQCElementName,
+			Tags: []string{mezzQCComputeTag},
+		},
+		Payload: hybrik.DoViV2MezzanineQCPayload{
+			Module: doViMezzQCElementModule,
+			Params: hybrik.DoViV2MezzanineQCPayloadParams{
 				Location: hybrik.TranscodeLocation{
 					StorageProvider: cfg.destination.provider,
 					Path:            fmt.Sprintf(doViMezzQCOutputPathTmpl, cfg.destination.path),
 				},
 				FilePattern: fmt.Sprintf(doViMezzQCReportFilenameTmpl, cfg.jobID),
-				ToolVersion: hybrik.DoViMezzQCVersionDefault,
-			},
-			NBCPreproc: hybrik.DoViNBCPreproc{
-				Task: hybrik.TaskTags{
-					Tags: []string{preprocComputeTag},
-				},
-				Location: hybrik.TranscodeLocation{
-					StorageProvider: cfg.destination.provider,
-					Path:            fmt.Sprintf(doViNBCPreProcOutputPathTmpl, cfg.destination.path),
-				},
-				SDKVersion:     hybrik.DoViSDKVersionDefault,
-				NumTasks:       doViPreProcNumTasks,
-				IntervalLength: doViPreProcIntervalLength,
-				CLIOptions: hybrik.DoViNBCPreprocCLIOptions{
-					InputEDRAspect: doViInputEDRAspectDefault,
-					InputEDRPad:    doViInputEDRCropDefault,
-					InputEDRCrop:   doViInputEDRPadDefault,
-				},
-			},
-			Transcodes: transcodeElements,
-			PostTranscode: hybrik.DoViPostTranscode{
-				VESMux: hybrik.DoViVESMux{
-					Enabled: true,
-					Location: hybrik.TranscodeLocation{
-						StorageProvider: cfg.destination.provider,
-						Path:            fmt.Sprintf(doViVESMuxOutputPathTmpl, cfg.destination.path),
-					},
-					FilePattern: doViVESMuxFilenameDefault,
-					SDKVersion:  hybrik.DoViSDKVersionDefault,
-				},
-				MetadataPostProc: hybrik.DoViMetadataPostProc{
-					Enabled: true,
-					Location: hybrik.TranscodeLocation{
-						StorageProvider: cfg.destination.provider,
-						Path:            fmt.Sprintf(doViMetadataPostProcOutputPathTmpl, cfg.destination.path),
-					},
-					FilePattern: doViMetadataPostProcFilenameDefault,
-					SDKVersion:  hybrik.DoViSDKVersionDefault,
-					QCSettings: hybrik.DoViQCSettings{
-						Enabled:     true,
-						ToolVersion: hybrik.DoViVesQCVersionDefault,
-						Location: hybrik.TranscodeLocation{
-							StorageProvider: cfg.destination.provider,
-							Path:            fmt.Sprintf(doViMetadataPostProcQCOutputPathTmpl, cfg.destination.path),
-						},
-						FilePattern: doViMetadataPostProcQCFilenameDefault,
-					},
-				},
-				MP4Mux: hybrik.DoViMP4Mux{
-					Enabled: true,
-					Location: hybrik.TranscodeLocation{
-						StorageProvider: cfg.destination.provider,
-						Path:            cfg.destination.path,
-					},
-					FilePattern:        doViMP4MuxFilenameDefault,
-					ToolVersion:        hybrik.DoViMP4MuxerVersionDefault,
-					CopySourceStartPTS: true,
-					QCSettings: hybrik.DoViQCSettings{
-						Enabled:     true,
-						ToolVersion: hybrik.DoViMP4QCVersionDefault,
-						Location: hybrik.TranscodeLocation{
-							StorageProvider: cfg.destination.provider,
-							Path:            fmt.Sprintf(doViMP4MuxQCOutputPathTmpl, cfg.destination.path),
-						},
-						FilePattern: doViMP4MuxQCFilenameDefault,
-					},
-					ElementaryStreams: []hybrik.DoViMP4MuxElementaryStream{{
-						AssetURL: hybrik.AssetURL{
-							StorageProvider: cfg.sourceLocation.provider,
-							URL:             cfg.sourceLocation.path,
-						},
-						ExtractAudio: true,
-						ExtractLocation: hybrik.TranscodeLocation{
-							StorageProvider: cfg.destination.provider,
-							Path:            fmt.Sprintf(doViSourceDemuxOutputPathTmpl, cfg.destination.path),
-						},
-						ExtractTask: hybrik.DoViMP4MuxExtractTask{
-							RetryMethod: retryMethodRetry,
-							Retry: hybrik.Retry{
-								Count:    retryCountDefault,
-								DelaySec: retryDelayDefault,
-							},
-							Name: "Demux Audio",
-						},
-					}},
-				},
 			},
 		},
-	}}, nil
+	}
+	return mezzQCElement
+}
+
+func audioTargetFromPreset(preset hybrik.Preset) (hybrik.AudioTarget, bool, error) {
+	if len(preset.Payload.Targets) == 0 {
+		return hybrik.AudioTarget{}, false, fmt.Errorf("preset has no targets: %v", preset)
+	}
+
+	target := preset.Payload.Targets[0]
+	if len(target.Audio) == 0 {
+		return hybrik.AudioTarget{}, false, nil
+	}
+
+	return target.Audio[0], true, nil
 }

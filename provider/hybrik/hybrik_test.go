@@ -111,20 +111,24 @@ func TestHybrikProvider_hybrikPresetFrom(t *testing.T) {
 							FilePattern: "",
 							Container:   hybrik.TranscodeContainer{Kind: defaultPreset.Container},
 							Video: hybrik.VideoTarget{
-								Width:         intToPtr(300),
-								Height:        intToPtr(400),
-								Codec:         defaultPreset.Video.Codec,
-								BitrateKb:     400,
-								MaxGOPFrames:  120,
-								BitrateMode:   "cbr",
-								Profile:       "high",
-								Level:         "4.1",
-								InterlaceMode: "progressive",
+								Width:          intToPtr(300),
+								Height:         intToPtr(400),
+								Codec:          defaultPreset.Video.Codec,
+								BitrateKb:      400,
+								Preset:         "slow",
+								MaxGOPFrames:   120,
+								ExactGOPFrames: 120,
+								MinGOPFrames:   120,
+								BitrateMode:    "cbr",
+								Profile:        "high",
+								Level:          "4.1",
+								InterlaceMode:  "progressive",
 							},
 							Audio: []hybrik.AudioTarget{
 								{
 									Codec:     defaultPreset.Audio.Codec,
 									BitrateKb: 20,
+									Channels:  2,
 								},
 							},
 							ExistingFiles: "replace",
@@ -222,9 +226,9 @@ func TestHybrikProvider_hybrikPresetFrom_fields(t *testing.T) {
 						want: "main10",
 					},
 					{
-						name: "ffmpeg params",
-						got:  firstTarget.Video.FFMPEGArgs,
-						want: "-tag:v hvc1",
+						name: "vtag",
+						got:  firstTarget.Video.VTag,
+						want: "hvc1",
 					},
 				}
 
@@ -436,7 +440,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 					Targets: []hybrik.PresetTarget{
 						{
 							FilePattern: "",
-							Container:   hybrik.TranscodeContainer{Kind: defaultPreset.Container},
+							Container:   hybrik.TranscodeContainer{Kind: containerKindElementary},
 							Video: hybrik.VideoTarget{
 								Width:         intToPtr(300),
 								Codec:         "h265",
@@ -444,14 +448,14 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 								MaxGOPFrames:  120,
 								Profile:       "main10",
 								InterlaceMode: "progressive",
+								FFMPEGArgs:    "-tag:v hvc1 -strict experimental",
+								X265Options:   h265DolbyVisionArgsDefualt,
 							},
-							Audio: []hybrik.AudioTarget{
-								{
-									Codec:     defaultPreset.Audio.Codec,
-									BitrateKb: 20,
-								},
-							},
+							Audio: []hybrik.AudioTarget{},
 						},
+					},
+					Options: &hybrik.TranscodeTaskOptions{
+						Pipeline: &hybrik.PipelineOptions{EncoderVersion: hybrik.EncoderVersion4_10bit},
 					},
 				},
 			},
@@ -463,151 +467,75 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 							UID:  "source_file",
 							Kind: "source",
 							Payload: map[string]interface{}{
-								"kind": "asset_urls",
+								"kind": string("asset_urls"),
 								"payload": []interface{}{
-									map[string]interface{}{
-										"storage_provider": "s3",
-										"url":              "s3://some/path.mp4",
+									map[string]interface{}{"storage_provider": string("s3"), "url": string("s3://some/path.mp4")},
+								},
+							},
+						},
+						{
+							UID:  "mezzanine_qc",
+							Kind: "dolby_vision",
+							Task: &hybrik.ElementTaskOptions{Name: "Mezzanine QC", Tags: []string{"preproc"}},
+							Payload: map[string]interface{}{
+								"module": string("mezzanine_qc"),
+								"params": map[string]interface{}{
+									"file_pattern": string("jobID_mezz_qc_report.txt"),
+									"location": map[string]interface{}{
+										"path":             string("s3://some-dest/path/jobID/mezzanine_qc"),
+										"storage_provider": string("s3"),
 									},
 								},
 							},
 						},
 						{
-							UID:  "dolby_vision_task",
+							UID:  "dolby_vision_0",
 							Kind: "dolby_vision",
+							Task: &hybrik.ElementTaskOptions{
+								Name:              "Encode #0",
+								RetryMethod:       "fail",
+								SourceElementUIDs: []string{"source_file"},
+							},
 							Payload: map[string]interface{}{
-								"mezzanine_qc": map[string]interface{}{
-									"enabled":      false,
-									"file_pattern": "jobID_mezz_qc_report.txt",
-									"location": map[string]interface{}{
-										"path":             "s3://some-dest/path/jobID/mezzanine_qc",
-										"storage_provider": "s3",
-									},
-									"task":         map[string]interface{}{},
-									"tool_version": "2.6.2",
-								},
-								"module": "profile",
-								"nbc_preproc": map[string]interface{}{
-									"cli_options": map[string]interface{}{
-										"inputEDRAspect": "2",
-										"inputEDRCrop":   "0x0x0x0",
-										"inputEDRPad":    "0x0x0x0",
-									},
-									"dovi_sdk_version": "4.2.1_ga",
-									"interval_length":  float64(48),
-									"location": map[string]interface{}{
-										"path":             "s3://some-dest/path/jobID/nbc_preproc",
-										"storage_provider": "s3",
-									},
-									"num_tasks": "auto",
-									"task": map[string]interface{}{
-										"tags": []interface{}{"preproc"},
-									},
-								},
+								"location": map[string]interface{}{"path": "s3://some-dest/path/jobID", "storage_provider": "s3"},
+								"module":   "encoder",
 								"post_transcode": map[string]interface{}{
-									"metadata_postproc": map[string]interface{}{
-										"dovi_sdk_version": "4.2.1_ga",
-										"enabled":          true,
-										"file_pattern":     "postproc.265",
-										"location": map[string]interface{}{
-											"path":             "s3://some-dest/path/jobID/metadata_postproc",
-											"storage_provider": "s3",
-										},
-										"qc": map[string]interface{}{
-											"enabled":      true,
-											"file_pattern": "metadata_postproc_qc_report.txt",
-											"location": map[string]interface{}{
-												"path":             "s3://some-dest/path/jobID/metadata_postproc_qc",
-												"storage_provider": "s3",
-											},
-											"tool_version": "0.9.0.9",
-										},
-									},
-									"mp4_mux": map[string]interface{}{
-										"copy_source_start_pts": true,
-										"elementary_streams": []interface{}{
-											map[string]interface{}{
-												"asset_url": map[string]interface{}{
-													"storage_provider": "s3",
-													"url":              "s3://some/path.mp4",
-												},
-												"extract_audio": true,
-												"extract_location": map[string]interface{}{
-													"path":             "s3://some-dest/path/jobID/source_demux",
-													"storage_provider": "s3",
-												},
-												"extract_task": map[string]interface{}{
-													"name": "Demux Audio",
-													"retry": map[string]interface{}{
-														"count":     float64(3),
-														"delay_sec": float64(30),
-													},
-													"retry_method": "retry",
-												},
-											},
-										},
-										"enabled":      true,
-										"file_pattern": "{source_basename}.mp4",
-										"location": map[string]interface{}{
-											"path":             "s3://some-dest/path/jobID",
-											"storage_provider": "s3",
-										},
-										"qc": map[string]interface{}{
-											"enabled":      true,
-											"file_pattern": "mp4_qc_report.txt",
-											"location": map[string]interface{}{
-												"path":             "s3://some-dest/path/jobID/mp4_qc",
-												"storage_provider": "s3",
-											},
-											"tool_version": "1.1.4",
-										},
-										"tool_version": "1.2.8",
-									},
-									"task": map[string]interface{}{},
-									"ves_mux": map[string]interface{}{
-										"dovi_sdk_version": "4.2.1_ga",
-										"enabled":          true,
-										"file_pattern":     "ves.h265",
-										"location": map[string]interface{}{
-											"path":             "s3://some-dest/path/jobID/vesmuxer",
-											"storage_provider": "s3",
-										},
-									},
+									"mp4_mux": map[string]interface{}{"enabled": true, "file_pattern": "{source_basename}.mp4"},
 								},
-								"profile": float64(5),
+								"preprocessing": map[string]interface{}{"task": map[string]interface{}{"tags": []interface{}{"preproc"}}},
+								"profile":       float64(5),
 								"transcodes": []interface{}{
 									map[string]interface{}{
-										"kind": "transcode",
-										"task": map[string]interface{}{"name": ""},
+										"kind": string("transcode"),
 										"payload": map[string]interface{}{
 											"location": map[string]interface{}{
 												"path":             "s3://some-dest/path/jobID/elementary",
 												"storage_provider": "s3",
 											},
-											"source_pipeline": map[string]interface{}{
-												"options": map[string]interface{}{},
-												"scaler":  map[string]interface{}{},
+											"options": map[string]interface{}{
+												"pipeline": map[string]interface{}{"encoder_version": "hybrik_4.0_10bit"},
 											},
+											"source_pipeline": map[string]interface{}{"options": map[string]interface{}{}, "scaler": map[string]interface{}{}},
 											"targets": []interface{}{
 												map[string]interface{}{
-													"audio": []interface{}{map[string]interface{}{
-														"bitrate_kb": float64(20),
-														"codec":      "aac",
-													}},
-													"container":    map[string]interface{}{"kind": "mp4"},
+													"container":    map[string]interface{}{"kind": "elementary"},
 													"file_pattern": "file1.mp4",
 													"video": map[string]interface{}{
 														"bitrate_kb":     float64(12000),
 														"codec":          "h265",
+														"ffmpeg_args":    "-tag:v hvc1 -strict experimental",
 														"interlace_mode": "progressive",
 														"max_gop_frames": float64(120),
 														"profile":        "main10",
+														"preset":         presetSlow,
 														"width":          float64(300),
+														"x265_options":   "concatenation={auto_concatenation_flag}:vbv-init=0.6:vbv-end=0.6:annexb=1:hrd=1:aud=1:videoformat=5:range=full:colorprim=2:transfer=2:colormatrix=2:rc-lookahead=48:qg-size=32:scenecut=0:no-open-gop=1:frame-threads=0:repeat-headers=1:nr-inter=400:nr-intra=100:psy-rd=0:cbqpoffs=0:crqpoffs=3",
 													},
 												},
 											},
 										},
-										"uid": "transcode_task_0",
+										"task": map[string]interface{}{"name": ""},
+										"uid":  "transcode_task_0",
 									},
 								},
 							},
@@ -616,9 +544,11 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 					Connections: []hybrik.Connection{
 						{
 							From: []hybrik.ConnectionFrom{{Element: "source_file"}},
-							To: hybrik.ConnectionTo{
-								Success: []hybrik.ToSuccess{{Element: "dolby_vision_task"}},
-							},
+							To:   hybrik.ConnectionTo{Success: []hybrik.ToSuccess{{Element: "mezzanine_qc"}}},
+						},
+						{
+							From: []hybrik.ConnectionFrom{{Element: "mezzanine_qc"}},
+							To:   hybrik.ConnectionTo{Success: []hybrik.ToSuccess{{Element: "dolby_vision_0"}}},
 						},
 					},
 				},
@@ -758,6 +688,84 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 
 				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
 					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
+						g, cmp.Diff(e, g))
+				}
+			},
+		},
+		{
+			name: "when HLS packaging is specified, a package task is added with the correct values",
+			jobModifier: func(job db.Job) db.Job {
+				job.StreamingParams = db.StreamingParams{
+					SegmentDuration: 4,
+					Protocol:        "hls",
+				}
+
+				return job
+			},
+			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+				gotTask := createJob.Payload.Elements[len(createJob.Payload.Elements)-1]
+
+				expectTask := hybrik.Element{
+					UID:  "packager",
+					Kind: elementKindPackage,
+					Payload: map[string]interface{}{
+						"file_pattern":         "master.m3u8",
+						"force_original_media": false,
+						"hls": map[string]interface{}{
+							"hevc_codec_id_prefix":     "hvc1",
+							"include_iframe_manifests": true,
+						},
+						"kind": "hls",
+						"location": map[string]interface{}{
+							"path":             "s3://some-dest/path/jobID/hls",
+							"storage_provider": "s3",
+						},
+						"segment_duration_sec": float64(4),
+						"segmentation_mode":    "segmented_mp4",
+					},
+				}
+
+				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
+					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong package task\nWant %+v\nGot %+v\nDiff %s", e,
+						g, cmp.Diff(e, g))
+				}
+			},
+		},
+		{
+			name: "when DASH packaging is specified, a package task is added with the correct values",
+			jobModifier: func(job db.Job) db.Job {
+				job.StreamingParams = db.StreamingParams{
+					SegmentDuration: 4,
+					Protocol:        "dash",
+				}
+
+				return job
+			},
+			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+				gotTask := createJob.Payload.Elements[len(createJob.Payload.Elements)-1]
+
+				expectTask := hybrik.Element{
+					UID:  "packager",
+					Kind: elementKindPackage,
+					Payload: map[string]interface{}{
+						"file_pattern":         "master.mpd",
+						"force_original_media": false,
+						"dash": map[string]interface{}{
+							"segment_duration_sec": "4",
+							"segmentation_mode":    "segmented_mp4",
+						},
+						"kind": "dash",
+						"location": map[string]interface{}{
+							"path":             "s3://some-dest/path/jobID/dash",
+							"storage_provider": "s3",
+						},
+						"segment_duration_sec": float64(4),
+						"segmentation_mode":    "segmented_mp4",
+					},
+				}
+
+				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
+					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong package task\nWant %+v\nGot %+v\nDiff %s", e,
 						g, cmp.Diff(e, g))
 				}
 			},

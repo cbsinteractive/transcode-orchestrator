@@ -2,6 +2,8 @@ package hybrik
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/video-transcoding-api/db"
@@ -13,7 +15,7 @@ type jobCfg struct {
 	destination       storageLocation
 	sourceLocation    storageLocation
 	source            hybrik.Element
-	tasks             []hybrik.Element
+	elementGroups     [][]hybrik.Element
 	outputCfgs        map[string]outputCfg
 	streamingParams   db.StreamingParams
 	executionFeatures executionFeatures
@@ -29,15 +31,25 @@ const (
 	assetContentsKindMetadata = "metadata"
 
 	assetContentsStandardDolbyVisionMetadata = "dolbyvision_metadata"
+
+	imfManifestExtension = ".xml"
+
+	srcOptionResolveManifestKey = "resolve_manifest"
 )
 
 func srcFrom(job *db.Job, src storageLocation) (hybrik.Element, error) {
-	assets := []hybrik.AssetPayload{
-		{
-			StorageProvider: src.provider,
-			URL:             src.path,
-		},
+	sourceAsset := hybrik.AssetPayload{
+		StorageProvider: src.provider,
+		URL:             src.path,
 	}
+
+	if strings.ToLower(filepath.Ext(src.path)) == imfManifestExtension {
+		sourceAsset.Options = map[string]interface{}{
+			srcOptionResolveManifestKey: true,
+		}
+	}
+
+	assets := []hybrik.AssetPayload{sourceAsset}
 
 	if sidecarLocation, ok := job.SidecarAssets[db.SidecarAssetKindDolbyVisionMetadata]; ok {
 		sidecarStorageProvider, err := storageProviderFrom(sidecarLocation)
@@ -128,7 +140,7 @@ func (p *hybrikProvider) makeGetPresetRequest(presetID string, ch chan *presetRe
 	}
 }
 
-type elementAssembler func(jobCfg) ([]hybrik.Element, error)
+type elementAssembler func(jobCfg) ([][]hybrik.Element, error)
 
 func (p *hybrikProvider) elementAssemblerFrom(cfgs map[string]outputCfg) (elementAssembler, error) {
 	dolbyVisionEnabled, err := dolbyVisionEnabledOnAllPresets(cfgs)

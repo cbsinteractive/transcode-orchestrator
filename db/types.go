@@ -96,6 +96,9 @@ const (
 
 	// ComputeClassDolbyVisionPreprocess runs Dolby Vision pre-processing
 	ComputeClassDolbyVisionPreprocess ComputeClass = "doViPreprocess"
+
+	// ComputeClassDolbyVisionPreprocess runs Dolby Vision pre-processing
+	ComputeClassDolbyVisionMezzQC ComputeClass = "doViMezzQC"
 )
 
 // TranscodeOutput represents a transcoding output. It's a combination of the
