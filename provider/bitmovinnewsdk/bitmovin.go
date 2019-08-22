@@ -265,8 +265,9 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		}
 
 		_, audCfgExists := audMuxingStreams[audCfgID]
+		audCfgValid := audCfgID != ""
 
-		if !audCfgExists && audCfgID != "" {
+		if !audCfgExists && audCfgValid {
 			audStream, err := p.api.Encoding.Encodings.Streams.Create(enc.Id, model.Stream{
 				CodecConfigId: audCfgID,
 				InputStreams:  audInputStreams,
@@ -317,7 +318,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			VidMuxingStream:    vidMuxingStream,
 			ManifestID:         manifestID,
 			ManifestMasterPath: manifestMasterPath,
-			SkipAudioCreation:  audCfgExists,
+			SkipAudioCreation:  !audCfgExists,
 			SegDuration:        job.StreamingParams.SegmentDuration,
 		}); err != nil {
 			return nil, err
