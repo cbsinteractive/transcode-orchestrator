@@ -44,13 +44,11 @@ func h265ConfigFrom(preset db.Preset, customData *map[string]map[string]interfac
 	}
 	cfg.Profile = profile
 
-	if preset.Video.ProfileLevel != "" {
-		level, err := h265LevelFrom(preset.Video.ProfileLevel)
-		if err != nil {
-			return model.H265VideoConfiguration{}, err
-		}
-		cfg.Level = level
+	level, err := h265LevelFrom(preset.Video.ProfileLevel)
+	if err != nil {
+		return model.H265VideoConfiguration{}, err
 	}
+	cfg.Level = level
 
 	presetWidth := preset.Video.Width
 	if presetWidth != "" {
@@ -142,6 +140,10 @@ func h265ProfileFrom(presetProfile string) (model.ProfileH265, error) {
 }
 
 func h265LevelFrom(presetLevel string) (model.LevelH265, error) {
+	if presetLevel == "" {
+		return "", fmt.Errorf("h265 codec level is missing")
+	}
+
 	for _, l := range h265Levels {
 		if string(l) == presetLevel {
 			return l, nil
