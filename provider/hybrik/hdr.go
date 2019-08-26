@@ -1,7 +1,6 @@
 package hybrik
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -32,27 +31,35 @@ const (
 	colorTRCSMPTE2084       = "st2084"
 
 	presetSlow = "slow"
+
+	tuneGrain = "grain"
 )
 
-func enrichPresetWithHDRMetadata(hybrikPreset hwrapper.Preset, preset db.Preset) (hwrapper.Preset, error) {
+func enrichTranscodePayloadWithHDRMetadata(payload hwrapper.TranscodePayload, preset db.Preset) (hwrapper.TranscodePayload, error) {
 	hdr, hdrEnabled := hdrTypeFromPreset(preset)
 	if !hdrEnabled {
-		return hybrikPreset, nil
+		return payload, nil
 	}
 
-	for idx, target := range hybrikPreset.Payload.Targets {
+	transcodeTargets, ok := payload.Targets.([]hwrapper.TranscodeTarget)
+	if !ok {
+		return hwrapper.TranscodePayload{}, fmt.Errorf("targets are not TranscodeTargets: %v", payload.LocationTargetPayload.Targets)
+	}
+
+	for idx, target := range transcodeTargets {
 		if target.Video.Codec == h265Codec {
 			if target.Video.Profile == "" {
 				target.Video.Profile = h265CodecProfileMain10
 			} else if target.Video.Profile != h265CodecProfileMain10 {
-				return hwrapper.Preset{}, fmt.Errorf("for HDR content encoded with h265, " +
+				return hwrapper.TranscodePayload{}, fmt.Errorf("for HDR content encoded with h265, " +
 					"the codec profile must be main10")
 			}
 
+			target.Video.Tune = tuneGrain
 			target.Video.VTag = h265VideoTagValueHVC1
 		}
 
-		hybrikPreset.Payload.Options = &hwrapper.TranscodeTaskOptions{
+		payload.Options = &hwrapper.TranscodeTaskOptions{
 			Pipeline: &hwrapper.PipelineOptions{
 				EncoderVersion: hwrapper.EncoderVersion4_10bit,
 			},
@@ -60,20 +67,8 @@ func enrichPresetWithHDRMetadata(hybrikPreset hwrapper.Preset, preset db.Preset)
 
 		switch hdr {
 		case hdrTypeHDR10:
-			enrichedVideoTarget, err := enrichVideoTargetWithHDR10Metadata(target.Video, preset.Video.HDR10Settings)
-			if err != nil {
-				return hybrikPreset, err
-			}
-
-			hybrikPreset.Payload.Targets[idx].Video = enrichedVideoTarget
+			enrichVideoTargetWithHDR10Metadata(target.Video, preset.Video.HDR10Settings)
 		case hdrTypeDolbyVision:
-			// signal this is a dolby vision preset inside the custom user data
-			b, err := json.Marshal(customPresetData{DolbyVisionEnabled: true})
-			if err != nil {
-				return hwrapper.Preset{}, err
-			}
-			hybrikPreset.UserData = string(b)
-
 			// append ffmpeg `-strict` arg
 			target.Video.FFMPEGArgs = fmt.Sprintf("%s -strict %s", target.Video.FFMPEGArgs,
 				ffmpegStrictTypeExperimental)
@@ -83,15 +78,18 @@ func enrichPresetWithHDRMetadata(hybrikPreset hwrapper.Preset, preset db.Preset)
 				target.Video.X265Options = h265DolbyVisionArgsDefualt
 			}
 
+			target.Video.ChromaFormat = chromaFormatYUV420P10LE
+
 			// hybrik needs this format to feed into the DoVi mp4 muxer
 			target.Container.Kind = containerKindElementary
 
 			// set the enriched target back onto the preset
-			hybrikPreset.Payload.Targets[idx] = target
+			transcodeTargets[idx] = target
 		}
 	}
+	payload.Targets = transcodeTargets
 
-	return hybrikPreset, nil
+	return payload, nil
 }
 
 func hdrTypeFromPreset(preset db.Preset) (hdrType, bool) {
@@ -104,7 +102,7 @@ func hdrTypeFromPreset(preset db.Preset) (hdrType, bool) {
 	return "", false
 }
 
-func enrichVideoTargetWithHDR10Metadata(video hwrapper.VideoTarget, hdr10 db.HDR10Settings) (hwrapper.VideoTarget, error) {
+func enrichVideoTargetWithHDR10Metadata(video *hwrapper.VideoTarget, hdr10 db.HDR10Settings) {
 	hdr10Metadata := &hwrapper.HDR10Settings{}
 
 	// signal that the HDR metadata is being pulled from the source media
@@ -131,30 +129,16 @@ func enrichVideoTargetWithHDR10Metadata(video hwrapper.VideoTarget, hdr10 db.HDR
 	video.ColorPrimaries = colorPrimaryBT2020
 	video.ColorMatrix = colorMatrixBT2020NC
 	video.ColorTRC = colorTRCSMPTE2084
-
-	return video, nil
 }
 
 func dolbyVisionEnabledOnAllPresets(cfgs map[string]outputCfg) (bool, error) {
 	record := struct{ doViPresetFound, nonDoViPresetFound bool }{}
 
 	for _, cfg := range cfgs {
-		if cfg.preset.UserData == "" {
-			record.nonDoViPresetFound = true
-			continue
-		}
-
-		var customData customPresetData
-		err := json.Unmarshal([]byte(cfg.preset.UserData), &customData)
-		if err != nil {
-			record.nonDoViPresetFound = true
-			continue
-		}
-
-		if !customData.DolbyVisionEnabled {
-			record.nonDoViPresetFound = true
-		} else {
+		if enabled := cfg.localPreset.Video.DolbyVisionSettings.Enabled; enabled {
 			record.doViPresetFound = true
+		} else {
+			record.nonDoViPresetFound = true
 		}
 	}
 

@@ -1,13 +1,20 @@
 package hybrik
 
 import (
-	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
+	"fmt"
+
+	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/video-transcoding-api/db"
 )
 
-func modifyPresetForMXFSources(hybrikPreset hwrapper.Preset, preset db.Preset) (hwrapper.Preset, error) {
-	modifiedTargets := []hwrapper.PresetTarget{}
-	for _, target := range hybrikPreset.Payload.Targets {
+func modifyTranscodePayloadForMXFSources(payload hybrik.TranscodePayload, preset db.Preset) (hybrik.TranscodePayload, error) {
+	transcodeTargets, ok := payload.Targets.([]hybrik.TranscodeTarget)
+	if !ok {
+		return hybrik.TranscodePayload{}, fmt.Errorf("targets are not TranscodeTargets: %v", payload.LocationTargetPayload.Targets)
+	}
+
+	modifiedTargets := []hybrik.TranscodeTarget{}
+	for _, target := range transcodeTargets {
 		if _, hdrEnabled := hdrTypeFromPreset(preset); hdrEnabled {
 			// forcing this to two, mxf sources require two-pass
 			// when processing sources for HDR output
@@ -20,7 +27,7 @@ func modifyPresetForMXFSources(hybrikPreset hwrapper.Preset, preset db.Preset) (
 		}
 		modifiedTargets = append(modifiedTargets, target)
 	}
-	hybrikPreset.Payload.Targets = modifiedTargets
+	payload.Targets = modifiedTargets
 
-	return hybrikPreset, nil
+	return payload, nil
 }

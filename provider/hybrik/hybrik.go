@@ -10,6 +10,7 @@ import (
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/db/redis"
 	"github.com/cbsinteractive/video-transcoding-api/provider"
 	"github.com/pkg/errors"
 )
@@ -29,7 +30,7 @@ const (
 	activeRunning              = "running"
 	activeWaiting              = "waiting"
 	hls                        = "hls"
-	transcodeElementIDTemplate = "transcode_task_%s"
+	transcodeElementIDTemplate = "transcode_task_%d"
 
 	featureSegmentedRendering = "segmentedRendering"
 )
@@ -37,9 +38,6 @@ const (
 var (
 	// ErrBitrateNan is an error returned when the bitrate field of db.Preset is not a valid number
 	ErrBitrateNan = errors.New("bitrate not a number")
-
-	// ErrPresetOutputMatch represents an error in the hybrik encoding-wrapper provider.
-	ErrPresetOutputMatch = errors.New("preset retrieved does not map to hybrik.Preset struct")
 
 	// ErrVideoWidthNan is an error returned when the preset video width of db.Preset is not a valid number
 	ErrVideoWidthNan = errors.New("preset video width not a number")
@@ -56,8 +54,9 @@ func init() {
 }
 
 type hybrikProvider struct {
-	c      hwrapper.ClientInterface
-	config *config.Hybrik
+	c          hwrapper.ClientInterface
+	config     *config.Hybrik
+	repository db.Repository
 }
 
 func (p hybrikProvider) String() string {
@@ -77,14 +76,20 @@ func hybrikTranscoderFactory(cfg *config.Config) (provider.TranscodingProvider, 
 		return &hybrikProvider{}, err
 	}
 
+	dbRepo, err := redis.NewRepository(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing hybrik wrapper: %s", err)
+	}
+
 	return &hybrikProvider{
-		c:      api,
-		config: cfg.Hybrik,
+		c:          api,
+		config:     cfg.Hybrik,
+		repository: dbRepo,
 	}, nil
 }
 
 func (p *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
-	cj, err := p.presetsToTranscodeJob(job)
+	cj, err := p.createJobReqBodyFrom(job)
 	if err != nil {
 		return &provider.JobStatus{}, err
 	}
@@ -101,70 +106,24 @@ func (p *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func (p *hybrikProvider) mountTranscodeElement(elementID, id, outputFilename string, destination storageLocation, segmentDuration uint,
-	preset hwrapper.Preset, execFeatures executionFeatures, computeTags map[db.ComputeClass]string) hwrapper.Element {
-	var e hwrapper.Element
-	var subLocation *hwrapper.TranscodeLocation
-
-	// outputFilename can be "test.mp4", or "subfolder1/subfodler2/test.mp4"
-	// Handling accordingly
-	subPath := path.Dir(outputFilename)
-	outputFilePattern := path.Base(outputFilename)
-	if subPath != "." && subPath != "/" {
-		subLocation = &hwrapper.TranscodeLocation{
-			StorageProvider: "relative",
-			Path:            subPath,
-		}
+func (p *hybrikProvider) createJobReqBodyFrom(job *db.Job) (string, error) {
+	cj, err := p.createJobReqFrom(job)
+	if err != nil {
+		return "", errors.Wrap(err, "generating create job request from db.Job")
 	}
 
-	transcodePayload := hwrapper.TranscodePayload{
-		LocationTargetPayload: hwrapper.LocationTargetPayload{
-			Location: hwrapper.TranscodeLocation{
-				StorageProvider: destination.provider,
-				Path:            destination.path,
-			},
-			Targets: []hwrapper.TranscodeLocationTarget{
-				{
-					Location:    subLocation,
-					FilePattern: outputFilePattern,
-					Container: hwrapper.TranscodeTargetContainer{
-						SegmentDuration: segmentDuration,
-					},
-				},
-			},
-		},
+	resp, err := json.MarshalIndent(cj, "", "\t")
+	if err != nil {
+		return "", errors.Wrapf(err, "marshalling create job %v into json", cj)
 	}
 
-	if execFeatures.segmentedRendering != nil {
-		transcodePayload.SourcePipeline = hwrapper.TranscodeSourcePipeline{SegmentedRendering: execFeatures.segmentedRendering}
-	}
-
-	transcodeComputeTags := []string{}
-	if tag, found := computeTags[db.ComputeClassTranscodeDefault]; found {
-		transcodeComputeTags = append(transcodeComputeTags, tag)
-	}
-
-	// create the transcode element
-	e = hwrapper.Element{
-		UID:  fmt.Sprintf(transcodeElementIDTemplate, elementID),
-		Kind: "transcode",
-		Task: &hwrapper.ElementTaskOptions{
-			Name: "Transcode - " + preset.Name,
-			Tags: transcodeComputeTags,
-		},
-		Preset: &hwrapper.TranscodePreset{
-			Key: preset.Name,
-		},
-		Payload: transcodePayload,
-	}
-
-	return e
+	return string(resp), nil
 }
 
-func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
+func (p *hybrikProvider) createJobReqFrom(job *db.Job) (hwrapper.CreateJob, error) {
 	srcStorageProvider, err := storageProviderFrom(job.SourceMedia)
 	if err != nil {
-		return "", errors.Wrap(err, "parsing source storage provider")
+		return hwrapper.CreateJob{}, errors.Wrap(err, "parsing source storage provider")
 	}
 	srcLocation := storageLocation{
 		provider: srcStorageProvider,
@@ -174,12 +133,12 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 	destinationPath := p.destinationForJob(job)
 	destStorageProvider, err := storageProviderFrom(destinationPath)
 	if err != nil {
-		return "", errors.Wrap(err, "parsing destination storage provider")
+		return hwrapper.CreateJob{}, errors.Wrap(err, "parsing destination storage provider")
 	}
 
-	srcElement, err := srcFrom(job, srcLocation)
+	srcElement, err := p.srcFrom(job, srcLocation)
 	if err != nil {
-		return "", errors.Wrap(err, "creating the hybrik source element")
+		return hwrapper.CreateJob{}, errors.Wrap(err, "creating the hybrik source element")
 	}
 
 	cfg := jobCfg{
@@ -195,7 +154,7 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 
 	execFeatures, err := executionFeaturesFrom(job)
 	if err != nil {
-		return "", err
+		return hwrapper.CreateJob{}, err
 	}
 	cfg.executionFeatures = execFeatures
 
@@ -207,18 +166,18 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 
 	outputCfgs, err := p.outputCfgsFrom(job)
 	if err != nil {
-		return "", err
+		return hwrapper.CreateJob{}, err
 	}
 	cfg.outputCfgs = outputCfgs
 
 	elmAssembler, err := p.elementAssemblerFrom(cfg.outputCfgs)
 	if err != nil {
-		return "", err
+		return hwrapper.CreateJob{}, err
 	}
 
 	elementGroups, err := elmAssembler(cfg)
 	if err != nil {
-		return "", err
+		return hwrapper.CreateJob{}, err
 	}
 	cfg.elementGroups = elementGroups
 
@@ -258,16 +217,11 @@ func (p *hybrikProvider) presetsToTranscodeJob(job *db.Job) (string, error) {
 	if _, found := supportedPackagingProtocols[strings.ToLower(cfg.streamingParams.Protocol)]; found {
 		cj, err = p.enrichCreateJobWithPackagingCfg(cj, cfg, prevElements)
 		if err != nil {
-			return "", errors.Wrap(err, "creating packaging config")
+			return hwrapper.CreateJob{}, errors.Wrap(err, "creating packaging config")
 		}
 	}
 
-	resp, err := json.Marshal(cj)
-	if err != nil {
-		return "", err
-	}
-
-	return string(resp), nil
+	return cj, nil
 }
 
 func (p *hybrikProvider) destinationForJob(job *db.Job) string {
@@ -345,128 +299,15 @@ func (p *hybrikProvider) CancelJob(id string) error {
 }
 
 func (p *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
-	hybrikPreset, err := p.hybrikPresetFrom(preset)
+	err := p.repository.CreateLocalPreset(&db.LocalPreset{
+		Name:   preset.Name,
+		Preset: preset,
+	})
 	if err != nil {
 		return "", err
 	}
 
-	resultPreset, err := p.c.CreatePreset(hybrikPreset)
-	if err != nil {
-		return "", err
-	}
-
-	return resultPreset.Name, nil
-}
-
-type customPresetData struct {
-	DolbyVisionEnabled bool `json:"dolbyVision"`
-}
-
-func (p *hybrikProvider) hybrikPresetFrom(preset db.Preset) (hwrapper.Preset, error) {
-	var minGOPFrames, maxGOPFrames, gopSize int
-
-	gopSize, err := strconv.Atoi(preset.Video.GopSize)
-	if err != nil {
-		return hwrapper.Preset{}, err
-	}
-
-	minGOPFrames = gopSize
-	maxGOPFrames = gopSize
-
-	container := ""
-	for _, c := range p.Capabilities().OutputFormats {
-		if preset.Container == c || (preset.Container == "m3u8" && c == hls) {
-			container = c
-		}
-	}
-
-	if container == "" {
-		return hwrapper.Preset{}, ErrUnsupportedContainer
-	}
-
-	bitrate, err := strconv.Atoi(preset.Video.Bitrate)
-	if err != nil {
-		return hwrapper.Preset{}, ErrBitrateNan
-	}
-
-	var videoWidth *int
-	var videoHeight *int
-
-	if preset.Video.Width != "" {
-		var presetWidth int
-		presetWidth, err = strconv.Atoi(preset.Video.Width)
-		if err != nil {
-			return hwrapper.Preset{}, ErrVideoWidthNan
-		}
-		videoWidth = &presetWidth
-	}
-
-	if preset.Video.Height != "" {
-		var presetHeight int
-		presetHeight, err = strconv.Atoi(preset.Video.Height)
-		if err != nil {
-			return hwrapper.Preset{}, ErrVideoHeightNan
-		}
-		videoHeight = &presetHeight
-	}
-
-	videoProfile := strings.ToLower(preset.Video.Profile)
-	videoLevel := preset.Video.ProfileLevel
-
-	// TODO: Understand video-transcoding-api profile + level settings in relation to vp8
-	// For now, we will omit and leave to encoder defaults
-	if preset.Video.Codec == "vp8" {
-		videoProfile = ""
-		videoLevel = ""
-	}
-
-	audioTargets, err := audioTargetsFrom(preset.Audio)
-	if err != nil {
-		return hwrapper.Preset{}, errors.Wrap(err, "building audio targets")
-	}
-
-	hybrikPreset := hwrapper.Preset{
-		Key:         preset.Name,
-		Name:        preset.Name,
-		Description: preset.Description,
-		Kind:        elementKindTranscode,
-		Path:        p.config.PresetPath,
-		Payload: hwrapper.PresetPayload{
-			Targets: []hwrapper.PresetTarget{
-				{
-					FilePattern: "",
-					Container: hwrapper.TranscodeContainer{
-						Kind: container,
-					},
-					Video: hwrapper.VideoTarget{
-						Width:          videoWidth,
-						Height:         videoHeight,
-						Codec:          preset.Video.Codec,
-						Preset:         presetSlow,
-						BitrateKb:      bitrate / 1000,
-						MinGOPFrames:   minGOPFrames,
-						MaxGOPFrames:   maxGOPFrames,
-						ExactGOPFrames: maxGOPFrames,
-						Profile:        videoProfile,
-						Level:          videoLevel,
-						InterlaceMode:  preset.Video.InterlaceMode,
-					},
-					ExistingFiles: "replace",
-					Audio:         audioTargets,
-					UID:           "target",
-				},
-			},
-		},
-	}
-
-	for _, modifier := range presetModifiersFor(preset) {
-		hybrikPreset, err = modifier.runFunc(hybrikPreset, preset)
-		if err != nil {
-			return hwrapper.Preset{}, errors.Wrapf(err, "running %q preset modifier", modifier.name)
-		}
-	}
-
-	return hybrikPreset, nil
+	return preset.Name, nil
 }
 
 func audioTargetsFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
@@ -487,43 +328,17 @@ func audioTargetsFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
 	}, nil
 }
 
-type presetModifier struct {
-	name    string
-	runFunc func(hybrikPreset hwrapper.Preset, preset db.Preset) (hwrapper.Preset, error)
-}
-
-func presetModifiersFor(preset db.Preset) []presetModifier {
-	modifiers := []presetModifier{}
-
-	// Rate control
-	if preset.RateControl != "" {
-		modifiers = append(modifiers, presetModifier{name: "rateControl", runFunc: enrichPresetWithRateControl})
-	}
-
-	// HDR
-	if _, hdrEnabled := hdrTypeFromPreset(preset); hdrEnabled {
-		modifiers = append(modifiers, presetModifier{name: "hdr", runFunc: enrichPresetWithHDRMetadata})
-	}
-
-	// MXF sources
-	if preset.SourceContainer == "mxf" {
-		modifiers = append(modifiers, presetModifier{name: "mxf", runFunc: modifyPresetForMXFSources})
-	}
-
-	return modifiers
-}
-
 func (p *hybrikProvider) DeletePreset(presetID string) error {
-	return p.c.DeletePreset(presetID)
+	preset, err := p.GetPreset(presetID)
+	if err != nil {
+		return err
+	}
+
+	return p.repository.DeleteLocalPreset(preset.(*db.LocalPreset))
 }
 
 func (p *hybrikProvider) GetPreset(presetID string) (interface{}, error) {
-	preset, err := p.c.GetPreset(presetID)
-	if err != nil {
-		return nil, err
-	}
-
-	return preset, nil
+	return p.repository.GetLocalPreset(presetID)
 }
 
 // Healthcheck should return nil if the provider is currently available

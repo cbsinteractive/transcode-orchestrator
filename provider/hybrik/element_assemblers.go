@@ -2,7 +2,6 @@ package hybrik
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/video-transcoding-api/db"
@@ -19,6 +18,7 @@ const (
 	doViMezzQCOutputPathTmpl     = "%s/mezzanine_qc"
 	doViMezzQCReportFilenameTmpl = "%s_mezz_qc_report.txt"
 	doViMP4MuxFilenameDefault    = "{source_basename}.mp4"
+	doViMP4MuxDVH1FlagKey        = "dvh1flag"
 
 	computeTagPreProcDefault = "preproc"
 	computeTagMezzQCDefault  = "preproc"
@@ -29,9 +29,13 @@ func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([][]hybrik.Element
 
 	idx := 0
 	for _, outputCfg := range cfg.outputCfgs {
-		e := p.mountTranscodeElement(strconv.Itoa(idx), cfg.jobID, outputCfg.filename, cfg.destination,
-			cfg.streamingParams.SegmentDuration, outputCfg.preset, cfg.executionFeatures, cfg.computeTags)
-		elements = append(elements, e)
+		element, err := p.transcodeElementFromPreset(outputCfg.localPreset, fmt.Sprintf(transcodeElementIDTemplate, idx),
+			cfg.destination, outputCfg.filename, cfg.executionFeatures, cfg.computeTags)
+		if err != nil {
+			return nil, err
+		}
+
+		elements = append(elements, element)
 		idx++
 	}
 
@@ -41,21 +45,27 @@ func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([][]hybrik.Element
 func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Element, error) {
 	elementGroups := [][]hybrik.Element{}
 
-	presets := map[string]hybrik.Preset{}
+	presets := map[string]db.Preset{}
+	presetsWithoutAudio := map[string]db.Preset{}
 	for _, outputCfg := range cfg.outputCfgs {
-		presets[outputCfg.filename] = outputCfg.preset
+		preset := outputCfg.localPreset
+		presets[outputCfg.filename] = preset
+
+		// removing audio so we can processing this separately
+		preset.Audio = db.AudioPreset{}
+		presetsWithoutAudio[outputCfg.filename] = preset
 	}
 
 	mezzQCComputeTag := computeTagMezzQCDefault
-	if tag, found := cfg.computeTags[db.ComputeClassDolbyVisionMezzQC]; found {
+	if tag, found := cfg.computeTags[db.ComputeClassDolbyVisionPreprocess]; found {
 		mezzQCComputeTag = tag
 	}
 
 	// initialize our pre-transcode execution group with a mezz qc task
-	preTranscodeElements := []hybrik.Element{dolbyVisionMezzQCElementFrom(mezzQCComputeTag, cfg)}
+	preTranscodeElements := []hybrik.Element{p.dolbyVisionMezzQCElementFrom(mezzQCComputeTag, cfg)}
 
 	// then add any extracted audio elements to the pre-transcode group
-	audioElements, audioPresetsToFilename, err := audioElementsFrom(presets, cfg)
+	audioElements, audioPresetsToFilename, err := p.audioElementsFrom(presets, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -69,16 +79,16 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Ele
 		preprocComputeTag = tag
 	}
 
-	transcodeElementsWithPreset, err := transcodeElementsWithPresetsFrom(presets, cfg)
+	transcodeElementsWithFilenames, err := p.transcodeElementsWithPresetsFrom(presetsWithoutAudio, cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "converting presets into transcode elements")
 	}
 
 	// build up our transcode tasks
 	transcodeElements := []hybrik.Element{}
-	for idx, transcodeWithPreset := range transcodeElementsWithPreset {
+	for idx, transcodeWithFilename := range transcodeElementsWithFilenames {
 		elementaryAudioStreams := []hybrik.DoViMP4MuxElementaryStream{}
-		audioCfg, found, err := audioTargetFromPreset(transcodeWithPreset.preset)
+		audioCfg, found, err := audioTargetFromPreset(presets[transcodeWithFilename.filename])
 		if err != nil {
 			return nil, err
 		}
@@ -91,10 +101,10 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Ele
 
 			if filename, found := audioPresetsToFilename[hash]; found {
 				elementaryAudioStreams = append(elementaryAudioStreams, hybrik.DoViMP4MuxElementaryStream{
-					AssetURL: hybrik.AssetURL{
-						StorageProvider: cfg.destination.provider,
-						URL:             fmt.Sprintf("%s/%s", cfg.destination.path, filename),
-					},
+					AssetURL: p.assetURLFrom(storageLocation{
+						provider: cfg.destination.provider,
+						path:     fmt.Sprintf("%s/%s", cfg.destination.path, filename),
+					}),
 				})
 			}
 		}
@@ -105,26 +115,26 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Ele
 			Task: &hybrik.ElementTaskOptions{
 				Name:              fmt.Sprintf("Encode #%d", idx),
 				RetryMethod:       "fail",
+				Tags:              []string{preprocComputeTag},
 				SourceElementUIDs: []string{cfg.source.UID},
 			},
 			Payload: hybrik.DolbyVisionV2TaskPayload{
-				Module:  "encoder",
-				Profile: doViProfile5,
-				Location: hybrik.TranscodeLocation{
-					StorageProvider: cfg.destination.provider,
-					Path:            cfg.destination.path,
-				},
+				Module:   "encoder",
+				Profile:  doViProfile5,
+				Location: p.transcodeLocationFrom(cfg.destination),
 				Preprocessing: hybrik.DolbyVisionV2Preprocessing{
 					Task: hybrik.TaskTags{
 						Tags: []string{preprocComputeTag},
 					},
 				},
-				Transcodes: []hybrik.Element{transcodeWithPreset.transcodeElement},
+				Transcodes: []hybrik.Element{transcodeWithFilename.transcodeElement},
 				PostTranscode: hybrik.DoViPostTranscode{
+					Task: &hybrik.TaskTags{Tags: []string{preprocComputeTag}},
 					MP4Mux: hybrik.DoViMP4Mux{
 						Enabled:           true,
 						FilePattern:       doViMP4MuxFilenameDefault,
 						ElementaryStreams: elementaryAudioStreams,
+						CLIOptions:        map[string]string{doViMP4MuxDVH1FlagKey: ""},
 					},
 				},
 			},
@@ -139,67 +149,7 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Ele
 	return elementGroups, nil
 }
 
-func audioElementsFrom(presets map[string]hybrik.Preset, cfg jobCfg) ([]hybrik.Element, map[uint64]string, error) {
-	audioConfigurations := map[uint64]hybrik.AudioTarget{}
-	for _, preset := range presets {
-		audioCfg, found, err := audioTargetFromPreset(preset)
-		if err != nil {
-			return nil, nil, err
-		} else if !found {
-			continue
-		}
-
-		cfgHash, err := hashstructure.Hash(audioCfg, nil)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "hashing a preset audio cfg")
-		}
-
-		audioConfigurations[cfgHash] = audioCfg
-	}
-
-	audioElements := []hybrik.Element{}
-	audioPresetsToFilename := map[uint64]string{}
-	idx := 0
-	for hash, audioTarget := range audioConfigurations {
-		outputFilename := fmt.Sprintf("audio_output_%d.%s", idx, audioTarget.Codec)
-
-		audioElement := transcodeAudioElementFromPreset(audioTarget, outputFilename, idx, cfg.computeTags,
-			cfg.destination, containerKindElementary)
-		audioElements = append(audioElements, audioElement)
-
-		audioPresetsToFilename[hash] = outputFilename
-		idx++
-	}
-	return audioElements, audioPresetsToFilename, nil
-}
-
-func transcodeElementsWithPresetsFrom(presets map[string]hybrik.Preset, cfg jobCfg) ([]transcodeElementWithPreset, error) {
-	transcodeElementsWithPreset := []transcodeElementWithPreset{}
-	idx := 0
-	for filename, preset := range presets {
-		// removing audio as we're processing this separately
-		presetWithoutAudio := preset
-		for idx, target := range preset.Payload.Targets {
-			target.Audio = []hybrik.AudioTarget{}
-			presetWithoutAudio.Payload.Targets[idx] = target
-		}
-		element, err := transcodeElementFromPreset(presetWithoutAudio, fmt.Sprintf("transcode_task_%d", idx),
-			cfg.destination, filename, cfg.executionFeatures, cfg.computeTags)
-		if err != nil {
-			return nil, errors.Wrapf(err, "mapping hybrik preset %v into a transcode element", preset)
-		}
-
-		transcodeElementsWithPreset = append(transcodeElementsWithPreset, transcodeElementWithPreset{
-			transcodeElement: element,
-			preset:           preset,
-		})
-		idx++
-	}
-
-	return transcodeElementsWithPreset, nil
-}
-
-func dolbyVisionMezzQCElementFrom(mezzQCComputeTag string, cfg jobCfg) hybrik.Element {
+func (p *hybrikProvider) dolbyVisionMezzQCElementFrom(mezzQCComputeTag string, cfg jobCfg) hybrik.Element {
 	mezzQCElement := hybrik.Element{
 		UID:  doViMezzQCElementUID,
 		Kind: doViElementKind,
@@ -210,10 +160,10 @@ func dolbyVisionMezzQCElementFrom(mezzQCComputeTag string, cfg jobCfg) hybrik.El
 		Payload: hybrik.DoViV2MezzanineQCPayload{
 			Module: doViMezzQCElementModule,
 			Params: hybrik.DoViV2MezzanineQCPayloadParams{
-				Location: hybrik.TranscodeLocation{
-					StorageProvider: cfg.destination.provider,
-					Path:            fmt.Sprintf(doViMezzQCOutputPathTmpl, cfg.destination.path),
-				},
+				Location: p.transcodeLocationFrom(storageLocation{
+					provider: cfg.destination.provider,
+					path:     fmt.Sprintf(doViMezzQCOutputPathTmpl, cfg.destination.path),
+				}),
 				FilePattern: fmt.Sprintf(doViMezzQCReportFilenameTmpl, cfg.jobID),
 			},
 		},
@@ -221,15 +171,7 @@ func dolbyVisionMezzQCElementFrom(mezzQCComputeTag string, cfg jobCfg) hybrik.El
 	return mezzQCElement
 }
 
-func audioTargetFromPreset(preset hybrik.Preset) (hybrik.AudioTarget, bool, error) {
-	if len(preset.Payload.Targets) == 0 {
-		return hybrik.AudioTarget{}, false, fmt.Errorf("preset has no targets: %v", preset)
-	}
-
-	target := preset.Payload.Targets[0]
-	if len(target.Audio) == 0 {
-		return hybrik.AudioTarget{}, false, nil
-	}
-
-	return target.Audio[0], true, nil
+func audioTargetFromPreset(preset db.Preset) (db.AudioPreset, bool, error) {
+	audioCfg := preset.Audio
+	return audioCfg, audioCfg != (db.AudioPreset{}), nil
 }

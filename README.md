@@ -81,6 +81,7 @@ export HYBRIK_OAPI_KEY=your.hybrik.oapi.key
 export HYBRIK_OAPI_SECRET=your.hybrik.oapi.secret
 export HYBRIK_AUTH_KEY=your.hybrik.auth.key
 export HYBRIK_AUTH_SECRET=your.hybrik.auth.secret
+export HYBRIK_GCP_CREDENTIALS_KEY=your.hybrik.gcp.credentials.key
 export HYBRIK_DESTINATION=s3://your-s3-bucket
 export HYBRIK_PRESET_PATH=video-transcoding-api-presets
 ```

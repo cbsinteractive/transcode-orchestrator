@@ -82,14 +82,15 @@ type Bitmovin struct {
 // Hybrik represents the set of configurations for the Hybrik
 // provider.
 type Hybrik struct {
-	URL            string `envconfig:"HYBRIK_URL"`
-	ComplianceDate string `envconfig:"HYBRIK_COMPLIANCE_DATE" default:"20170601"`
-	OAPIKey        string `envconfig:"HYBRIK_OAPI_KEY"`
-	OAPISecret     string `envconfig:"HYBRIK_OAPI_SECRET"`
-	AuthKey        string `envconfig:"HYBRIK_AUTH_KEY"`
-	AuthSecret     string `envconfig:"HYBRIK_AUTH_SECRET"`
-	Destination    string `envconfig:"HYBRIK_DESTINATION"`
-	PresetPath     string `envconfig:"HYBRIK_PRESET_PATH" default:"transcoding-api-presets"`
+	URL               string `envconfig:"HYBRIK_URL"`
+	ComplianceDate    string `envconfig:"HYBRIK_COMPLIANCE_DATE" default:"20170601"`
+	OAPIKey           string `envconfig:"HYBRIK_OAPI_KEY"`
+	OAPISecret        string `envconfig:"HYBRIK_OAPI_SECRET"`
+	AuthKey           string `envconfig:"HYBRIK_AUTH_KEY"`
+	AuthSecret        string `envconfig:"HYBRIK_AUTH_SECRET"`
+	Destination       string `envconfig:"HYBRIK_DESTINATION"`
+	GCPCredentialsKey string `envconfig:"HYBRIK_GCP_CREDENTIALS_KEY"`
+	PresetPath        string `envconfig:"HYBRIK_PRESET_PATH" default:"transcoding-api-presets"`
 }
 
 // MediaConvert represents the set of configurations for the MediaConvert

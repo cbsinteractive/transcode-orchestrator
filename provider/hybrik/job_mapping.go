@@ -7,7 +7,6 @@ import (
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/provider"
 )
 
 type jobCfg struct {
@@ -23,8 +22,8 @@ type jobCfg struct {
 }
 
 type outputCfg struct {
-	preset   hybrik.Preset
-	filename string
+	localPreset db.Preset
+	filename    string
 }
 
 const (
@@ -37,11 +36,8 @@ const (
 	srcOptionResolveManifestKey = "resolve_manifest"
 )
 
-func srcFrom(job *db.Job, src storageLocation) (hybrik.Element, error) {
-	sourceAsset := hybrik.AssetPayload{
-		StorageProvider: src.provider,
-		URL:             src.path,
-	}
+func (p *hybrikProvider) srcFrom(job *db.Job, src storageLocation) (hybrik.Element, error) {
+	sourceAsset := p.assetPayloadFrom(src.provider, src.path, nil)
 
 	if strings.ToLower(filepath.Ext(src.path)) == imfManifestExtension {
 		sourceAsset.Options = map[string]interface{}{
@@ -57,16 +53,12 @@ func srcFrom(job *db.Job, src storageLocation) (hybrik.Element, error) {
 			return hybrik.Element{}, err
 		}
 
-		assets = append(assets, hybrik.AssetPayload{
-			StorageProvider: sidecarStorageProvider,
-			URL:             sidecarLocation,
-			Contents: []hybrik.AssetContents{{
-				Kind: assetContentsKindMetadata,
-				Payload: hybrik.AssetContentsPayload{
-					Standard: assetContentsStandardDolbyVisionMetadata,
-				},
-			}},
-		})
+		assets = append(assets, p.assetPayloadFrom(sidecarStorageProvider, sidecarLocation, []hybrik.AssetContents{{
+			Kind: assetContentsKindMetadata,
+			Payload: hybrik.AssetContentsPayload{
+				Standard: assetContentsStandardDolbyVisionMetadata,
+			},
+		}}))
 	}
 
 	return hybrik.Element{
@@ -80,64 +72,27 @@ func srcFrom(job *db.Job, src storageLocation) (hybrik.Element, error) {
 }
 
 func (p *hybrikProvider) outputCfgsFrom(job *db.Job) (map[string]outputCfg, error) {
-	presetCh := make(chan *presetResult)
 	presets := map[string]outputCfg{}
 
 	for _, output := range job.Outputs {
-		presetID, ok := output.Preset.ProviderMapping[Name]
+		presetName := output.Preset.Name
+		presetResponse, err := p.GetPreset(presetName)
+		if err != nil {
+			return nil, err
+		}
+
+		localPreset, ok := presetResponse.(*db.LocalPreset)
 		if !ok {
-			return nil, provider.ErrPresetMapNotFound
+			return nil, fmt.Errorf("could not convert preset response into a db.LocalPreset")
 		}
 
-		if _, ok := presets[presetID]; ok {
-			continue
+		presets[presetName] = outputCfg{
+			localPreset: localPreset.Preset,
+			filename:    output.FileName,
 		}
-
-		presets[presetID] = outputCfg{filename: output.FileName}
-
-		go p.makeGetPresetRequest(presetID, presetCh)
-	}
-
-	for i := 0; i < len(presets); i++ {
-		res := <-presetCh
-		err, isErr := res.preset.(error)
-		if isErr {
-			return nil, fmt.Errorf("error getting preset info: %s", err)
-		}
-
-		preset, ok := res.preset.(hybrik.Preset)
-		if !ok {
-			return nil, fmt.Errorf("preset content was not a hybrik.Preset: %+v", res.preset)
-		}
-
-		stub, ok := presets[res.presetID]
-		if !ok {
-			return nil, fmt.Errorf("could not find stubbed outputCfg for preset with id %q", res.presetID)
-		}
-
-		stub.preset = preset
-		presets[res.presetID] = stub
 	}
 
 	return presets, nil
-}
-
-type presetResult struct {
-	presetID string
-	preset   interface{}
-}
-
-func (p *hybrikProvider) makeGetPresetRequest(presetID string, ch chan *presetResult) {
-	presetOutput, err := p.GetPreset(presetID)
-	result := new(presetResult)
-	result.presetID = presetID
-	if err != nil {
-		result.preset = err
-		ch <- result
-	} else {
-		result.preset = presetOutput
-		ch <- result
-	}
 }
 
 type elementAssembler func(jobCfg) ([][]hybrik.Element, error)

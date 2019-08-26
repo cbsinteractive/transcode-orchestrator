@@ -49,10 +49,10 @@ func (p *hybrikProvider) enrichCreateJobWithPackagingCfg(cj hybrik.CreateJob, jo
 	}
 
 	packagePayload := hybrik.PackagePayload{
-		Location: hybrik.TranscodeLocation{
-			StorageProvider: jobCfg.destination.provider,
-			Path:            fmt.Sprintf("%s/%s", jobCfg.destination.path, protocol),
-		},
+		Location: p.transcodeLocationFrom(storageLocation{
+			provider: jobCfg.destination.provider,
+			path:     fmt.Sprintf("%s/%s", jobCfg.destination.path, protocol),
+		}),
 		FilePattern:        fmt.Sprintf(masterManifestFilenameDefaultTmpl, protocolCfg.extension),
 		Kind:               protocolCfg.hybrikKind,
 		SegmentationMode:   segmentationModeDefault,

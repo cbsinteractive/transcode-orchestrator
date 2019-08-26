@@ -22,16 +22,21 @@ var supportedRateControlModes = map[rateControlMode]struct{}{
 	rateControlModeVBR: {},
 }
 
-func enrichPresetWithRateControl(hybrikPreset hwrapper.Preset, preset db.Preset) (hwrapper.Preset, error) {
+func enrichTranscodePayloadWithRateControl(payload hwrapper.TranscodePayload, preset db.Preset) (hwrapper.TranscodePayload, error) {
+	transcodeTargets, ok := payload.Targets.([]hwrapper.TranscodeTarget)
+	if !ok {
+		return hwrapper.TranscodePayload{}, fmt.Errorf("targets are not TranscodeTargets: %v", payload.LocationTargetPayload.Targets)
+	}
+
 	mode := strings.ToLower(preset.RateControl)
 
 	_, found := supportedRateControlModes[mode]
 	if !found {
-		return hwrapper.Preset{}, fmt.Errorf("rate control mode %q is not supported in hybrik, the currently "+
+		return hwrapper.TranscodePayload{}, fmt.Errorf("rate control mode %q is not supported in hybrik, the currently "+
 			"supported modes are %v", mode, supportedRateControlModes)
 	}
 
-	for idx, target := range hybrikPreset.Payload.Targets {
+	for idx, target := range transcodeTargets {
 		target.Video.BitrateMode = mode
 
 		// in the case of vbr we constrain the min/max bitrate based on a hardcoded variability percent
@@ -41,10 +46,11 @@ func enrichPresetWithRateControl(hybrikPreset hwrapper.Preset, preset db.Preset)
 		}
 
 		// set the enriched target back onto the preset
-		hybrikPreset.Payload.Targets[idx] = target
+		transcodeTargets[idx] = target
 	}
+	payload.Targets = transcodeTargets
 
-	return hybrikPreset, nil
+	return payload, nil
 }
 
 func percentTargetOf(bitrate, percent int) int {
