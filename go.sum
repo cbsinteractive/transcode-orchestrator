@@ -33,8 +33,8 @@ github.com/bitmovin/bitmovin-go v1.29.0/go.mod h1:FnQ++AxR0BZAH5UpAPU10bpSzeV4a7
 github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 h1:DDGfHa7BWjL4YnC6+E63dPcxHo2sUxDIu8g3QgEJdRY=
 github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869/go.mod h1:Ekp36dRnpXw/yCqJaO+ZrUyxD+3VXMFFr56k5XYrpB4=
 github.com/bradfitz/gomemcache v0.0.0-20180710155616-bc664df96737/go.mod h1:PmM6Mmwb0LSuEubjR8N7PtNe1KxZLtOUHtbeikc5h60=
-github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20170516091026-4489327d59b0 h1:RWm4g9a/YBUTzszshcUXn3XNjUl+6e0R+57QKInbOL0=
-github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20170516091026-4489327d59b0/go.mod h1:5JlyzszNqCntcqS9TkCb23lxY/1LWBMJ8agSSYTrAJU=
+github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20170516091026-6501093837d1 h1:Cmfbt+g1xM0Ym2N3pvbL56/fsxU4JNNv+UJPVoBKkMA=
+github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20170516091026-6501093837d1/go.mod h1:5JlyzszNqCntcqS9TkCb23lxY/1LWBMJ8agSSYTrAJU=
 github.com/census-instrumentation/opencensus-proto v0.2.0/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
