@@ -707,6 +707,10 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 					Protocol:        "hls",
 				}
 
+				job.ExecutionEnv.ComputeTags = map[db.ComputeClass]string{
+					db.ComputeClassTranscodeDefault: "default_transcode_class",
+				}
+
 				return job
 			},
 			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
@@ -715,6 +719,9 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 				expectTask := hybrik.Element{
 					UID:  "packager",
 					Kind: elementKindPackage,
+					Task: &hybrik.ElementTaskOptions{
+						Tags: []string{"default_transcode_class"},
+					},
 					Payload: hybrik.PackagePayload{
 						Location: hybrik.TranscodeLocation{
 							StorageProvider: "s3",

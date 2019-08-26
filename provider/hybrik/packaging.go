@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
+	"github.com/cbsinteractive/video-transcoding-api/db"
 )
 
 type packagingProtocol = string
@@ -79,6 +80,10 @@ func (p *hybrikProvider) enrichCreateJobWithPackagingCfg(cj hybrik.CreateJob, jo
 		UID:     packagerUID,
 		Kind:    elementKindPackage,
 		Payload: packagePayload,
+	}
+
+	if tag, found := jobCfg.computeTags[db.ComputeClassTranscodeDefault]; found {
+		packageElement.Task = &hybrik.ElementTaskOptions{Tags: []string{tag}}
 	}
 
 	cj.Payload.Elements = append(cj.Payload.Elements, packageElement)
