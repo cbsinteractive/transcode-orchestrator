@@ -5,7 +5,7 @@ require (
 	github.com/NYTimes/gizmo v1.2.14
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/aws/aws-sdk-go v1.23.9
-	github.com/aws/aws-sdk-go-v2 v0.10.0
+	github.com/aws/aws-sdk-go-v2 v0.11.0
 	github.com/bitmovin/bitmovin-api-sdk-go v1.22.0-alpha.0
 	github.com/bitmovin/bitmovin-go v1.29.0
 	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20170516091026-6501093837d1
