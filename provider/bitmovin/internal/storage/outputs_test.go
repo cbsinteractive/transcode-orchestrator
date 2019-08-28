@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
@@ -46,6 +47,11 @@ func TestNewOutput(t *testing.T) {
 				if g, e := fakeS3API.createdWithRegion, model.AwsCloudRegion("us-west-2"); g != e {
 					t.Errorf("invalid region: got %q, expected %q", g, e)
 				}
+
+				expectedACL := []model.AclEntry{{Permission: model.AclPermission_PRIVATE}}
+				if g, e := fakeS3API.createdWithACL, expectedACL; !reflect.DeepEqual(g, e) {
+					t.Errorf("invalid acl: got %q, expected %q", g, e)
+				}
 			},
 		},
 		{
@@ -76,6 +82,11 @@ func TestNewOutput(t *testing.T) {
 
 				if g, e := fakeGCSAPI.createdWithRegion, model.GoogleCloudRegion("us-east1"); g != e {
 					t.Errorf("invalid region: got %q, expected %q", g, e)
+				}
+
+				expectedACL := []model.AclEntry{{Permission: model.AclPermission_PRIVATE}}
+				if g, e := fakeGCSAPI.createdWithACL, expectedACL; !reflect.DeepEqual(g, e) {
+					t.Errorf("invalid acl: got %q, expected %q", g, e)
 				}
 			},
 		},
@@ -142,6 +153,7 @@ type fakeGCSOutputAPI struct {
 	createdWithAccessKeyID     string
 	createdWithSecretAccessKey string
 	createdWithRegion          model.GoogleCloudRegion
+	createdWithACL             []model.AclEntry
 }
 
 func (a *fakeGCSOutputAPI) Create(output model.GcsOutput) (*model.GcsOutput, error) {
@@ -149,6 +161,7 @@ func (a *fakeGCSOutputAPI) Create(output model.GcsOutput) (*model.GcsOutput, err
 	a.createdWithAccessKeyID = output.AccessKey
 	a.createdWithSecretAccessKey = output.SecretKey
 	a.createdWithRegion = output.CloudRegion
+	a.createdWithACL = output.Acl
 	return &model.GcsOutput{Id: a.outputIDToReturn}, nil
 }
 
@@ -158,6 +171,7 @@ type fakeS3OutputAPI struct {
 	createdWithAccessKeyID     string
 	createdWithSecretAccessKey string
 	createdWithRegion          model.AwsCloudRegion
+	createdWithACL             []model.AclEntry
 }
 
 func (a *fakeS3OutputAPI) Create(output model.S3Output) (*model.S3Output, error) {
@@ -165,6 +179,7 @@ func (a *fakeS3OutputAPI) Create(output model.S3Output) (*model.S3Output, error)
 	a.createdWithAccessKeyID = output.AccessKey
 	a.createdWithSecretAccessKey = output.SecretKey
 	a.createdWithRegion = output.CloudRegion
+	a.createdWithACL = output.Acl
 	return &model.S3Output{Id: a.outputIDToReturn}, nil
 }
 

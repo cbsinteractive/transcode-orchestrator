@@ -38,6 +38,7 @@ func s3Output(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, st
 		AccessKey:   cfg.AccessKeyID,
 		SecretKey:   cfg.SecretAccessKey,
 		CloudRegion: model.AwsCloudRegion(cfg.AWSStorageRegion),
+		Acl:         []model.AclEntry{{Permission: model.AclPermission_PRIVATE}},
 	})
 	if err != nil {
 		return "", "", errors.Wrap(err, "creating s3 output")
@@ -54,6 +55,7 @@ func gcsOutput(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, s
 		AccessKey:   cfg.GCSAccessKeyID,
 		SecretKey:   cfg.GCSSecretAccessKey,
 		CloudRegion: model.GoogleCloudRegion(cfg.GCSStorageRegion),
+		Acl:         []model.AclEntry{{Permission: model.AclPermission_PRIVATE}},
 	})
 	if err != nil {
 		return "", "", errors.Wrap(err, "creating gcs output")
