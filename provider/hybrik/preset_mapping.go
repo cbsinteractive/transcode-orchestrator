@@ -138,6 +138,7 @@ func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string
 					BitrateKb:         bitrate / 1000,
 					Preset:            presetSlow,
 					Codec:             preset.Video.Codec,
+					ChromaFormat:      chromaFormatYUV420P,
 					Profile:           videoProfile,
 					Level:             videoLevel,
 					MinGOPFrames:      minGOPFrames,

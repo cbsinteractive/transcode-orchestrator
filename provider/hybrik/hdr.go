@@ -26,6 +26,7 @@ const (
 	containerKindElementary = "elementary"
 
 	chromaFormatYUV420P10LE = "yuv420p10le"
+	chromaFormatYUV420P     = "yuv420p"
 	colorPrimaryBT2020      = "bt2020"
 	colorMatrixBT2020NC     = "bt2020nc"
 	colorTRCSMPTE2084       = "st2084"
