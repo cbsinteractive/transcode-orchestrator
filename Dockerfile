@@ -1,4 +1,4 @@
-FROM golang:1.12.9-alpine AS build_base
+FROM golang:1.13.0-alpine AS build_base
 
 RUN apk add bash ca-certificates git
 
