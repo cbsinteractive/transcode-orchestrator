@@ -51,6 +51,8 @@ github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869/go.mod h1:Ekp36dR
 github.com/bradfitz/gomemcache v0.0.0-20180710155616-bc664df96737/go.mod h1:PmM6Mmwb0LSuEubjR8N7PtNe1KxZLtOUHtbeikc5h60=
 github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20170516091026-6501093837d1 h1:Cmfbt+g1xM0Ym2N3pvbL56/fsxU4JNNv+UJPVoBKkMA=
 github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20170516091026-6501093837d1/go.mod h1:5JlyzszNqCntcqS9TkCb23lxY/1LWBMJ8agSSYTrAJU=
+github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20190826172758-6501093837d1 h1:Ixcqtj3d2r+TqHhEP/O1hVFchasCCeAu+jGoRepKIrk=
+github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20190826172758-6501093837d1/go.mod h1:5JlyzszNqCntcqS9TkCb23lxY/1LWBMJ8agSSYTrAJU=
 github.com/census-instrumentation/opencensus-proto v0.2.0/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

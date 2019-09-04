@@ -3,7 +3,7 @@ jobs:
 
   build:
     docker:
-      - image: zsiec/go-1-12-5-redis:latest
+      - image: zsiec/go-1-13-redis:latest
     steps:
       - run:
           name: Start redis server
@@ -21,7 +21,7 @@ jobs:
 
   deploy_dev:
     docker:
-      - image: circleci/golang:1.12.5
+      - image: circleci/golang:1.13
     steps:
       - deploy:
           name: Trigger deploy to dev
