@@ -12,6 +12,7 @@ import (
 	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/cbsinteractive/video-transcoding-api/db/redis/storage"
 	"github.com/go-redis/redis"
+	"github.com/google/go-cmp/cmp"
 	"github.com/kr/pretty"
 )
 
@@ -35,6 +36,13 @@ func TestCreateJob(t *testing.T) {
 			{Preset: db.PresetMap{Name: "preset-1"}, FileName: "output1.m3u8"},
 			{Preset: db.PresetMap{Name: "preset-2"}, FileName: "output2.m3u8"},
 		},
+		ExecutionEnv: db.ExecutionEnvironment{
+			Cloud:  "gcp",
+			Region: "us-east1",
+			ComputeTags: map[string]string{
+				"someKey": "someVal",
+			},
+		},
 	}
 	err = repo.CreateJob(&job)
 	if err != nil {
@@ -54,14 +62,17 @@ func TestCreateJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := map[string]string{
-		"source":                           "http://nyt.net/source_here.mp4",
-		"jobID":                            "job1",
-		"providerName":                     "encoding.com",
-		"providerJobID":                    "",
-		"streamingparams_segmentDuration":  "10",
-		"streamingparams_protocol":         "hls",
-		"streamingparams_playlistFileName": "hls/playlist.m3u8",
-		"creationTime":                     creationTime.Format(time.RFC3339Nano),
+		"source":                                   "http://nyt.net/source_here.mp4",
+		"jobID":                                    "job1",
+		"providerName":                             "encoding.com",
+		"providerJobID":                            "",
+		"streamingparams_segmentDuration":          "10",
+		"streamingparams_protocol":                 "hls",
+		"streamingparams_playlistFileName":         "hls/playlist.m3u8",
+		"creationTime":                             creationTime.Format(time.RFC3339Nano),
+		"executionenvironment_cloud":               "gcp",
+		"executionenvironment_region":              "us-east1",
+		"executionenvironment_computetags_someKey": "someVal",
 	}
 	if !reflect.DeepEqual(items, expected) {
 		pretty.Fdiff(os.Stderr, expected, items)
@@ -179,7 +190,15 @@ func TestGetJob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	job := db.Job{ID: "myjob"}
+	job := db.Job{ID: "myjob",
+		ProviderName: "hybrik",
+		ExecutionEnv: db.ExecutionEnvironment{
+			Cloud:  "gcp",
+			Region: "us-east1",
+			ComputeTags: map[string]string{
+				"someKey": "someVal",
+			},
+		}}
 	err = repo.CreateJob(&job)
 	if err != nil {
 		t.Fatal(err)
@@ -188,8 +207,8 @@ func TestGetJob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(*gotJob, job) {
-		t.Errorf("Wrong job. Want %#v. Got %#v.", job, *gotJob)
+	if g, e := *gotJob, job; !reflect.DeepEqual(g, e) {
+		t.Errorf("wrong job: got: %v\n want: %v \n diff: %v", g, e, cmp.Diff(g, e))
 	}
 }
 

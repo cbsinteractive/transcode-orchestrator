@@ -224,6 +224,12 @@ func (s *Storage) loadMap(in map[string]string, out reflect.Value, prefixes ...s
 			continue
 		}
 		k = strings.Replace(k, joinedPrefixes, "", 1)
+
+		// if the map we're trying to set values to is nil, initialize with an empty map
+		if out.IsNil() {
+			out.Set(reflect.ValueOf(map[string]string{}))
+		}
+
 		out.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
 	}
 	return nil
