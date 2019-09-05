@@ -8,6 +8,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	// we're defaulting all outputs to private
+	defaultOutputACL = model.AclPermission_PRIVATE
+)
+
 type outputCreator func(*url.URL, OutputAPI, *config.Bitmovin) (outputID string, path string, err error)
 
 var outputCreators = map[string]outputCreator{
@@ -30,6 +35,15 @@ func NewOutput(destLoc string, api OutputAPI, cfg *config.Bitmovin) (outputID st
 	return creator(mediaURL, api, cfg)
 }
 
+// EncodingOutputFrom returns an encoding output from an output ID and path
+func EncodingOutputFrom(outputID, path string) model.EncodingOutput {
+	return model.EncodingOutput{
+		OutputId:   outputID,
+		OutputPath: path,
+		Acl:        []model.AclEntry{{Permission: defaultOutputACL}},
+	}
+}
+
 func s3Output(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, string, error) {
 	bucket, folderPath := parseS3URL(destURL)
 
@@ -38,7 +52,7 @@ func s3Output(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, st
 		AccessKey:   cfg.AccessKeyID,
 		SecretKey:   cfg.SecretAccessKey,
 		CloudRegion: model.AwsCloudRegion(cfg.AWSStorageRegion),
-		Acl:         []model.AclEntry{{Permission: model.AclPermission_PRIVATE}},
+		Acl:         []model.AclEntry{{Permission: defaultOutputACL}},
 	})
 	if err != nil {
 		return "", "", errors.Wrap(err, "creating s3 output")
@@ -55,7 +69,7 @@ func gcsOutput(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, s
 		AccessKey:   cfg.GCSAccessKeyID,
 		SecretKey:   cfg.GCSSecretAccessKey,
 		CloudRegion: model.GoogleCloudRegion(cfg.GCSStorageRegion),
-		Acl:         []model.AclEntry{{Permission: model.AclPermission_PRIVATE}},
+		Acl:         []model.AclEntry{{Permission: defaultOutputACL}},
 	})
 	if err != nil {
 		return "", "", errors.Wrap(err, "creating gcs output")

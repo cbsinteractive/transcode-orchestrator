@@ -8,6 +8,7 @@ import (
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/bitmovin/bitmovin-api-sdk-go/query"
 	"github.com/cbsinteractive/video-transcoding-api/provider"
+	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/storage"
 	"github.com/pkg/errors"
 )
 
@@ -33,10 +34,9 @@ func (a *MP4Assembler) Assemble(cfg AssemblerCfg) error {
 		Filename:             path.Base(cfg.OutputFilename),
 		Streams:              streams,
 		StreamConditionsMode: model.StreamConditionsMode_DROP_STREAM,
-		Outputs: []model.EncodingOutput{{
-			OutputId:   cfg.OutputID,
-			OutputPath: path.Dir(path.Join(cfg.DestPath, cfg.OutputFilename)),
-		}},
+		Outputs: []model.EncodingOutput{
+			storage.EncodingOutputFrom(cfg.OutputID, path.Dir(path.Join(cfg.DestPath, cfg.OutputFilename))),
+		},
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mp4 muxing")

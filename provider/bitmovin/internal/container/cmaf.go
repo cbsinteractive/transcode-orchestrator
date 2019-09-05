@@ -3,6 +3,7 @@ package container
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
@@ -12,36 +13,29 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	// CustomDataKeyManifest is used as the base key to store the manifestID in an encoding
-	CustomDataKeyManifest = "manifest"
-	// CustomDataKeyManifestID is the key used to store the manifestID in an encoding
-	CustomDataKeyManifestID = "id"
-)
-
-// HLSAssembler is an assembler that creates HLS outputs based on a cfg
-type HLSAssembler struct {
-	api HLSContainerAPI
+// CMAFAssembler is an assembler that creates HLS outputs based on a cfg
+type CMAFAssembler struct {
+	api CMAFContainerAPI
 }
 
-// NewHLSAssembler creates and returns an HLSAssembler
-func NewHLSAssembler(api HLSContainerAPI) *HLSAssembler {
-	return &HLSAssembler{api: api}
+// NewCMAFAssembler creates and returns an CMAFAssembler
+func NewCMAFAssembler(api CMAFContainerAPI) *CMAFAssembler {
+	return &CMAFAssembler{api: api}
 }
 
 // Assemble creates HLS outputs
-func (a *HLSAssembler) Assemble(cfg AssemblerCfg) error {
+func (a *CMAFAssembler) Assemble(cfg AssemblerCfg) error {
 	if !cfg.SkipAudioCreation {
-		audTSMuxing, err := a.api.TSMuxing.Create(cfg.EncID, model.TsMuxing{
+		audCMAFMuxing, err := a.api.CMAFMuxing.Create(cfg.EncID, model.CmafMuxing{
 			SegmentLength: floatToPtr(float64(cfg.SegDuration)),
-			SegmentNaming: "seg_%number%.ts",
+			SegmentNaming: "seg_%number%.m4a",
 			Streams:       []model.MuxingStream{cfg.AudMuxingStream},
 			Outputs: []model.EncodingOutput{
 				storage.EncodingOutputFrom(cfg.OutputID, path.Join(cfg.ManifestMasterPath, cfg.AudCfgID)),
 			},
 		})
 		if err != nil {
-			return errors.Wrap(err, "creating audio ts muxing")
+			return errors.Wrap(err, "creating audio cmaf muxing")
 		}
 
 		_, err = a.api.HLSAudioMedia.Create(cfg.ManifestID, model.AudioMediaInfo{
@@ -56,32 +50,37 @@ func (a *HLSAssembler) Assemble(cfg AssemblerCfg) error {
 			Characteristics: []string{"public.accessibility.describes-video"},
 			EncodingId:      cfg.EncID,
 			StreamId:        cfg.AudStreamID,
-			MuxingId:        audTSMuxing.Id,
+			MuxingId:        audCMAFMuxing.Id,
 		})
 		if err != nil {
 			return errors.Wrap(err, "creating audio media")
 		}
 	}
 
-	vidTSMuxing, err := a.api.TSMuxing.Create(cfg.EncID, model.TsMuxing{
+	vidCMAFMuxing, err := a.api.CMAFMuxing.Create(cfg.EncID, model.CmafMuxing{
 		SegmentLength: floatToPtr(float64(cfg.SegDuration)),
-		SegmentNaming: "seg_%number%.ts",
+		SegmentNaming: "seg_%number%.m4v",
 		Streams:       []model.MuxingStream{cfg.VidMuxingStream},
 		Outputs: []model.EncodingOutput{
 			storage.EncodingOutputFrom(cfg.OutputID, path.Join(cfg.ManifestMasterPath, cfg.VidCfgID)),
 		},
 	})
 	if err != nil {
-		return errors.Wrap(err, "creating video ts muxing")
+		return errors.Wrap(err, "creating video cmaf muxing")
+	}
+
+	vidSegLoc, err := filepath.Rel(path.Dir(path.Join(cfg.DestPath, cfg.OutputFilename)), path.Join(cfg.ManifestMasterPath, cfg.VidCfgID))
+	if err != nil {
+		return errors.Wrap(err, "constructing video segment location")
 	}
 
 	_, err = a.api.HLSStreams.Create(cfg.ManifestID, model.StreamInfo{
 		Audio:       cfg.AudCfgID,
 		Uri:         fmt.Sprintf("%s.m3u8", cfg.VidCfgID),
-		SegmentPath: cfg.VidCfgID,
+		SegmentPath: vidSegLoc,
 		EncodingId:  cfg.EncID,
 		StreamId:    cfg.VidStreamID,
-		MuxingId:    vidTSMuxing.Id,
+		MuxingId:    vidCMAFMuxing.Id,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating video stream info")
@@ -90,18 +89,18 @@ func (a *HLSAssembler) Assemble(cfg AssemblerCfg) error {
 	return nil
 }
 
-// HLSStatusEnricher is responsible for adding output HLS info to a job status
-type HLSStatusEnricher struct {
+// CMAFStatusEnricher is responsible for adding output HLS info to a job status
+type CMAFStatusEnricher struct {
 	api *bitmovin.BitmovinApi
 }
 
-// NewHLSStatusEnricher creates and returns an HLSStatusEnricher
-func NewHLSStatusEnricher(api *bitmovin.BitmovinApi) *HLSStatusEnricher {
-	return &HLSStatusEnricher{api: api}
+// NewHLSStatusEnricher creates and returns an CMAFStatusEnricher
+func NewCMAFStatusEnricher(api *bitmovin.BitmovinApi) *CMAFStatusEnricher {
+	return &CMAFStatusEnricher{api: api}
 }
 
-// Enrich populates information about the HLS output if it exists
-func (e *HLSStatusEnricher) Enrich(s provider.JobStatus) (provider.JobStatus, error) {
+// Enrich populates information about the CMAF output if it exists
+func (e *CMAFStatusEnricher) Enrich(s provider.JobStatus) (provider.JobStatus, error) {
 	data, err := e.api.Encoding.Encodings.Customdata.Get(s.ProviderJobID)
 	if err != nil {
 		return s, errors.Wrap(err, "retrieving the encoding from the Bitmovin API")
@@ -113,12 +112,4 @@ func (e *HLSStatusEnricher) Enrich(s provider.JobStatus) (provider.JobStatus, er
 	}
 
 	return s, nil
-}
-
-func floatToPtr(f float64) *float64 {
-	return &f
-}
-
-func boolToPtr(b bool) *bool {
-	return &b
 }

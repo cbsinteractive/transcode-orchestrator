@@ -39,10 +39,11 @@ const (
 	codecH264   = "h264"
 	codecH265   = "h265"
 
-	containerWebM mediaContainer = "webm"
-	containerHLS  mediaContainer = "m3u8"
-	containerMP4  mediaContainer = "mp4"
-	containerMOV  mediaContainer = "mov"
+	containerWebM    mediaContainer = "webm"
+	containerHLS     mediaContainer = "m3u8"
+	containerMP4     mediaContainer = "mp4"
+	containerMOV     mediaContainer = "mov"
+	containerCMAFHLS mediaContainer = "cmafhls"
 
 	cfgStoreH264AAC   cfgStore = "h264aac"
 	cfgStoreH265AAC   cfgStore = "h265aac"
@@ -131,8 +132,20 @@ func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 		},
 		containerSvcs: map[mediaContainer]containerSvc{
 			containerHLS: {
-				assembler:      container.NewHLSAssembler(api),
+				assembler: container.NewHLSAssembler(container.HLSContainerAPI{
+					HLSAudioMedia: api.Encoding.Manifests.Hls.Media.Audio,
+					TSMuxing:      api.Encoding.Encodings.Muxings.Ts,
+					HLSStreams:    api.Encoding.Manifests.Hls.Streams,
+				}),
 				statusEnricher: container.NewHLSStatusEnricher(api),
+			},
+			containerCMAFHLS: {
+				assembler: container.NewCMAFAssembler(container.CMAFContainerAPI{
+					HLSAudioMedia: api.Encoding.Manifests.Hls.Media.Audio,
+					CMAFMuxing:    api.Encoding.Encodings.Muxings.Cmaf,
+					HLSStreams:    api.Encoding.Manifests.Hls.Streams,
+				}),
+				statusEnricher: container.NewCMAFStatusEnricher(api),
 			},
 			containerWebM: {
 				assembler:      container.NewProgressiveWebMAssembler(api),
@@ -214,12 +227,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 
 		hlsManifest, err := p.api.Encoding.Manifests.Hls.Create(model.HlsManifest{
 			ManifestName: manifestMasterFilename,
-			Outputs: []model.EncodingOutput{
-				{
-					OutputId:   outputID,
-					OutputPath: manifestMasterPath,
-				},
-			},
+			Outputs:      []model.EncodingOutput{storage.EncodingOutputFrom(outputID, manifestMasterPath)},
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "creating master manifest")
@@ -278,6 +286,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 
 			audMuxingStreams[audCfgID] = model.MuxingStream{StreamId: audStream.Id}
 			audStreams[audCfgID] = audStream
+			audCfgExists = true
 		}
 
 		vidStream, err := p.api.Encoding.Encodings.Streams.Create(enc.Id, model.Stream{
@@ -295,9 +304,9 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			return nil, err
 		}
 
-		contnrSvcs, ok := p.containerSvcs[mediaContainer]
-		if !ok {
-			return nil, fmt.Errorf("unknown container format %q", mediaContainer)
+		contnrSvcs, err := p.containerServicesFrom(mediaContainer, details.Video.CodecConfigType())
+		if err != nil {
+			return nil, err
 		}
 
 		audStreamID := ""
@@ -340,6 +349,19 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		ProviderJobID: encResp.Id,
 		Status:        provider.StatusQueued,
 	}, nil
+}
+
+func (p *bitmovinProvider) containerServicesFrom(mediaContainer string, cfgType model.CodecConfigType) (containerSvc, error) {
+	if cfgType == model.CodecConfigType_H265 && mediaContainer == containerHLS {
+		mediaContainer = containerCMAFHLS
+	}
+
+	containerSvcs, ok := p.containerSvcs[mediaContainer]
+	if !ok {
+		return containerSvc{}, fmt.Errorf("unknown container format %q", mediaContainer)
+	}
+
+	return containerSvcs, nil
 }
 
 func (p *bitmovinProvider) encodingCloudRegionFrom(job *db.Job) (model.CloudRegion, error) {
