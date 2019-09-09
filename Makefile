@@ -7,7 +7,7 @@ CI_TAG ?= $(shell git describe --tags $(shell git rev-list --tags --max-count=1)
 all: test
 
 testdeps:
-	GO111MODULE=off go get github.com/golangci/golangci-lint/cmd/golangci-lint
+	GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 	go mod download
 
 lint: testdeps
@@ -19,6 +19,7 @@ lint: testdeps
 		-D goconst \
 		-D gocyclo \
 		-D dupl \
+		-D funlen \
 		-D gocritic \
 		-D gochecknoinits \
 		-D unparam \

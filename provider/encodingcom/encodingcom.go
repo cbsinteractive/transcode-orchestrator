@@ -56,11 +56,11 @@ type encodingComProvider struct {
 func (e *encodingComProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	formats, err := e.presetsToFormats(job)
 	if err != nil {
-		return nil, fmt.Errorf("Error converting presets to formats on Transcode operation: %s", err.Error())
+		return nil, fmt.Errorf("error converting presets to formats on Transcode operation: %w", err)
 	}
 	resp, err := e.client.AddMedia([]string{e.sourceMedia(job.SourceMedia)}, formats, e.config.EncodingCom.Region)
 	if err != nil {
-		return nil, fmt.Errorf("Error making AddMedia request for Transcode operation: %s", err.Error())
+		return nil, fmt.Errorf("error making AddMedia request for Transcode operation: %w", err)
 	}
 	return &provider.JobStatus{
 		ProviderJobID: resp.MediaID,
@@ -184,7 +184,7 @@ func (e *encodingComProvider) presetsToFormats(job *db.Job) ([]encodingcom.Forma
 		}
 		presetOutput, err := e.GetPreset(presetID)
 		if err != nil {
-			return nil, fmt.Errorf("Error getting preset info: %s", err.Error())
+			return nil, fmt.Errorf("error getting preset info: %w", err)
 		}
 		presetStruct := presetOutput.(*encodingcom.Preset)
 		if presetStruct.Output == hlsOutput {

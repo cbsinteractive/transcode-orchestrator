@@ -463,7 +463,7 @@ func TestEncodingComTranscodePresetNotFound(t *testing.T) {
 		Outputs:         outputs,
 		StreamingParams: db.StreamingParams{SegmentDuration: 3},
 	})
-	expectedErrorString := "Error converting presets to formats on Transcode operation: Error getting preset info: Error returned by the Encoding.com API: {\"Errors\":[\"123455 preset not found\"]}"
+	expectedErrorString := "error converting presets to formats on Transcode operation: error getting preset info: Error returned by the Encoding.com API: {\"Errors\":[\"123455 preset not found\"]}"
 	if err.Error() != expectedErrorString {
 		t.Errorf("Wrong error\nWant %#v\nGot  %#v", expectedErrorString, err.Error())
 	}
