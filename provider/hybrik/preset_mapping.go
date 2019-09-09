@@ -36,8 +36,7 @@ func (p *hybrikProvider) transcodeElementsWithPresetsFrom(presets map[string]db.
 	transcodeElementsWithFilename := []transcodeElementWithFilename{}
 	idx := 0
 	for filename, preset := range presets {
-		element, err := p.transcodeElementFromPreset(preset, fmt.Sprintf(transcodeElementIDTemplate, idx),
-			cfg.destination, filename, cfg.executionFeatures, cfg.computeTags)
+		element, err := p.transcodeElementFromPreset(preset, fmt.Sprintf(transcodeElementIDTemplate, idx), cfg, filename)
 		if err != nil {
 			return nil, errors.Wrapf(err, "mapping hybrik preset %v into a transcode element", preset)
 		}
@@ -52,8 +51,7 @@ func (p *hybrikProvider) transcodeElementsWithPresetsFrom(presets map[string]db.
 	return transcodeElementsWithFilename, nil
 }
 
-func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string, destination storageLocation, filename string,
-	execFeatures executionFeatures, computeTags map[db.ComputeClass]string) (hybrik.Element, error) {
+func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string, cfg jobCfg, filename string) (hybrik.Element, error) {
 	var minGOPFrames, maxGOPFrames, gopSize int
 
 	gopSize, err := strconv.Atoi(preset.Video.GopSize)
@@ -123,7 +121,7 @@ func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string
 
 	payload := hybrik.TranscodePayload{
 		LocationTargetPayload: hybrik.LocationTargetPayload{
-			Location: p.transcodeLocationFrom(destination),
+			Location: p.transcodeLocationFrom(cfg.destination, cfg.executionEnvironment),
 			Targets: []hybrik.TranscodeTarget{{
 				FilePattern:   filename,
 				ExistingFiles: "replace",
@@ -152,8 +150,8 @@ func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string
 		},
 	}
 
-	if execFeatures.segmentedRendering != nil {
-		payload.SourcePipeline = hybrik.TranscodeSourcePipeline{SegmentedRendering: execFeatures.segmentedRendering}
+	if cfg.executionFeatures.segmentedRendering != nil {
+		payload.SourcePipeline = hybrik.TranscodeSourcePipeline{SegmentedRendering: cfg.executionFeatures.segmentedRendering}
 	}
 
 	for _, modifier := range transcodePayloadModifiersFor(preset) {
@@ -164,7 +162,7 @@ func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string
 	}
 
 	transcodeComputeTags := []string{}
-	if tag, found := computeTags[db.ComputeClassTranscodeDefault]; found {
+	if tag, found := cfg.computeTags[db.ComputeClassTranscodeDefault]; found {
 		transcodeComputeTags = append(transcodeComputeTags, tag)
 	}
 
@@ -231,8 +229,8 @@ func (p *hybrikProvider) audioElementsFrom(presets map[string]db.Preset, cfg job
 	for hash, audioTarget := range audioConfigurations {
 		outputFilename := fmt.Sprintf("audio_output_%d.%s", idx, audioTarget.Codec)
 
-		audioElement, err := p.transcodeAudioElementFromPreset(audioTarget, outputFilename, idx, cfg.computeTags,
-			cfg.destination, containerKindElementary)
+		audioElement, err := p.transcodeAudioElementFromPreset(audioTarget, outputFilename, idx, cfg,
+			containerKindElementary)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "generating audio element from db.Preset")
 		}
@@ -245,9 +243,9 @@ func (p *hybrikProvider) audioElementsFrom(presets map[string]db.Preset, cfg job
 }
 
 func (p *hybrikProvider) transcodeAudioElementFromPreset(target db.AudioPreset, outputFilename string, idx int,
-	computeTags map[db.ComputeClass]string, destination storageLocation, container string) (hybrik.Element, error) {
+	cfg jobCfg, container string) (hybrik.Element, error) {
 	transcodeComputeTags := []string{}
-	if tag, found := computeTags[db.ComputeClassTranscodeDefault]; found {
+	if tag, found := cfg.computeTags[db.ComputeClassTranscodeDefault]; found {
 		transcodeComputeTags = append(transcodeComputeTags, tag)
 	}
 
@@ -264,7 +262,7 @@ func (p *hybrikProvider) transcodeAudioElementFromPreset(target db.AudioPreset, 
 			Name: "Audio Encode",
 		},
 		Payload: hybrik.LocationTargetPayload{
-			Location: p.transcodeLocationFrom(destination),
+			Location: p.transcodeLocationFrom(cfg.destination, cfg.executionEnvironment),
 			Targets: []hybrik.TranscodeTarget{{
 				FilePattern:   outputFilename,
 				ExistingFiles: "replace",

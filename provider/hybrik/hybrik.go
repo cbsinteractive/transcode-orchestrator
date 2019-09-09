@@ -148,8 +148,9 @@ func (p *hybrikProvider) createJobReqFrom(job *db.Job) (hwrapper.CreateJob, erro
 			provider: destStorageProvider,
 			path:     fmt.Sprintf("%s/%s", destinationPath, job.ID),
 		},
-		streamingParams: job.StreamingParams,
-		source:          srcElement,
+		streamingParams:      job.StreamingParams,
+		executionEnvironment: job.ExecutionEnv,
+		source:               srcElement,
 	}
 
 	execFeatures, err := executionFeaturesFrom(job)

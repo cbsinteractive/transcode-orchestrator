@@ -10,15 +10,16 @@ import (
 )
 
 type jobCfg struct {
-	jobID             string
-	destination       storageLocation
-	sourceLocation    storageLocation
-	source            hybrik.Element
-	elementGroups     [][]hybrik.Element
-	outputCfgs        map[string]outputCfg
-	streamingParams   db.StreamingParams
-	executionFeatures executionFeatures
-	computeTags       map[db.ComputeClass]string
+	jobID                string
+	destination          storageLocation
+	sourceLocation       storageLocation
+	source               hybrik.Element
+	elementGroups        [][]hybrik.Element
+	outputCfgs           map[string]outputCfg
+	streamingParams      db.StreamingParams
+	executionEnvironment db.ExecutionEnvironment
+	executionFeatures    executionFeatures
+	computeTags          map[db.ComputeClass]string
 }
 
 type outputCfg struct {
@@ -37,7 +38,7 @@ const (
 )
 
 func (p *hybrikProvider) srcFrom(job *db.Job, src storageLocation) (hybrik.Element, error) {
-	sourceAsset := p.assetPayloadFrom(src.provider, src.path, nil)
+	sourceAsset := p.assetPayloadFrom(src.provider, src.path, nil, job.ExecutionEnv)
 
 	if strings.ToLower(filepath.Ext(src.path)) == imfManifestExtension {
 		sourceAsset.Options = map[string]interface{}{
@@ -58,7 +59,7 @@ func (p *hybrikProvider) srcFrom(job *db.Job, src storageLocation) (hybrik.Eleme
 			Payload: hybrik.AssetContentsPayload{
 				Standard: assetContentsStandardDolbyVisionMetadata,
 			},
-		}}))
+		}}, job.ExecutionEnv))
 	}
 
 	return hybrik.Element{

@@ -149,8 +149,11 @@ func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := tt.provider.transcodeElementFromPreset(tt.preset, tt.transcodeCfg.uid, tt.transcodeCfg.destination,
-				tt.transcodeCfg.filename, tt.transcodeCfg.execFeatures, tt.transcodeCfg.computeTags)
+			p, err := tt.provider.transcodeElementFromPreset(tt.preset, tt.transcodeCfg.uid, jobCfg{
+				destination:       tt.transcodeCfg.destination,
+				executionFeatures: tt.transcodeCfg.execFeatures,
+				computeTags:       tt.transcodeCfg.computeTags,
+			}, tt.transcodeCfg.filename)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("hybrikProvider.transcodeElementFromPreset() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -360,8 +363,11 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 				repository: dbtest.NewFakeRepository(false),
 			}
 
-			gotElement, err := p.transcodeElementFromPreset(tt.presetModifier(defaultPreset), tt.transcodeCfg.uid, tt.transcodeCfg.destination,
-				tt.transcodeCfg.filename, tt.transcodeCfg.execFeatures, tt.transcodeCfg.computeTags)
+			gotElement, err := p.transcodeElementFromPreset(tt.presetModifier(defaultPreset), tt.transcodeCfg.uid, jobCfg{
+				destination:       tt.transcodeCfg.destination,
+				executionFeatures: tt.transcodeCfg.execFeatures,
+				computeTags:       tt.transcodeCfg.computeTags,
+			}, tt.transcodeCfg.filename)
 			if err != nil && tt.wantErrMsg != err.Error() {
 				t.Errorf("hybrikProvider.transcodeElementFromPreset()error = %v, wantErr %q", err, tt.wantErrMsg)
 				return

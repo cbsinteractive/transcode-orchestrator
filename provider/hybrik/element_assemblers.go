@@ -30,7 +30,7 @@ func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([][]hybrik.Element
 	idx := 0
 	for _, outputCfg := range cfg.outputCfgs {
 		element, err := p.transcodeElementFromPreset(outputCfg.localPreset, fmt.Sprintf(transcodeElementIDTemplate, idx),
-			cfg.destination, outputCfg.filename, cfg.executionFeatures, cfg.computeTags)
+			cfg, outputCfg.filename)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +104,7 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Ele
 					AssetURL: p.assetURLFrom(storageLocation{
 						provider: cfg.destination.provider,
 						path:     fmt.Sprintf("%s/%s", cfg.destination.path, filename),
-					}),
+					}, cfg.executionEnvironment),
 				})
 			}
 		}
@@ -121,7 +121,7 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Ele
 			Payload: hybrik.DolbyVisionV2TaskPayload{
 				Module:   "encoder",
 				Profile:  doViProfile5,
-				Location: p.transcodeLocationFrom(cfg.destination),
+				Location: p.transcodeLocationFrom(cfg.destination, cfg.executionEnvironment),
 				Preprocessing: hybrik.DolbyVisionV2Preprocessing{
 					Task: hybrik.TaskTags{
 						Tags: []string{preprocComputeTag},
@@ -163,7 +163,7 @@ func (p *hybrikProvider) dolbyVisionMezzQCElementFrom(mezzQCComputeTag string, c
 				Location: p.transcodeLocationFrom(storageLocation{
 					provider: cfg.destination.provider,
 					path:     fmt.Sprintf(doViMezzQCOutputPathTmpl, cfg.destination.path),
-				}),
+				}, cfg.executionEnvironment),
 				FilePattern: fmt.Sprintf(doViMezzQCReportFilenameTmpl, cfg.jobID),
 			},
 		},
