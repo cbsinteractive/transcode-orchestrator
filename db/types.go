@@ -79,9 +79,10 @@ const SidecarAssetKindDolbyVisionMetadata SidecarAssetKind = "dolbyVisionMetadat
 
 // ExecutionEnvironment contains configurations for the environment used while transcoding
 type ExecutionEnvironment struct {
-	Cloud       string                  `redis-hash:"cloud,omitempty" json:"cloud"`
-	Region      string                  `redis-hash:"region,omitempty" json:"region"`
-	ComputeTags map[ComputeClass]string `redis-hash:"computetags,omitempty,expand" json:"computeTags,omitempty"`
+	Cloud            string                  `redis-hash:"cloud,omitempty" json:"cloud"`
+	Region           string                  `redis-hash:"region,omitempty" json:"region"`
+	ComputeTags      map[ComputeClass]string `redis-hash:"computetags,omitempty,expand" json:"computeTags,omitempty"`
+	CredentialsAlias string                  `redis-hash:"credentialsalias,omitempty" json:"credentialsAlias,omitempty"`
 }
 
 // ComputeClass represents a group of resources with similar capability
