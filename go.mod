@@ -2,7 +2,7 @@ module github.com/cbsinteractive/video-transcoding-api
 
 require (
 	github.com/NYTimes/encoding-wrapper v0.2.0
-	github.com/NYTimes/gizmo v1.2.14
+	github.com/NYTimes/gizmo v1.2.15
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/aws/aws-sdk-go v1.23.14
 	github.com/aws/aws-sdk-go-v2 v0.11.0
