@@ -52,6 +52,8 @@ github.com/bitmovin/bitmovin-api-sdk-go v1.21.0-alpha.0 h1:uGptc3p9WkcR14wyz2vMK
 github.com/bitmovin/bitmovin-api-sdk-go v1.21.0-alpha.0/go.mod h1:Ho8JxtJ2Yf6Gwi9z+5oXuEi2xaIFiFPSs70YuXA7eTo=
 github.com/bitmovin/bitmovin-api-sdk-go v1.22.0-alpha.0 h1:EBkUYohjN9eztnimYgcfyo89XlJ9/VR8zq4YgtkkQn4=
 github.com/bitmovin/bitmovin-api-sdk-go v1.22.0-alpha.0/go.mod h1:Ho8JxtJ2Yf6Gwi9z+5oXuEi2xaIFiFPSs70YuXA7eTo=
+github.com/bitmovin/bitmovin-api-sdk-go v1.23.0-alpha.0 h1:4euyX5YNO34kFEF++ZhnurEkxkQHlOUqn2pmQovXg04=
+github.com/bitmovin/bitmovin-api-sdk-go v1.23.0-alpha.0/go.mod h1:Ho8JxtJ2Yf6Gwi9z+5oXuEi2xaIFiFPSs70YuXA7eTo=
 github.com/bitmovin/bitmovin-go v1.29.0 h1:xhTvsSRLTHy3KPl3wBD5X6c9nVelF5YPyJbQt2KlAAk=
 github.com/bitmovin/bitmovin-go v1.29.0/go.mod h1:FnQ++AxR0BZAH5UpAPU10bpSzeV4a7Gu5Sazpkpr7cE=
 github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 h1:DDGfHa7BWjL4YnC6+E63dPcxHo2sUxDIu8g3QgEJdRY=
