@@ -17,6 +17,8 @@ lint: testdeps
 		-D lll \
 		-D gochecknoglobals \
 		-D goconst \
+		-D godox \
+		-D dupl \
 		-D gocyclo \
 		-D dupl \
 		-D funlen \
