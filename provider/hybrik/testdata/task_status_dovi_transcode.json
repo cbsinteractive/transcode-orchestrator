@@ -1,0 +1,170 @@
+{
+  "id": 17440123,
+  "priority": 100,
+  "retry_nr": 0,
+  "retry_nr_aog": 0,
+  "creation_time": "2019-08-27T16:20:21.000Z",
+  "hint_name": "Encode #1",
+  "max_retry_count_aog": 3,
+  "related_asset_id": null,
+  "kind": "Dolby Vision",
+  "retry_count": 0,
+  "uid": "dolby_vision_1",
+  "element_name": "dolby_vision_1",
+  "status": "completed",
+  "fetcher_id": 8263067,
+  "assigned": "2019-08-27T16:24:30.000Z",
+  "completed": "2019-08-27T17:39:38.000Z",
+  "documents": [
+    {
+      "result_payload": {
+        "kind": "asset_complex",
+        "payload": {
+          "creator_uid": "post_transcode_stage_0",
+          "asset_versions": [
+            {
+              "location": {
+                "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday",
+                "storage_provider": "s3"
+              },
+              "asset_components": [
+                {
+                  "kind": "name",
+                  "name": "blackmonday_540.mp4",
+                  "descriptor": {
+                    "size": 492007718,
+                    "mtime": "2019-08-27T17:38:15.000Z",
+                    "storage_class": "STANDARD",
+                    "provider": "s3",
+                    "checked": 1566927502674,
+                    "location": "us-east-1"
+                  },
+                  "component_uid": "asset_0"
+                }
+              ],
+              "version_uid": "main"
+            }
+          ],
+          "kind": "multi"
+        },
+        "meta": {
+          "history": []
+        }
+      },
+      "result_extended_payload": {
+        "logs": {
+          "history": []
+        }
+      },
+      "connector": "Output"
+    }
+  ],
+  "config": {
+    "uid": "dolby_vision_1",
+    "kind": "dolby_vision",
+    "payload": {
+      "module": "encoder",
+      "profile": 5,
+      "location": {
+        "storage_provider": "s3",
+        "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday"
+      },
+      "preprocessing": {
+        "task": {
+          "tags": [
+            "preproc"
+          ]
+        }
+      },
+      "transcodes": [
+        {
+          "uid": "transcode_task_1",
+          "kind": "transcode",
+          "task": {
+            "name": "Transcode - blackmonday_540.mp4"
+          },
+          "payload": {
+            "location": {
+              "storage_provider": "s3",
+              "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday"
+            },
+            "targets": [
+              {
+                "file_pattern": "blackmonday_540.mp4",
+                "existing_files": "replace",
+                "container": {
+                  "kind": "elementary"
+                },
+                "nr_of_passes": 1,
+                "video": {
+                  "width": 960,
+                  "height": 540,
+                  "bitrate_mode": "vbr",
+                  "min_bitrate_kb": 1200,
+                  "bitrate_kb": 2000,
+                  "max_bitrate_kb": 2800,
+                  "preset": "slow",
+                  "codec": "h265",
+                  "profile": "main10",
+                  "tune": "grain",
+                  "min_gop_frames": 48,
+                  "max_gop_frames": 48,
+                  "exact_gop_frames": 48,
+                  "interlace_mode": "progressive",
+                  "chroma_format": "yuv420p10le",
+                  "x265_options": "concatenation={auto_concatenation_flag}:vbv-init=0.6:vbv-end=0.6:annexb=1:hrd=1:aud=1:videoformat=5:range=full:colorprim=2:transfer=2:colormatrix=2:rc-lookahead=48:qg-size=32:scenecut=0:no-open-gop=1:frame-threads=0:repeat-headers=1:nr-inter=400:nr-intra=100:psy-rd=0:cbqpoffs=0:crqpoffs=3",
+                  "vtag": "hvc1",
+                  "ffmpeg_args": " -strict experimental",
+                  "closed_captions": {
+                    "enable_cea608": true
+                  }
+                }
+              }
+            ],
+            "source_pipeline": {
+              "segmented_rendering": {
+                "duration_sec": 60
+              },
+              "options": {},
+              "scaler": {}
+            },
+            "options": {
+              "pipeline": {
+                "encoder_version": "hybrik_4.0_10bit"
+              }
+            }
+          }
+        }
+      ],
+      "post_transcode": {
+        "task": {
+          "tags": [
+            "preproc"
+          ]
+        },
+        "mp4_mux": {
+          "enabled": true,
+          "file_pattern": "{source_basename}.mp4",
+          "cli_options": {
+            "dvh1flag": ""
+          },
+          "elementary_streams": [
+            {
+              "asset_url": {
+                "storage_provider": "s3",
+                "url": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/audio_output_aac_low.aac"
+              }
+            },
+            {
+              "asset_url": {
+                "storage_provider": "s3",
+                "url": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/audio_output_aac_high.aac"
+              }
+            }
+          ],
+          "tool_version": "1.2.8"
+        }
+      }
+    }
+  }
+}

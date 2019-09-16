@@ -1,0 +1,257 @@
+{
+  "id": 17441221,
+  "priority": 100,
+  "retry_nr": 0,
+  "retry_nr_aog": 0,
+  "creation_time": "2019-08-27T17:39:44.000Z",
+  "hint_name": "blackmonday_540.mp4",
+  "max_retry_count_aog": 3,
+  "related_asset_id": null,
+  "kind": "Package",
+  "retry_count": 1,
+  "uid": "packager",
+  "element_name": "packager",
+  "status": "completed",
+  "fetcher_id": 8267578,
+  "assigned": "2019-08-27T17:40:02.000Z",
+  "completed": "2019-08-27T17:41:10.000Z",
+  "documents": [
+    {
+      "result_payload": {
+        "kind": "asset_complex",
+        "payload": {
+          "asset_versions": [
+            {
+              "location": {
+                "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls",
+                "storage_provider": "s3"
+              },
+              "asset_components": [
+                {
+                  "kind": "name",
+                  "name": "master.m3u8",
+                  "descriptor": {
+                    "size": 1429,
+                    "mtime": "2019-08-27T17:41:08.000Z",
+                    "storage_class": "STANDARD",
+                    "provider": "s3",
+                    "checked": 1566927668164,
+                    "location": "us-east-1"
+                  },
+                  "component_uid": "main"
+                },
+                {
+                  "kind": "name",
+                  "name": "blackmonday_360_audio.m3u8",
+                  "location": {
+                    "storage_provider": "s3",
+                    "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls",
+                    "attributes": [
+                      {
+                        "name": "ContentType",
+                        "value": "application/x-mpegURL"
+                      }
+                    ]
+                  },
+                  "descriptor": {
+                    "size": 16328,
+                    "mtime": "2019-08-27T17:41:07.000Z",
+                    "storage_class": "STANDARD",
+                    "provider": "s3",
+                    "checked": 1566927666144,
+                    "location": "us-east-1"
+                  },
+                  "component_uid": "media_manifest_0_2"
+                },
+                {
+                  "kind": "name",
+                  "name": "blackmonday_360_video.m3u8",
+                  "location": {
+                    "storage_provider": "s3",
+                    "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls",
+                    "attributes": [
+                      {
+                        "name": "ContentType",
+                        "value": "application/x-mpegURL"
+                      }
+                    ]
+                  },
+                  "descriptor": {
+                    "size": 15402,
+                    "mtime": "2019-08-27T17:41:07.000Z",
+                    "storage_class": "STANDARD",
+                    "provider": "s3",
+                    "checked": 1566927666182,
+                    "location": "us-east-1"
+                  },
+                  "component_uid": "media_manifest_0_0"
+                },
+                {
+                  "kind": "name",
+                  "name": "blackmonday_540_video.m3u8",
+                  "location": {
+                    "storage_provider": "s3",
+                    "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls",
+                    "attributes": [
+                      {
+                        "name": "ContentType",
+                        "value": "application/x-mpegURL"
+                      }
+                    ]
+                  },
+                  "descriptor": {
+                    "size": 15402,
+                    "mtime": "2019-08-27T17:41:07.000Z",
+                    "storage_class": "STANDARD",
+                    "provider": "s3",
+                    "checked": 1566927666202,
+                    "location": "us-east-1"
+                  },
+                  "component_uid": "media_manifest_1_2"
+                },
+                {
+                  "kind": "name",
+                  "name": "blackmonday_540_audio.m3u8",
+                  "location": {
+                    "storage_provider": "s3",
+                    "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls",
+                    "attributes": [
+                      {
+                        "name": "ContentType",
+                        "value": "application/x-mpegURL"
+                      }
+                    ]
+                  },
+                  "descriptor": {
+                    "size": 16328,
+                    "mtime": "2019-08-27T17:41:07.000Z",
+                    "storage_class": "STANDARD",
+                    "provider": "s3",
+                    "checked": 1566927666204,
+                    "location": "us-east-1"
+                  },
+                  "component_uid": "media_manifest_1_1"
+                },
+                {
+                  "kind": "name",
+                  "name": "blackmonday_540-iframes.m3u8",
+                  "location": {
+                    "storage_provider": "s3",
+                    "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls",
+                    "attributes": [
+                      {
+                        "name": "ContentType",
+                        "value": "application/x-mpegURL"
+                      }
+                    ]
+                  },
+                  "descriptor": {
+                    "size": 22646,
+                    "mtime": "2019-08-27T17:41:07.000Z",
+                    "storage_class": "STANDARD",
+                    "provider": "s3",
+                    "checked": 1566927666241,
+                    "location": "us-east-1"
+                  },
+                  "component_uid": "media_manifest_1_3"
+                },
+                {
+                  "kind": "name",
+                  "name": "blackmonday_360-iframes.m3u8",
+                  "location": {
+                    "storage_provider": "s3",
+                    "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls",
+                    "attributes": [
+                      {
+                        "name": "ContentType",
+                        "value": "application/x-mpegURL"
+                      }
+                    ]
+                  },
+                  "descriptor": {
+                    "size": 22628,
+                    "mtime": "2019-08-27T17:41:07.000Z",
+                    "storage_class": "STANDARD",
+                    "provider": "s3",
+                    "checked": 1566927666251,
+                    "location": "us-east-1"
+                  },
+                  "component_uid": "media_manifest_0_1"
+                }
+              ],
+              "version_uid": "main_manifest"
+            }
+          ],
+          "kind": "multi"
+        },
+        "meta": {
+          "history": []
+        }
+      },
+      "result_extended_payload": {
+        "logs": {
+          "history": [
+            {
+              "task": "package",
+              "started": "2019-08-27T17:40:02.697Z",
+              "fetcher_version": "1.202.50",
+              "component_version": "1.60.1928",
+              "duration_sec": 68,
+              "details": {
+                "task_id": 17441221,
+                "sub_task_id": "17441221_s0",
+                "sys_mem_mb": 30130,
+                "sys_cpu_count": 16,
+                "machine_id": 1805188,
+                "service_id": 1805251,
+                "aws_region": "us-east-1",
+                "aws_ami_id": "ami-0139556906a08a114",
+                "aws_instance_id": "i-01c0c4c2cf8c6df0d",
+                "aws_instance_type": "c4.4xlarge",
+                "public_ip": "54.85.93.37",
+                "private_ip": "10.0.8.161"
+              },
+              "report": [
+                "2019-08-27T17:40:02.697Z: task init: 2 ms",
+                "2019-08-27T17:40:02.848Z: parsed trigger docs: 293 ms",
+                "2019-08-27T17:41:08.164Z: finished patching final permissions",
+                "2019-08-27T17:41:10.454Z: concluding report log history",
+                "2019-08-27T17:41:10.454Z: concluding report event history"
+              ],
+              "events": [],
+              "stats": {
+                "avg_cpu_load": 9,
+                "sys_mem_used_mb": {
+                  "min": 1278,
+                  "avg": 1380,
+                  "max": 1632
+                }
+              },
+              "completed": "2019-08-27T17:41:10.455Z"
+            }
+          ]
+        }
+      },
+      "connector": "Output"
+    }
+  ],
+  "config": {
+    "uid": "packager",
+    "kind": "package",
+    "payload": {
+      "location": {
+        "storage_provider": "s3",
+        "path": "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls"
+      },
+      "file_pattern": "master.m3u8",
+      "kind": "hls",
+      "force_original_media": false,
+      "segmentation_mode": "segmented_mp4",
+      "segment_duration_sec": 6,
+      "hls": {
+        "include_iframe_manifests": true,
+        "hevc_codec_id_prefix": "hvc1"
+      }
+    }
+  }
+}

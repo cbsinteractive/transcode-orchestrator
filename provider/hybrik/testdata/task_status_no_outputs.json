@@ -1,0 +1,598 @@
+{
+  "id": 17401266,
+  "priority": 100,
+  "retry_nr": 0,
+  "retry_nr_aog": 0,
+  "creation_time": "2019-08-19T19:55:42.000Z",
+  "hint_name": "Transcode - 428_331_4316984160910313234_15976904594667690693 #010",
+  "max_retry_count_aog": 3,
+  "related_asset_id": null,
+  "kind": "Transcode",
+  "retry_count": 1,
+  "uid": "transcode_task_0_seg#009",
+  "element_name": "transcode_task_0_seg#009",
+  "status": "completed",
+  "fetcher_id": 8096355,
+  "assigned": "2019-08-19T19:56:07.000Z",
+  "completed": "2019-08-19T19:57:22.000Z",
+  "documents": [
+    {
+      "result_payload": {
+        "kind": "asset_complex",
+        "payload": {
+          "creator_uid": "transcode_task_0_seg#009",
+          "asset_versions": [
+            {
+              "location": {
+                "storage_provider": "s3",
+                "path": "s3://vtg-tsymborski-test-bucket/encodes/046afa431fe57178/"
+              },
+              "asset_components": [
+                {
+                  "kind": "name",
+                  "name": "CBS_NCISNO_509_AA_30M_6CH_528.mp4__hyseg_009_of_041",
+                  "descriptor": {
+                    "mode": 33188,
+                    "nlink": 1,
+                    "size": 3925907,
+                    "atimeMs": 1566244641608,
+                    "mtimeMs": 1566244641644,
+                    "ctimeMs": 1566244641644,
+                    "birthtimeMs": 1566244641644,
+                    "atime": "2019-08-19T19:57:21.608Z",
+                    "mtime": "2019-08-19T19:57:21.644Z",
+                    "ctime": "2019-08-19T19:57:21.644Z",
+                    "birthtime": "2019-08-19T19:57:21.644Z",
+                    "provider": "local",
+                    "checked": 1566244641654,
+                    "location": 1773626
+                  },
+                  "component_uid": "asset_0",
+                  "creator_uid": "target_segment_#009",
+                  "media_analyze": {
+                    "media_info": [
+                      {
+                        "stream_type": "ASSET",
+                        "bit_per_sec": 51506,
+                        "stream_size": 3925907,
+                        "duration_otb": 86051553840,
+                        "first_pts_otb": 77611201920,
+                        "first_dts_otb": 77611201920,
+                        "ASSET": {
+                          "url": "s3://vtg-tsymborski-test-bucket/encodes/046afa431fe57178/CBS_NCISNO_509_AA_30M_6CH_528.mp4__hyseg_009_of_041",
+                          "format": "Nut",
+                          "total_size": 3925907,
+                          "content_type": "application/octet-stream",
+                          "hash": "d16ad96480b7288a87edce5b556348cc",
+                          "modified": 1566244643000,
+                          "probe_style": "deep",
+                          "requester": "media_info_deeper",
+                          "scan_version": "1.202.50-646",
+                          "scan_origin": "media",
+                          "is_streamable": true
+                        },
+                        "first_dts": 549.966,
+                        "first_pts": 549.966,
+                        "duration": 609.77575
+                      },
+                      {
+                        "stream_type": "AUDIO",
+                        "first_pts_otb": 77612189760,
+                        "first_dts_otb": 77612189760,
+                        "id": 0,
+                        "index": 1,
+                        "frame_duration_otb": 2940,
+                        "codec": "aac",
+                        "codec_profile": "LC",
+                        "AUDIO": {
+                          "nr_channels": 2
+                        },
+                        "frame_rate": 48000,
+                        "first_dts": 549.973,
+                        "first_pts": 549.973
+                      },
+                      {
+                        "stream_type": "VIDEO",
+                        "first_pts_otb": 77611201920,
+                        "first_dts_otb": 77611201920,
+                        "id": 0,
+                        "index": 0,
+                        "frame_duration_otb": 5885880,
+                        "codec": "h264",
+                        "codec_profile": "High",
+                        "VIDEO": {
+                          "bit_resolution": 8,
+                          "chroma_subsampling": "CS_420",
+                          "color_space": "YUV",
+                          "display_ar": 1.777778,
+                          "pixel_ar": 1,
+                          "height": 360,
+                          "width": 640
+                        },
+                        "frame_rate": 23.976023976023978,
+                        "first_dts": 549.966,
+                        "first_pts": 549.966
+                      }
+                    ]
+                  }
+                }
+              ],
+              "version_uid": "target_segment_#009",
+              "creator_uid": "target_segment_#009",
+              "asset_descriptor": {
+                "task_data": {
+                  "timing": {
+                    "mux_offset_otb": 1411200000,
+                    "segment_offset_otb": 0,
+                    "inpoint_otb": 76204800000
+                  }
+                },
+                "hls_mime": "avc1.42001e,mp4a.40.2",
+                "video": {
+                  "hls_mime": "avc1.42001e",
+                  "width": 640,
+                  "height": 360
+                },
+                "audio": [
+                  {
+                    "hls_mime": "mp4a.40.2"
+                  }
+                ],
+                "hls_frame_rate": 23.976,
+                "avg_bitrate_bps": 51506
+              }
+            }
+          ],
+          "kind": "multi"
+        },
+        "meta": {
+          "history": []
+        }
+      },
+      "result_extended_payload": {
+        "logs": {
+          "app_logs": [
+            {
+              "uid": "target #0",
+              "command_line": "#!/bin/bash\n\nexport FC_CONFIG_FILE=/etc/fonts/fonts.conf\nexport FONTCONFIG_PATH=/usr/local/lib/\nexport LD_LIBRARY_PATH=\"/home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/ottranscoder\"\n /home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/ottranscoder/ottranscoder -c from_file \"/tmp/hybrik/transcode/17401266_s0-2/hystream.cmd\" | #!/bin/bash\n\nexport FC_CONFIG_FILE=/etc/fonts/fonts.conf\nexport FONTCONFIG_PATH=/usr/local/lib/\nexport LD_LIBRARY_PATH=\"/home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/hybrik_ffmpeg_3_2_8bit\"\n /home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/hybrik_ffmpeg_3_2_8bit/ffmpeg -copyts -i pipe:0 -copyts -vsync 0 -y -threads 0 -loglevel verbose -analyzeduration 120000000 -probesize 80000000 -filter_complex \"[0:a:0]asetnsamples=1024:0[ap0];[0:a:1]asetnsamples=1024:0[ap1];[0:a:2]asetnsamples=1024:0[ap2];[0:a:3]asetnsamples=1024:0[ap3];[0:a:4]asetnsamples=1024:0[ap4];[0:a:5]asetnsamples=1024:0[ap5];[ap0][ap1][ap2][ap3][ap4][ap5]amerge=inputs=6,asetnsamples=n=1024:p=0[aout]\" -map 0:v -map 0:d? -map 0:s? -map [aout] -c:v hyrawvideo -c:a pcm_s24le -max_muxing_queue_size 1024 -avoid_negative_ts disabled -f nut pipe:1 |  /home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/hybrik_ffmpeg_3_2_8bit/ffmpeg -y -loglevel verbose -copyts -vsync 0 -copyts -i pipe:0 -s 640x360 -pix_fmt yuv420p -vf setfield=prog -c:v hyrawvideo -ar:a:0 48000 -ac:a:0 2 -b:a:0 128k -c:a:0 pcm_s16le -max_muxing_queue_size 1024 -f nut -encoder_override \"Hybrik 1.202.50\" pipe:1 -map 0:v -an -vf \"fps=1,scale=trunc(oh*dar/2)*2:64,sidedata=mode=delete\" -q:v 18 \"/tmp/hybrik/transcode/17401266_s0-2/preview/mini/ow_tn_img%05d.jpg\" | #!/bin/bash\n\nexport FC_CONFIG_FILE=/etc/fonts/fonts.conf\nexport FONTCONFIG_PATH=/usr/local/lib/\nexport LD_LIBRARY_PATH=\"/home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/ottranscoder\"\n  /home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/ottranscoder/ottranscoder -c from_file /tmp/hybrik_temp/transcode/t17401266/p0/17401266_s0/0/encode1_tgt_0_0/ote_0_0.cmd",
+              "module_logs": {
+                "libx264_stats": [
+                  "[libx264 @ 0x561cc22bbba0] OTE00::setting keyint-min to: 120",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::keyint-min pre-init: 120",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::profile High, level 4.1, 4:2:0, 8-bit",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::keyint-min post-init: 120",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::frame I:12    Avg QP:19.86  size: 16365",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::frame P:404   Avg QP:23.81  size:  4346",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::frame B:1023  Avg QP:26.64  size:   968",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::consecutive B-frames:  3.5%  3.3%  5.0% 88.1%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::mb I  I16..4:  9.6% 74.5% 15.9%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::mb P  I16..4:  1.6%  8.2%  1.1%  P16..4: 44.3% 15.8%  7.2%  0.0%  0.0%    skip:21.8%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::mb B  I16..4:  0.0%  0.2%  0.0%  B16..8: 45.4%  4.5%  0.6%  direct: 0.9%  skip:48.3%  L0:42.7% L1:53.4% BI: 3.9%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::filler_bits: 0",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::8x8 transform intra:75.1% inter:77.0%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::direct mvs  spatial:95.0% temporal:5.0%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::coded y,uvDC,uvAC intra: 68.8% 61.9% 30.6% inter: 8.1% 6.2% 0.1%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::i16 v,h,dc,p: 35% 22%  8% 35%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 21% 12%  6%  7% 11% 14% 10% 11%  8%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 20%  9%  6%  9% 13% 15% 11%  9%  8%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::i8c dc,h,v,p: 30% 30% 27% 13%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::Weighted P-Frames: Y:3.0% UV:1.2%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::ref P L0: 60.4% 15.3% 13.0%  6.0%  5.1%  0.2%  0.0%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::ref B L0: 88.2%  8.3%  2.7%  0.8%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::ref B L1: 96.0%  4.0%",
+                  "[libx264 @ 0x561cc22bbba0] OTE00::kb/s:392.24"
+                ]
+              },
+              "ffmpeg_metadata": {
+                "input": {
+                  "streams": [
+                    {
+                      "type": "video",
+                      "codec": "hyrawvideo,",
+                      "fps": 98,
+                      "size": {
+                        "width": 640,
+                        "height": 360
+                      },
+                      "aspect": 1.7777777777777777,
+                      "colors": "1 reference frame (HYRW / 0x57525948)"
+                    },
+                    {
+                      "type": "audio",
+                      "codec": "pcm_s24le",
+                      "samplerate": 48000,
+                      "channels": 1,
+                      "bitrate": 1152000
+                    },
+                    {
+                      "type": "audio",
+                      "codec": "pcm_s24le",
+                      "samplerate": 48000,
+                      "channels": 1,
+                      "bitrate": 1152000
+                    },
+                    {
+                      "type": "audio",
+                      "codec": "pcm_s24le",
+                      "samplerate": 48000,
+                      "channels": 1,
+                      "bitrate": 1152000
+                    },
+                    {
+                      "type": "audio",
+                      "codec": "pcm_s24le",
+                      "samplerate": 48000,
+                      "channels": 1,
+                      "bitrate": 1152000
+                    },
+                    {
+                      "type": "audio",
+                      "codec": "pcm_s24le",
+                      "samplerate": 48000,
+                      "channels": 1,
+                      "bitrate": 1152000
+                    },
+                    {
+                      "type": "audio",
+                      "codec": "pcm_s24le",
+                      "samplerate": 48000,
+                      "channels": 1,
+                      "bitrate": 1152000
+                    }
+                  ],
+                  "metadata": {
+                    "encoder_override": "Hybrik 1.202.50-646",
+                    "encoder": "Hybrik 1.202.50-646",
+                    "creation_time": "2019-08-19T19:56:49.875971Z"
+                  },
+                  "synched": false
+                },
+                "output": {
+                  "streams": [
+                    {
+                      "type": "video",
+                      "codec": "hyrawvideo,",
+                      "bitrate": 200000,
+                      "fps": 98,
+                      "size": {
+                        "width": 640,
+                        "height": 360
+                      },
+                      "aspect": 1.7777777777777777,
+                      "colors": "1 reference frame (HYRW / 0x57525948)",
+                      "metadata": {
+                        "encoder": "Lavc57.64.100 hyrawvideo"
+                      }
+                    },
+                    {
+                      "type": "audio",
+                      "codec": "pcm_s24le",
+                      "samplerate": 48000,
+                      "channels": 5,
+                      "bitrate": 6912000,
+                      "metadata": {
+                        "encoder": "Lavc57.64.100 pcm_s24le"
+                      }
+                    }
+                  ],
+                  "metadata": {
+                    "encoder_override": "Hybrik 1.202.50-646",
+                    "encoder": "Hybrik 1.202.50-646"
+                  }
+                }
+              }
+            }
+          ],
+          "history": [
+            {
+              "task": "API Receiver",
+              "started": "2019-08-19T19:55:40.702Z",
+              "completed": "2019-08-19T19:55:40.702Z",
+              "duration_sec": 0,
+              "details": {
+                "machine_id": 1263458,
+                "service_id": 1289644,
+                "task_id": 17401256
+              }
+            },
+            {
+              "task": "transcode",
+              "action": "transcode s3://vtg-tsymborski-test-bucket/sources/CBS_NCISNO_509_AA_30M_6CH.mov to s3://vtg-tsymborski-test-bucket/encodes/046afa431fe57178/CBS_NCISNO_509_AA_30M_6CH_528.mp4__hyseg_009_of_041",
+              "started": "2019-08-19T19:56:07.542Z",
+              "completed": "2019-08-19T19:57:22.291Z",
+              "fetcher_version": "1.202.50",
+              "component_version": "1.60.1928",
+              "duration_sec": 75,
+              "details": {
+                "task_id": 17401266,
+                "sub_task_id": "17401266_s0",
+                "sys_mem_mb": 30130,
+                "sys_cpu_count": 16,
+                "machine_id": 1773626,
+                "service_id": 1773940,
+                "aws_region": "us-east-1",
+                "aws_ami_id": "ami-0139556906a08a114",
+                "aws_instance_id": "i-06b900c0177338f72",
+                "aws_instance_type": "c4.4xlarge",
+                "public_ip": "3.84.238.97",
+                "private_ip": "10.0.26.143"
+              },
+              "report": [
+                "2019-08-19T19:56:07.542Z: task init: 1 ms",
+                "2019-08-19T19:56:07.546Z: parsed trigger docs: 2000 ms",
+                "2019-08-19T19:56:11.653Z: starting core media pipe for target 0",
+                "2019-08-19T19:56:11.654Z: initializing media pipeline runtimes",
+                "2019-08-19T19:56:16.085Z: initializing media pipeline runtimes done, proceeding to pipeline running",
+                "2019-08-19T19:56:16.085Z: handling preview initialization",
+                "2019-08-19T19:56:16.086Z: running media pipeline for analyze pass 1",
+                "2019-08-19T19:56:48.589Z: done, analyze pass ' + analyze_pass_nr + ' media pipeline - cleaning up previews",
+                "2019-08-19T19:56:48.589Z: settling...",
+                "2019-08-19T19:56:49.593Z: running second pass media pipeline",
+                "2019-08-19T19:57:21.487Z: media pipeline final pass sample flow stopped",
+                "2019-08-19T19:57:21.488Z: done, second pass media pipeline - cleaning up previews",
+                "2019-08-19T19:57:21.490Z: multi-pass media pipeline done",
+                "2019-08-19T19:57:21.491Z: core media pipe for target 0 completed",
+                "2019-08-19T19:57:21.492Z: flushing deliveries completed",
+                "2019-08-19T19:57:21.492Z: post processing step 1 completed for sub target 0",
+                "2019-08-19T19:57:21.492Z: post processing step 2 completed for sub target 0",
+                "2019-08-19T19:57:21.652Z: post processing step 3 completed for sub target 0",
+                "2019-08-19T19:57:21.653Z: all postprocs executed",
+                "2019-08-19T19:57:21.653Z: target 0 local result investigation setup",
+                "2019-08-19T19:57:21.885Z: delivered file s3://vtg-tsymborski-test-bucket/encodes/046afa431fe57178/CBS_NCISNO_509_AA_30M_6CH_528.mp4__hyseg_009_of_041 in 227 ms",
+                "2019-08-19T19:57:21.887Z: targets local result investigation concluded",
+                "2019-08-19T19:57:21.887Z: target delivery handling completed",
+                "2019-08-19T19:57:21.887Z: data flushing for target 0 completed",
+                "2019-08-19T19:57:21.887Z: finished media pipe internal post processing for target 0",
+                "2019-08-19T19:57:22.288Z: finished media pipe external post processing for target 0",
+                "2019-08-19T19:57:22.289Z: finished all target operations",
+                "2019-08-19T19:57:22.291Z: concluding report log history",
+                "2019-08-19T19:57:22.291Z: concluding report event history"
+              ],
+              "events": [],
+              "stats": {
+                "avg_cpu_load": 15,
+                "sys_mem_used_mb": {
+                  "min": 2079,
+                  "avg": 2320,
+                  "max": 2498
+                },
+                "previews": 3
+              }
+            }
+          ],
+          "encode_args": {
+            "asset_versions": {
+              "target_segment_#009": {
+                "ffmpeg_pass_args": [
+                  "-s 640x360 -pix_fmt yuv420p -vf \"setfield=prog\" -c:v hyrawvideo -ar:a:0 48000 -ac:a:0 2 -b:a:0 128k -c:a:0 pcm_s16le -max_muxing_queue_size 1024 -f nut -encoder_override \"Hybrik 1.202.50\"",
+                  "-s 640x360 -pix_fmt yuv420p -vf \"setfield=prog\" -c:v hyrawvideo -ar:a:0 48000 -ac:a:0 2 -b:a:0 128k -c:a:0 pcm_s16le -max_muxing_queue_size 1024 -f nut -encoder_override \"Hybrik 1.202.50\""
+                ]
+              }
+            }
+          }
+        },
+        "sources": [
+          {
+            "asset_versions": [
+              {
+                "version_uid": "main",
+                "asset_components": [
+                  {
+                    "component_uid": "asset_0",
+                    "kind": "name",
+                    "name": "CBS_NCISNO_509_AA_30M_6CH.mov",
+                    "location": {
+                      "storage_provider": "s3",
+                      "path": "s3://vtg-tsymborski-test-bucket/sources"
+                    },
+                    "media_analyze": {
+                      "media_info": [
+                        {
+                          "stream_type": "ASSET",
+                          "bit_per_sec": 36921428,
+                          "stream_size": 11406464932,
+                          "duration_otb": 348779632320,
+                          "first_pts_otb": 0,
+                          "first_dts_otb": -5885880,
+                          "ASSET": {
+                            "url": "s3://vtg-tsymborski-test-bucket/sources/CBS_NCISNO_509_AA_30M_6CH.mov",
+                            "format": "mp4",
+                            "format_profile": "QuickTime",
+                            "format_compatibility": "qt  ",
+                            "encoded_date": "UTC 2018-12-03 16:50:19",
+                            "tagged_date": "UTC 2018-12-03 16:50:19",
+                            "is_streamable": true,
+                            "total_size": 11406464932,
+                            "content_type": "video/quicktime",
+                            "hash": "abd0f4326738fa910af59d895a5a4610-1088",
+                            "modified": 1561646808000,
+                            "probe_style": "deeper2",
+                            "requester": "media_info_deeper2",
+                            "scan_version": "1.202.50-646",
+                            "scan_origin": "media",
+                            "is_forced_non_streamable": true
+                          },
+                          "first_dts": -0.04170833333333333,
+                          "first_pts": 0,
+                          "duration": 2471.511
+                        },
+                        {
+                          "stream_type": "AUDIO",
+                          "title": "Telestream, LLC Telestream Media Framework - Release TXGP 2016.76.213400",
+                          "bit_per_sec": 6912000,
+                          "duration_otb": 348779632320,
+                          "first_pts_otb": 0,
+                          "first_dts_otb": 0,
+                          "id": 2,
+                          "index": 1,
+                          "sub_index": 1,
+                          "frame_duration_otb": 2940,
+                          "codec": "pcm_s24le",
+                          "bitrate_mode": "CBR",
+                          "AUDIO": {
+                            "bit_per_sample": 24,
+                            "nr_channels": 6,
+                            "channel_order": "L R C LFE Ls Rs",
+                            "language": "en",
+                            "designators": [
+                              "L",
+                              "R",
+                              "C",
+                              "LFE",
+                              "Ls",
+                              "Rs"
+                            ]
+                          },
+                          "frame_rate": 48000,
+                          "first_dts": 0,
+                          "first_pts": 0,
+                          "duration": 2471.511
+                        },
+                        {
+                          "stream_type": "VIDEO",
+                          "title": "Telestream, LLC Telestream Media Framework - Release TXGP 2016.76.213400",
+                          "bit_per_sec": 30118576,
+                          "duration_otb": 348779632320,
+                          "first_pts_otb": 0,
+                          "first_dts_otb": -5885880,
+                          "id": 1,
+                          "index": 0,
+                          "sub_index": 0,
+                          "frame_duration_otb": 5885880,
+                          "codec": "h264",
+                          "codec_profile": "High@L4.1",
+                          "bitrate_mode": "CBR",
+                          "encoder": "x264 - core 148",
+                          "encoder_settings": "cabac=1 / ref=3 / deblock=1:0:0 / analyse=0x3:0x113 / me=hex / subme=7 / psy=1 / psy_rd=1.00:0.00 / mixed_ref=1 / me_range=16 / chroma_me=1 / trellis=1 / 8x8dct=1 / cqm=0 / deadzone=21,11 / fast_pskip=1 / chroma_qp_offset=-2 / threads=34 / lookahead_threads=5 / sliced_threads=0 / nr=0 / decimate=1 / interlaced=0 / paff=0 / bluray_compat=0 / constrained_intra=0 / bframes=3 / b_pyramid=0 / b_adapt=1 / b_bias=0 / direct=1 / weightb=1 / open_gop=0 / weightp=2 / keyint=250 / keyint_min=23 / scenecut=0 / intra_refresh=0 / rc_lookahead=40 / rc=cbr / mbtree=1 / bitrate=30000 / ratetol=1.0 / qcomp=0.60 / qpmin=0 / qpmax=69 / qpstep=4 / vbv_maxrate=30000 / vbv_bufsize=1400 / nal_hrd=cbr / filler=1 / ip_ratio=1.40 / aq=1:1.00",
+                          "VIDEO": {
+                            "bit_resolution": 8,
+                            "format": "AVC",
+                            "bits_per_pixel": 8,
+                            "encoded_bits_per_pixel": 0.606,
+                            "chroma_subsampling": "CS_420",
+                            "color_space": "YUV",
+                            "color_range": "Limited",
+                            "framerate_mode": "CONSTANT",
+                            "interlace_mode": "PROGRESSIVE",
+                            "display_ar": 1.778,
+                            "pixel_ar": 1,
+                            "height": 1080,
+                            "width": 1920,
+                            "clean_aperture_height": 1080,
+                            "clean_aperture_width": 1920
+                          },
+                          "frame_rate": 23.976023976023978,
+                          "first_dts": -0.04170833333333333,
+                          "first_pts": 0,
+                          "duration": 2471.511
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ],
+            "kind": "sequence"
+          }
+        ]
+      },
+      "connector": "Output"
+    }
+  ],
+  "config": {
+    "uid": "transcode_task_0_seg#009",
+    "kind": "transcode",
+    "payload": {
+      "targets": [
+        {
+          "file_pattern": "CBS_NCISNO_509_AA_30M_6CH_528.mp4__hyseg_009_of_041",
+          "container": {
+            "kind": "mp4",
+            "manifest_file_pattern": "{target_basename}{default_extension}",
+            "segment_file_pattern": "{target_basename}_%05d{default_extension}"
+          },
+          "video": {
+            "height": 360,
+            "bitrate_mode": "vbr",
+            "min_bitrate_kb": 360,
+            "bitrate_kb": 400,
+            "max_bitrate_kb": 440,
+            "codec": "h264",
+            "profile": "high",
+            "level": 4.1,
+            "min_gop_frames": 120,
+            "max_gop_frames": 120,
+            "interlace_mode": "progressive",
+            "include_conditions": [],
+            "width_modulus": 2,
+            "height_modulus": 2,
+            "ar_max_distortion": 0.05,
+            "ar_auto_crop": "none",
+            "ar_pad_crop_ratio": 1,
+            "exact_gop_frames": 120,
+            "preset": "slow"
+          },
+          "audio": [
+            {
+              "codec": "aac",
+              "bitrate_kb": 128,
+              "sample_size": 16,
+              "sample_rate": 48000,
+              "channels": 2
+            }
+          ],
+          "existing_files": "replace",
+          "uid": "target_segment_#009",
+          "slow_first_pass": true,
+          "nr_of_passes": 2,
+          "post_proc_scripts": [
+            {
+              "script_options": {
+                "in_place_processing": false,
+                "temp_needs": "source_dir"
+              },
+              "command": "{ffmpeg:hybrik_3.2_8bit} -vsync 0 -copyts -y -correct_ts_overflow 0 -i \"{source_url}\" -strict -2 -mpegts_copyts 1 -muxdelay 0 -avoid_negative_ts 0 -correct_ts_overflow 0 -c copy -bsf:v h264_mp4toannexb -f nut \"{target_url}\""
+            }
+          ]
+        }
+      ],
+      "options": {
+        "source_read_mode": "auto"
+      },
+      "location": {
+        "storage_provider": "s3",
+        "path": "s3://vtg-tsymborski-test-bucket/encodes/046afa431fe57178"
+      },
+      "source_pipeline": {
+        "segmented_rendering": {
+          "duration_sec": 60,
+          "mux_offset_otb": 1411200000,
+          "segment_nr": 9,
+          "total_segments": 41,
+          "asset_versions_hints": [
+            {
+              "uid": "main",
+              "start_segment_nr": 0,
+              "offset_sec": 0,
+              "duration_sec": 2471.511,
+              "rel_inpoint_sec": 540,
+              "rel_outpoint_sec": 600,
+              "component_hints": {
+                "asset_0": {
+                  "first_dts_otb": -5885880,
+                  "is_timing_master": true,
+                  "inpoint_sec": 0
+                }
+              }
+            }
+          ]
+        },
+        "options": {
+          "force_ffr": true
+        },
+        "scaler": {}
+      }
+    }
+  }
+}

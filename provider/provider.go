@@ -91,10 +91,10 @@ type JobOutput struct {
 type OutputFile struct {
 	Path       string `json:"path"`
 	Container  string `json:"container"`
-	VideoCodec string `json:"videoCodec"`
-	Height     int64  `json:"height"`
-	Width      int64  `json:"width"`
-	FileSize   int64  `json:"fileSize"`
+	VideoCodec string `json:"videoCodec,omitempty"`
+	Height     int64  `json:"height,omitempty"`
+	Width      int64  `json:"width,omitempty"`
+	FileSize   int64  `json:"fileSize,omitempty"`
 }
 
 // SourceInfo contains information about media transcoded using the Transcoding

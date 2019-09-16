@@ -255,11 +255,31 @@ func (p *hybrikProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 		status = provider.StatusFailed
 	}
 
+	var output provider.JobOutput
+	if status == provider.StatusFailed || status == provider.StatusFinished {
+		result, err := p.c.GetJobResult(job.ProviderJobID)
+		if err != nil {
+			return &provider.JobStatus{}, err
+		}
+
+		output = provider.JobOutput{}
+		for _, task := range result.Tasks {
+			files, found, err := filesFrom(task)
+			if err != nil {
+				return &provider.JobStatus{}, err
+			}
+			if found {
+				output.Files = append(output.Files, files...)
+			}
+		}
+	}
+
 	return &provider.JobStatus{
 		ProviderJobID: job.ProviderJobID,
 		ProviderName:  p.String(),
 		Progress:      float64(ji.Progress),
 		Status:        status,
+		Output:        output,
 	}, nil
 }
 

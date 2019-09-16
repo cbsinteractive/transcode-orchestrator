@@ -1,0 +1,166 @@
+{
+  "id": 17480323,
+  "priority": 100,
+  "retry_nr": 0,
+  "retry_nr_aog": 0,
+  "creation_time": "2019-09-15T21:49:44.000Z",
+  "max_retry_count_aog": 3,
+  "related_asset_id": null,
+  "kind": "Dolby Vision",
+  "name": "VES Mux + Metadata Postproc w/ QC + MP4 Mux w/ QC",
+  "retry_count": 3,
+  "uid": "post_transcode_stage_0",
+  "element_name": "post_transcode_stage_0",
+  "status": "completed",
+  "fetcher_id": 8507886,
+  "assigned": "2019-09-15T21:51:59.000Z",
+  "completed": "2019-09-15T21:52:39.000Z",
+  "documents": [
+    {
+      "result_payload": {
+        "kind": "asset_complex",
+        "payload": {
+          "creator_uid": "post_transcode_stage_0",
+          "asset_versions": [
+            {
+              "location": {
+                "path": "gs://mediahub-dev/encodes/old_structure/733cc64ccde05511",
+                "storage_provider": "gs"
+              },
+              "asset_components": [
+                {
+                  "kind": "name",
+                  "name": "dovi_custom_filename_1.mp4",
+                  "descriptor": {
+                    "size": 6998510,
+                    "provider": "gs",
+                    "checked": 1568584358353,
+                    "location": "US-EAST1"
+                  },
+                  "component_uid": "asset_0"
+                }
+              ],
+              "version_uid": "main"
+            }
+          ],
+          "kind": "multi"
+        },
+        "meta": {
+          "history": []
+        }
+      },
+      "result_extended_payload": {
+        "app_logs": [],
+        "logs": {
+          "history": [
+            {
+              "task": "post_transcode_stage",
+              "action": "ves_muxed DolbyVision VES and metadata post-processed and mp4 muxed dovi_custom_filename_1.mp4 to gs://mediahub-dev/encodes/old_structure/733cc64ccde05511/dovi_custom_filename_1.mp4",
+              "started": "2019-09-15T21:51:59.198Z",
+              "completed": "2019-09-15T21:52:38.357Z",
+              "fetcher_version": "1.203.39",
+              "component_version": "1.60.1960",
+              "duration_sec": 39,
+              "details": {
+                "task_id": 17480323,
+                "sub_task_id": "17480323_s0",
+                "sys_mem_mb": 15033,
+                "sys_cpu_count": 4,
+                "machine_id": 1846612,
+                "service_id": 1846615,
+                "public_ip": "34.73.76.222"
+              },
+              "report": [
+                "2019-09-15T21:51:59.198Z: task init: 2 ms",
+                "2019-09-15T21:52:02.330Z: parsed trigger docs: 328 ms",
+                "2019-09-15T21:52:38.358Z: concluding report log history",
+                "2019-09-15T21:52:38.358Z: concluding report event history"
+              ],
+              "events": [],
+              "stats": {
+                "avg_cpu_load": 50,
+                "sys_mem_used_mb": {
+                  "min": 1111,
+                  "avg": 1123,
+                  "max": 1143
+                }
+              }
+            }
+          ]
+        }
+      },
+      "connector": "Output"
+    }
+  ],
+  "config": {
+    "uid": "post_transcode_stage_0",
+    "kind": "dolby_vision",
+    "payload": {
+      "profile": 5,
+      "module": "post_transcode_stage",
+      "params": {
+        "ves_mux": {
+          "dovi_sdk_version": "4.2.1_ga",
+          "source_dir": "gs://mediahub-dev/encodes/old_structure/733cc64ccde05511",
+          "source_name": "dovi_custom_filename_1.mp4",
+          "rpu_dir": "gs://mediahub-dev/encodes/old_structure/733cc64ccde05511/nbc_preproc",
+          "rpu_source_name": "20161103_1023_SPARKS_4K_P3_PQ_4000nits_DoVi_%010d.rpu",
+          "start_index": 0,
+          "end_index": 287,
+          "existing_files": "replace",
+          "file_pattern": "ves.h265",
+          "source_access": {
+            "credentials_key": "gcp_dev_creds",
+            "max_cross_region_mb": 100
+          },
+          "rpu_access": {
+            "credentials_key": "gcp_dev_creds"
+          },
+          "location": {
+            "storage_provider": "gs",
+            "path": "gs://mediahub-dev/encodes/old_structure/733cc64ccde05511/vesmuxer"
+          }
+        },
+        "metadata_postproc": {
+          "location": {
+            "storage_provider": "gs",
+            "path": "gs://mediahub-dev/encodes/old_structure/733cc64ccde05511/metadata_postproc"
+          },
+          "file_pattern": "postproc.265",
+          "dovi_sdk_version": "4.2.1_ga",
+          "qc": {
+            "enabled": true,
+            "tool_version": "0.9.0.9",
+            "location": {
+              "storage_provider": "gs",
+              "path": "gs://mediahub-dev/encodes/old_structure/733cc64ccde05511/metadata_postproc_qc"
+            },
+            "file_pattern": "metadata_postproc_qc_report.txt"
+          }
+        },
+        "mp4_mux": {
+          "location": {
+            "storage_provider": "gs",
+            "path": "gs://mediahub-dev/encodes/old_structure/733cc64ccde05511"
+          },
+          "file_pattern": "dovi_custom_filename_1.mp4",
+          "tool_version": "1.2.8",
+          "qc": {
+            "enabled": true,
+            "tool_version": "1.1.4",
+            "location": {
+              "storage_provider": "gs",
+              "path": "gs://mediahub-dev/encodes/old_structure/733cc64ccde05511/mp4_qc"
+            },
+            "file_pattern": "mp4_qc_report.txt"
+          },
+          "cli_options": {
+            "dvh1flag": ""
+          },
+          "elementary_streams": [],
+          "start_pts": 0
+        }
+      }
+    }
+  }
+}

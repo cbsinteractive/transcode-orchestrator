@@ -1,0 +1,545 @@
+{
+  "id": 17478569,
+  "priority": 100,
+  "retry_nr": 0,
+  "retry_nr_aog": 0,
+  "creation_time": "2019-09-13T16:26:30.000Z",
+  "max_retry_count_aog": 3,
+  "related_asset_id": null,
+  "kind": "Transcode",
+  "name": "Transcode - war_730_300kbps.mp4",
+  "retry_count": 1,
+  "uid": "transcode_task_0",
+  "element_name": "transcode_task_0",
+  "status": "completed",
+  "fetcher_id": 8492121,
+  "assigned": "2019-09-13T16:26:33.000Z",
+  "completed": "2019-09-13T16:26:53.000Z",
+  "documents": [
+    {
+      "result_payload": {
+        "kind": "asset_complex",
+        "payload": {
+          "creator_uid": "transcode_task_0",
+          "asset_versions": [
+            {
+              "location": {
+                "storage_provider": "gs",
+                "path": "gs://vidbot-dev-sources/video/PlatformInfrastructure/output/0a132fb6db0c9b01/"
+              },
+              "asset_components": [
+                {
+                  "kind": "name",
+                  "name": "war_730_300kbps.mp4",
+                  "descriptor": {
+                    "mode": 33188,
+                    "nlink": 1,
+                    "size": 3126466,
+                    "atimeMs": 1568392003703.0393,
+                    "mtimeMs": 1568392011807.6982,
+                    "ctimeMs": 1568392011807.6982,
+                    "birthtimeMs": 1568392011807.6982,
+                    "atime": "2019-09-13T16:26:43.703Z",
+                    "mtime": "2019-09-13T16:26:51.808Z",
+                    "ctime": "2019-09-13T16:26:51.808Z",
+                    "birthtime": "2019-09-13T16:26:51.808Z",
+                    "provider": "local",
+                    "checked": 1568392012368,
+                    "location": 1843891
+                  },
+                  "component_uid": "asset_0",
+                  "creator_uid": "target1",
+                  "media_analyze": {
+                    "media_info": [
+                      {
+                        "stream_type": "ASSET",
+                        "bit_per_sec": 831286,
+                        "stream_size": 3126466,
+                        "duration_otb": 4246018560,
+                        "first_pts_otb": 0,
+                        "first_dts_otb": -5971875,
+                        "ASSET": {
+                          "url": "gs://vidbot-dev-sources/video/PlatformInfrastructure/output/0a132fb6db0c9b01/war_730_300kbps.mp4",
+                          "format": "mp4",
+                          "format_profile": "Base Media",
+                          "format_compatibility": "isom/iso2/avc1/mp41",
+                          "creator": "Hybrik 1.203.39",
+                          "is_streamable": false,
+                          "total_size": 3126466,
+                          "content_type": "application/octet-stream",
+                          "hash": "c5870342a0cdb4c06694992c31a9ab41",
+                          "modified": 1568392012000,
+                          "probe_style": "deep",
+                          "requester": "media_info_deeper",
+                          "scan_version": "1.203.39-702",
+                          "scan_origin": "media"
+                        },
+                        "first_dts": -0.042317708333333336,
+                        "first_pts": 0,
+                        "duration": 30.088
+                      },
+                      {
+                        "stream_type": "AUDIO",
+                        "bit_per_sec": 529200,
+                        "duration_otb": 4246018560,
+                        "first_pts_otb": 0,
+                        "first_dts_otb": -3276800,
+                        "id": 2,
+                        "index": 1,
+                        "sub_index": 1,
+                        "frame_duration_otb": 3200,
+                        "codec": "aac",
+                        "codec_profile": "LC",
+                        "bitrate_mode": "VBR",
+                        "AUDIO": {
+                          "nr_channels": 2,
+                          "channel_order": "L R",
+                          "designators": [
+                            "L",
+                            "R"
+                          ]
+                        },
+                        "frame_rate": 44100,
+                        "first_dts": -0.023219954648526078,
+                        "first_pts": 0,
+                        "duration": 30.088
+                      },
+                      {
+                        "stream_type": "VIDEO",
+                        "bit_per_sec": 300000,
+                        "duration_otb": 4233600000,
+                        "first_pts_otb": 5788125,
+                        "first_dts_otb": -5971875,
+                        "id": 1,
+                        "index": 0,
+                        "sub_index": 0,
+                        "frame_duration_otb": 5880000,
+                        "codec": "h264",
+                        "codec_profile": "Main@L3.1",
+                        "encoder": "x264 - core 157 r2948 dada181",
+                        "encoder_settings": "cabac=1 / ref=5 / deblock=1:0:0 / analyse=0x1:0x111 / me=hex / subme=8 / psy=1 / psy_rd=1.00:0.00 / mixed_ref=1 / me_range=16 / chroma_me=1 / trellis=2 / 8x8dct=0 / cqm=0 / deadzone=21,11 / fast_pskip=1 / chroma_qp_offset=-2 / threads=22 / lookahead_threads=3 / sliced_threads=0 / nr=0 / decimate=1 / interlaced=0 / bluray_compat=0 / constrained_intra=0 / bframes=3 / b_pyramid=2 / b_adapt=1 / b_bias=0 / direct=3 / weightb=1 / open_gop=0 / weightp=2 / keyint=60 / keyint_min=31 / scenecut=0 / intra_refresh=0 / rc_lookahead=50 / rc=2pass / mbtree=1 / bitrate=300 / ratetol=1.0 / qcomp=0.60 / qpmin=0 / qpmax=69 / qpstep=4 / cplxblur=20.0 / qblur=0.5 / vbv_maxrate=330 / vbv_bufsize=900 / nal_hrd=none / filler=0 / ip_ratio=1.40 / aq=1:1.00",
+                        "VIDEO": {
+                          "bit_resolution": 8,
+                          "format": "AVC",
+                          "bits_per_pixel": 8,
+                          "encoded_bits_per_pixel": 0.014,
+                          "chroma_subsampling": "CS_420",
+                          "color_space": "YUV",
+                          "framerate_mode": "CONSTANT",
+                          "interlace_mode": "PROGRESSIVE",
+                          "display_ar": 1.778,
+                          "pixel_ar": 1,
+                          "height": 720,
+                          "width": 1280,
+                          "clean_aperture_height": 720,
+                          "clean_aperture_width": 1280
+                        },
+                        "frame_rate": 24,
+                        "first_dts": -0.042317708333333336,
+                        "first_pts": 0.041015625,
+                        "duration": 30
+                      }
+                    ]
+                  }
+                }
+              ],
+              "version_uid": "target1",
+              "creator_uid": "target1",
+              "asset_descriptor": {
+                "task_data": {},
+                "hls_mime": "avc1.4d001f,mp4a.40.2",
+                "video": {
+                  "hls_mime": "avc1.4d001f",
+                  "width": 1280,
+                  "height": 720
+                },
+                "audio": [
+                  {
+                    "hls_mime": "mp4a.40.2"
+                  }
+                ],
+                "hls_frame_rate": 24,
+                "avg_bitrate_bps": 831286
+              }
+            }
+          ],
+          "kind": "multi"
+        },
+        "meta": {
+          "history": []
+        }
+      },
+      "result_extended_payload": {
+        "logs": {
+          "app_logs": [
+            {
+              "uid": "target #0",
+              "command_line": "#!/bin/bash\n\nexport FC_CONFIG_FILE=/etc/fonts/fonts.conf\nexport FONTCONFIG_PATH=/usr/local/lib/\nexport LD_LIBRARY_PATH=\"/home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/ottranscoder\"\n /home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/ottranscoder/ottranscoder -c from_file \"/tmp/hybrik/transcode/17478569_s0-3/hystream.cmd\" | #!/bin/bash\n\nexport FC_CONFIG_FILE=/etc/fonts/fonts.conf\nexport FONTCONFIG_PATH=/usr/local/lib/\nexport LD_LIBRARY_PATH=\"/home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/hybrik_ffmpeg_3_2_8bit\"\n /home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/hybrik_ffmpeg_3_2_8bit/ffmpeg -copyts -i pipe:0 -y -threads 0 -loglevel verbose -analyzeduration 120000000 -probesize 80000000 -filter_complex \"[0:a:0]asetnsamples=1024:0[ap0];[0:a:1]asetnsamples=1024:0[ap1];[ap0][ap1]amerge=inputs=2,asetnsamples=n=1024:p=0[aout]\" -map 0:v -map 0:d? -map 0:s? -map [aout] -c:v hyrawvideo -c:a pcm_s24le -max_muxing_queue_size 1024 -avoid_negative_ts disabled -f nut pipe:1 |  /home/ubuntu/node_modules/@hybrik/ow_leaf_svc/node_modules/@hybrik/hybrik_ffmpeg_3_2_8bit/ffmpeg -y -loglevel verbose -copyts -i pipe:0 -s 1280x720 -pix_fmt yuv420p -vf setfield=prog -keyint_min 60 -g 60 -empty_cc_payload_count:v 0 -flag_em:v 1 -use_608_cc:v 1 -use_708_cc:v 1 -c:v libx264 -preset slow -profile:v main -level:v 3.1 -b:v 300k -maxrate:v 330k -bufsize 900k -sc_threshold 0 -forced-idr 1 -force_key_frames \"expr:gte(n,n_forced*60)\" -x264opts bitrate=300:vbv-maxrate=330:vbv-bufsize=900:open_gop=0:scenecut=0:keyint=60:min-keyint=60 -ac:a:0 2 -b:a:0 640k -c:a:0 libfdk_aac -max_muxing_queue_size 1024 -f mp4 -encoder_override \"Hybrik 1.203.39\" -pass 2 -passlogfile /mnt0/hybrik_temp/transcode/t17478569/p1/17478569_s0/0/encode1_tgt_0_0/npassstats.txt /mnt0/hybrik_temp/transcode/t17478569/p1/17478569_s0/0/war_730_300kbps.mp4 -map 0:v -an -vf \"fps=1,scale=trunc(oh*dar/2)*2:64,sidedata=mode=delete\" -q:v 18 \"/tmp/hybrik/transcode/17478569_s0-3/preview/mini/ow_tn_img%05d.jpg\"",
+              "module_logs": {
+                "libx264_stats": [
+                  "[libx264 @ 0x557bdf97de00] setting keyint-min to: 60",
+                  "[libx264 @ 0x557bdf97de00] keyint-min pre-init: 60",
+                  "[libx264 @ 0x557bdf97de00] using SAR=1/1",
+                  "[libx264 @ 0x557bdf97de00] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2",
+                  "[libx264 @ 0x557bdf97de00] profile Main, level 3.1, 4:2:0, 8-bit",
+                  "[libx264 @ 0x557bdf97de00] keyint-min post-init: 60",
+                  "[libx264 @ 0x557bdf97de00] x264 - core 157 r2948 dada181 - H.264/MPEG-4 AVC codec - Copyleft 2003-2018 - http://www.videolan.org/x264.html - options: cabac=1 ref=5 deblock=1:0:0 analyse=0x1:0x111 me=hex subme=8 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=2 8x8dct=0 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=22 lookahead_threads=3 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=3 weightb=1 open_gop=0 weightp=2 keyint=60 keyint_min=31 scenecut=0 intra_refresh=0 rc_lookahead=50 rc=2pass mbtree=1 bitrate=300 ratetol=1.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 cplxblur=20.0 qblur=0.5 vbv_maxrate=330 vbv_bufsize=900 nal_hrd=none filler=0 ip_ratio=1.40 aq=1:1.00",
+                  "[libx264 @ 0x557bdf97de00] frame I:12    Avg QP:32.50  size:  7587",
+                  "[libx264 @ 0x557bdf97de00] frame P:308   Avg QP:36.02  size:  2441",
+                  "[libx264 @ 0x557bdf97de00] frame B:400   Avg QP:35.85  size:   685",
+                  "[libx264 @ 0x557bdf97de00] consecutive B-frames: 23.3%  5.8%  5.8% 65.0%",
+                  "[libx264 @ 0x557bdf97de00] mb I  I16..4: 89.6%  0.0% 10.4%",
+                  "[libx264 @ 0x557bdf97de00] mb P  I16..4: 37.0%  0.0%  0.5%  P16..4:  8.8%  0.5%  0.5%  0.0%  0.0%    skip:52.7%",
+                  "[libx264 @ 0x557bdf97de00] mb B  I16..4:  0.8%  0.0%  0.0%  B16..8: 11.8%  0.4%  0.0%  direct: 0.3%  skip:86.7%  L0:41.8% L1:57.4% BI: 0.8%",
+                  "[libx264 @ 0x557bdf97de00] filler_bits: 0",
+                  "[libx264 @ 0x557bdf97de00] direct mvs  spatial:91.5% temporal:8.5%",
+                  "[libx264 @ 0x557bdf97de00] coded y,uvDC,uvAC intra: 1.9% 21.4% 0.8% inter: 0.4% 2.4% 0.0%",
+                  "[libx264 @ 0x557bdf97de00] i16 v,h,dc,p: 47% 28%  9% 16%",
+                  "[libx264 @ 0x557bdf97de00] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 10%  5% 42%  7%  9%  6%  8%  6%  7%",
+                  "[libx264 @ 0x557bdf97de00] i8c dc,h,v,p: 85% 10%  3%  1%",
+                  "[libx264 @ 0x557bdf97de00] Weighted P-Frames: Y:9.1% UV:5.5%",
+                  "[libx264 @ 0x557bdf97de00] ref P L0: 57.3%  7.2% 21.0%  7.0%  5.4%  2.1%  0.0%",
+                  "[libx264 @ 0x557bdf97de00] ref B L0: 78.7% 14.3%  5.6%  1.3%",
+                  "[libx264 @ 0x557bdf97de00] ref B L1: 93.6%  6.4%",
+                  "[libx264 @ 0x557bdf97de00] kb/s:297.83"
+                ],
+                "HTTPReportDL": [
+                  "OTT::HTTPReportDL:https://storage.googleapis.com/vidbot-dev-sources/video%2FPlatformInfrastructure%2FWar3.avi?GoogleAccessId=vidbotstorage%40i-vidbot-dev.iam.gserviceaccount.com&Expires=1568996794&Signature=m6PWufLqY5qF%2FcI9aGN0c6Fh7sGuMyydGw6UTZjzRMybDSFeOvLlJ3rX4pXcQA0bC4DMEJTU2Az2%2B95Q7uiawf0Tdtydq2HFQW5tWp%2B7dsnVkIRv4QGvikQiV%2BgcyZ5T%2BUIK%2FV%2Btd46ut1EFOXjsO25o4ElQSf5ByPbBt1ebd2iUNX5vXJYQb1JtrOEYhI23tGzjYQ5E275BqC6s7Cho4XhfcExBfB1B6pma%2FS8ydXqYILhreP3AkOF1GDJNaoleVhGmpcY094NUEOtTM%2BxWFgYEVv5dRM68K8y7i%2FLYPx0NOOSRMea78fE0z6Cd2bHmRy7srfsvvj3pxZhq1EDQvA%3D%3D;st:1568392005172;et:1568392005172;at:97;ioc:1;rd:3899690;rt:0;er:0;eor"
+                ]
+              },
+              "ffmpeg_metadata": {
+                "input": {
+                  "streams": [
+                    {
+                      "type": "video",
+                      "codec": "hyrawvideo,",
+                      "fps": 24,
+                      "size": {
+                        "width": 1280,
+                        "height": 720
+                      },
+                      "aspect": 1.7777777777777777,
+                      "colors": "1 reference frame (HYRW / 0x57525948)"
+                    },
+                    {
+                      "type": "audio",
+                      "codec": "pcm_s16le",
+                      "samplerate": 44100,
+                      "channels": 1,
+                      "bitrate": 705000
+                    },
+                    {
+                      "type": "audio",
+                      "codec": "pcm_s16le",
+                      "samplerate": 44100,
+                      "channels": 1,
+                      "bitrate": 705000
+                    }
+                  ],
+                  "metadata": {
+                    "encoder_override": "Hybrik 1.203.39-702",
+                    "encoder": "Hybrik 1.203.39-702",
+                    "creation_time": "2019-09-13T16:26:43.604543Z"
+                  },
+                  "synched": true
+                },
+                "output": {
+                  "streams": [
+                    {
+                      "type": "video",
+                      "codec": "hyrawvideo,",
+                      "bitrate": 200000,
+                      "fps": 24,
+                      "size": {
+                        "width": 1280,
+                        "height": 720
+                      },
+                      "aspect": 1.7777777777777777,
+                      "colors": "1 reference frame (HYRW / 0x57525948)",
+                      "metadata": {
+                        "encoder": "Lavc57.64.100 hyrawvideo"
+                      }
+                    },
+                    {
+                      "type": "audio",
+                      "codec": "pcm_s24le",
+                      "samplerate": 44100,
+                      "channels": 2,
+                      "bitrate": 2116000,
+                      "metadata": {
+                        "encoder": "Lavc57.64.100 pcm_s24le"
+                      }
+                    }
+                  ],
+                  "metadata": {
+                    "encoder_override": "Hybrik 1.203.39-702",
+                    "encoder": "Hybrik 1.203.39-702"
+                  }
+                }
+              }
+            }
+          ],
+          "history": [
+            {
+              "task": "API Receiver",
+              "started": "2019-09-13T16:26:30.368Z",
+              "completed": "2019-09-13T16:26:30.368Z",
+              "duration_sec": 0,
+              "details": {
+                "machine_id": 1263421,
+                "service_id": 1263440,
+                "task_id": 17478568
+              }
+            },
+            {
+              "task": "transcode",
+              "action": "transcode gs://vidbot-dev-sources/video/PlatformInfrastructure/War3.avi to gs://vidbot-dev-sources/video/PlatformInfrastructure/output/0a132fb6db0c9b01/war_730_300kbps.mp4",
+              "started": "2019-09-13T16:26:33.731Z",
+              "completed": "2019-09-13T16:26:53.462Z",
+              "predicted": {
+                "prediction_error": "{ success: \u001b[33mfalse\u001b[39m, reason: \u001b[32m'prediction service not configured'\u001b[39m }"
+              },
+              "fetcher_version": "1.203.39",
+              "component_version": "1.60.1960",
+              "duration_sec": 20,
+              "details": {
+                "task_id": 17478569,
+                "sub_task_id": "17478569_s0",
+                "sys_mem_mb": 60390,
+                "sys_cpu_count": 16,
+                "machine_id": 1843891,
+                "service_id": 1843894,
+                "public_ip": "34.70.86.175"
+              },
+              "report": [
+                "2019-09-13T16:26:33.731Z: task init: 1 ms",
+                "2019-09-13T16:26:33.733Z: parsed trigger docs: 5 ms",
+                "2019-09-13T16:26:34.360Z: starting core media pipe for target 0",
+                "2019-09-13T16:26:34.360Z: initializing media pipeline runtimes",
+                "2019-09-13T16:26:34.363Z: initializing media pipeline runtimes done, proceeding to pipeline running",
+                "2019-09-13T16:26:34.363Z: handling preview initialization",
+                "2019-09-13T16:26:34.364Z: running media pipeline for analyze pass 1",
+                "2019-09-13T16:26:42.299Z: done, analyze pass ' + analyze_pass_nr + ' media pipeline - cleaning up previews",
+                "2019-09-13T16:26:42.299Z: settling...",
+                "2019-09-13T16:26:43.304Z: running second pass media pipeline",
+                "2019-09-13T16:26:52.322Z: media pipeline final pass sample flow stopped",
+                "2019-09-13T16:26:52.324Z: done, second pass media pipeline - cleaning up previews",
+                "2019-09-13T16:26:52.330Z: multi-pass media pipeline done",
+                "2019-09-13T16:26:52.331Z: core media pipe for target 0 completed",
+                "2019-09-13T16:26:52.332Z: flushing deliveries completed",
+                "2019-09-13T16:26:52.332Z: post processing step 1 completed for sub target 0",
+                "2019-09-13T16:26:52.332Z: post processing step 2 completed for sub target 0",
+                "2019-09-13T16:26:52.333Z: post processing step 3 completed for sub target 0",
+                "2019-09-13T16:26:52.333Z: all postprocs executed",
+                "2019-09-13T16:26:52.333Z: target 0 local result investigation setup",
+                "2019-09-13T16:26:52.863Z: delivered file gs://vidbot-dev-sources/video/PlatformInfrastructure/output/0a132fb6db0c9b01/war_730_300kbps.mp4 in 491 ms",
+                "2019-09-13T16:26:52.865Z: targets local result investigation concluded",
+                "2019-09-13T16:26:52.865Z: target delivery handling completed",
+                "2019-09-13T16:26:52.865Z: data flushing for target 0 completed",
+                "2019-09-13T16:26:52.865Z: finished media pipe internal post processing for target 0",
+                "2019-09-13T16:26:53.458Z: finished media pipe external post processing for target 0",
+                "2019-09-13T16:26:53.459Z: finished all target operations",
+                "2019-09-13T16:26:53.462Z: concluding report log history",
+                "2019-09-13T16:26:53.462Z: concluding report event history"
+              ],
+              "events": [
+                {
+                  "kind": "ott_http_download",
+                  "t": "2019-09-13T16:26:53.460Z",
+                  "source": "https://storage.googleapis.com/vidbot-dev-sources/video%2FPlatformInfrastructure%2FWar3.avi?GoogleAccessId=vidbotstorage%40i-vidbot-dev.iam.gserviceaccount.com&Expires=1568996794&Signature=m6PWufLqY5qF%2FcI9aGN0c6Fh7sGuMyydGw6UTZjzRMybDSFeOvLlJ3rX4pXcQA0bC4DMEJTU2Az2%2B95Q7uiawf0Tdtydq2HFQW5tWp%2B7dsnVkIRv4QGvikQiV%2BgcyZ5T%2BUIK%2FV%2Btd46ut1EFOXjsO25o4ElQSf5ByPbBt1ebd2iUNX5vXJYQb1JtrOEYhI23tGzjYQ5E275BqC6s7Cho4XhfcExBfB1B6pma%2FS8ydXqYILhreP3AkOF1GDJNaoleVhGmpcY094NUEOtTM%2BxWFgYEVv5dRM68K8y7i%2FLYPx0NOOSRMea78fE0z6Cd2bHmRy7srfsvvj3pxZhq1EDQvA%3D%3D",
+                  "started": "2019-09-13T16:26:45.172Z",
+                  "completed": "2019-09-13T16:26:45.172Z",
+                  "active_ms": 97,
+                  "io_count": 1,
+                  "data_size": 3899690,
+                  "retries": 0,
+                  "errors": 0
+                }
+              ],
+              "stats": {
+                "avg_cpu_load": 2,
+                "sys_mem_used_mb": {
+                  "min": 2232,
+                  "avg": 2232,
+                  "max": 2232
+                },
+                "previews": 1
+              }
+            }
+          ],
+          "encode_args": {
+            "asset_versions": {
+              "target1": {
+                "ffmpeg_pass_args": [
+                  "-s 1280x720 -pix_fmt yuv420p -vf \"setfield=prog\" -keyint_min 60 -g 60 -empty_cc_payload_count:v 0 -flag_em:v 1 -use_608_cc:v 1 -use_708_cc:v 1 -c:v libx264 -preset slow -profile:v main -level:v 3.1 -b:v 300k -maxrate:v 330k -bufsize 900k -sc_threshold 0 -forced-idr 1 -force_key_frames \"expr:gte(n,n_forced*60)\" -x264opts bitrate=300:vbv-maxrate=330:vbv-bufsize=900:open_gop=0:scenecut=0:keyint=60:min-keyint=60 -ac:a:0 2 -b:a:0 640k -c:a:0 libfdk_aac -max_muxing_queue_size 1024 -f mp4 -encoder_override \"Hybrik 1.203.39\"",
+                  "-s 1280x720 -pix_fmt yuv420p -vf \"setfield=prog\" -keyint_min 60 -g 60 -empty_cc_payload_count:v 0 -flag_em:v 1 -use_608_cc:v 1 -use_708_cc:v 1 -c:v libx264 -preset slow -profile:v main -level:v 3.1 -b:v 300k -maxrate:v 330k -bufsize 900k -sc_threshold 0 -forced-idr 1 -force_key_frames \"expr:gte(n,n_forced*60)\" -x264opts bitrate=300:vbv-maxrate=330:vbv-bufsize=900:open_gop=0:scenecut=0:keyint=60:min-keyint=60 -ac:a:0 2 -b:a:0 640k -c:a:0 libfdk_aac -max_muxing_queue_size 1024 -f mp4 -encoder_override \"Hybrik 1.203.39\""
+                ]
+              }
+            }
+          }
+        },
+        "sources": [
+          {
+            "asset_versions": [
+              {
+                "version_uid": "main",
+                "asset_components": [
+                  {
+                    "component_uid": "asset_0",
+                    "kind": "name",
+                    "name": "War3.avi",
+                    "location": {
+                      "storage_provider": "gs",
+                      "path": "gs://vidbot-dev-sources/video/PlatformInfrastructure"
+                    },
+                    "media_analyze": {
+                      "media_info": [
+                        {
+                          "stream_type": "ASSET",
+                          "bit_per_sec": 1039917,
+                          "stream_size": 3899690,
+                          "duration_otb": 4233600000,
+                          "first_pts_otb": 0,
+                          "first_dts_otb": 0,
+                          "ASSET": {
+                            "url": "gs://vidbot-dev-sources/video/PlatformInfrastructure/War3.avi",
+                            "format": "AVI",
+                            "total_size": 3899690,
+                            "content_type": "video/x-msvideo",
+                            "hash": "128943b97a677900a1784dc0b470fdb8",
+                            "modified": 1524434882000,
+                            "probe_style": "deeper2",
+                            "requester": "media_info_deeper2",
+                            "scan_version": "1.203.39-702",
+                            "scan_origin": "media",
+                            "is_streamable": true,
+                            "is_forced_non_streamable": true
+                          },
+                          "first_dts": 0,
+                          "first_pts": 0,
+                          "duration": 30
+                        },
+                        {
+                          "stream_type": "AUDIO",
+                          "bit_per_sec": 128000,
+                          "duration_otb": 4233176640,
+                          "first_pts_otb": 0,
+                          "first_dts_otb": 0,
+                          "id": 1,
+                          "index": 1,
+                          "sub_index": 1,
+                          "delay_ms": 0,
+                          "frame_duration_otb": 3200,
+                          "codec": "mp3",
+                          "bitrate_mode": "CBR",
+                          "encoder": "LAME3.91 ",
+                          "encoder_settings": "-m j -V 4 -q 0 -lowpass 15.5 -b 128",
+                          "AUDIO": {
+                            "nr_channels": 2
+                          },
+                          "frame_rate": 44100,
+                          "first_dts": 0,
+                          "first_pts": 0,
+                          "duration": 29.997
+                        },
+                        {
+                          "stream_type": "VIDEO",
+                          "bit_per_sec": 900919,
+                          "duration_otb": 4233600000,
+                          "first_pts_otb": 0,
+                          "first_dts_otb": 0,
+                          "id": 0,
+                          "index": 0,
+                          "sub_index": 0,
+                          "delay_ms": 0,
+                          "frame_duration_otb": 5880000,
+                          "codec": "mpeg4",
+                          "codec_profile": "DX50",
+                          "encoder": "DivX501b450",
+                          "VIDEO": {
+                            "bit_resolution": 8,
+                            "format": "MPEG-4 Visual",
+                            "bits_per_pixel": 8,
+                            "encoded_bits_per_pixel": 0.138,
+                            "has_bframes": true,
+                            "chroma_subsampling": "CS_420",
+                            "color_space": "YUV",
+                            "interlace_mode": "PROGRESSIVE",
+                            "display_ar": 2.353,
+                            "pixel_ar": 1,
+                            "height": 340,
+                            "width": 800,
+                            "clean_aperture_height": 340,
+                            "clean_aperture_width": 800
+                          },
+                          "frame_rate": 24,
+                          "first_dts": 0,
+                          "first_pts": 0,
+                          "duration": 30
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ],
+            "kind": "sequence"
+          }
+        ]
+      },
+      "connector": "Output"
+    }
+  ],
+  "config": {
+    "uid": "transcode_task_0",
+    "kind": "transcode",
+    "payload": {
+      "location": {
+        "storage_provider": "gs",
+        "path": "gs://vidbot-dev-sources/video/PlatformInfrastructure/output/0a132fb6db0c9b01"
+      },
+      "targets": [
+        {
+          "file_pattern": "war_730_300kbps.mp4",
+          "existing_files": "replace",
+          "container": {
+            "kind": "mp4"
+          },
+          "nr_of_passes": 2,
+          "video": {
+            "width": 1280,
+            "height": 720,
+            "bitrate_mode": "vbr",
+            "min_bitrate_kb": 270,
+            "bitrate_kb": 300,
+            "max_bitrate_kb": 330,
+            "preset": "slow",
+            "codec": "h264",
+            "profile": "main",
+            "min_gop_frames": 60,
+            "max_gop_frames": 60,
+            "exact_gop_frames": 60,
+            "interlace_mode": "progressive",
+            "chroma_format": "yuv420p"
+          },
+          "audio": [
+            {
+              "codec": "aac",
+              "channels": 2,
+              "bitrate_kb": 640
+            }
+          ],
+          "uid": "target1"
+        }
+      ],
+      "source_pipeline": {
+        "options": {},
+        "scaler": {}
+      },
+      "options": {
+        "source_read_mode": "auto"
+      }
+    },
+    "name": "transcode_task_0"
+  }
+}
