@@ -105,7 +105,8 @@ func (p *hybrikProvider) elementAssemblerFrom(cfgs map[string]outputCfg) (elemen
 	}
 
 	if dolbyVisionEnabled {
-		return p.dolbyVisionElementAssembler, nil
+		_ = p.dolbyVisionElementAssembler // switch back to this once Hybrik fixes bug with GCP jobs hanging
+		return p.dolbyVisionLegacyElementAssembler, nil
 	}
 
 	return p.defaultElementAssembler, nil

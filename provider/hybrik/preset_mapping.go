@@ -19,9 +19,10 @@ type transcodeElementWithFilename struct {
 type elementKind = string
 
 const (
-	elementKindTranscode elementKind = "transcode"
-	elementKindSource    elementKind = "source"
-	elementKindPackage   elementKind = "package"
+	elementKindTranscode   elementKind = "transcode"
+	elementKindSource      elementKind = "source"
+	elementKindPackage     elementKind = "package"
+	elementKindDolbyVision elementKind = "dolby_vision"
 )
 
 type storageProvider = string

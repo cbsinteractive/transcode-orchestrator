@@ -457,6 +457,131 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 				},
 			},
 		},
+		// TODO uncomment once Hybrik fixes bug and we can re-enable the new structure
+		//{
+		//	name: "a valid mp4 hevc dolbyVision transcode job is mapped correctly to a hybrik job input",
+		//	job:  &defaultJob,
+		//	preset: db.Preset{
+		//		Name:        defaultPreset.Name,
+		//		Description: defaultPreset.Description,
+		//		Container:   "mp4",
+		//		Video: db.VideoPreset{
+		//			Profile:       "main10",
+		//			Width:         "300",
+		//			Codec:         "h265",
+		//			Bitrate:       "12000",
+		//			GopSize:       "120",
+		//			GopMode:       "fixed",
+		//			InterlaceMode: "progressive",
+		//			DolbyVisionSettings: db.DolbyVisionSettings{
+		//				Enabled: true,
+		//			},
+		//		},
+		//	},
+		//	wantJob: hybrik.CreateJob{
+		//		Name: "Job jobID [path.mp4]",
+		//		Payload: hybrik.CreateJobPayload{
+		//			Elements: []hybrik.Element{
+		//				{
+		//					UID:  "source_file",
+		//					Kind: "source",
+		//					Payload: hybrik.ElementPayload{
+		//						Kind:    "asset_urls",
+		//						Payload: []hybrik.AssetPayload{{StorageProvider: "s3", URL: "s3://some/path.mp4"}},
+		//					},
+		//				},
+		//				{
+		//					UID:  "mezzanine_qc",
+		//					Kind: "dolby_vision",
+		//					Task: &hybrik.ElementTaskOptions{Name: "Mezzanine QC", Tags: []string{"preproc"}},
+		//					Payload: hybrik.DoViV2MezzanineQCPayload{
+		//						Module: "mezzanine_qc",
+		//						Params: hybrik.DoViV2MezzanineQCPayloadParams{
+		//							Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/mezzanine_qc"},
+		//							FilePattern: "jobID_mezz_qc_report.txt",
+		//						},
+		//					},
+		//				},
+		//				{
+		//					UID:  "dolby_vision_0",
+		//					Kind: "dolby_vision",
+		//					Task: &hybrik.ElementTaskOptions{
+		//						Name:              "Encode #0",
+		//						RetryMethod:       "fail",
+		//						Tags:              []string{computeTagPreProcDefault},
+		//						SourceElementUIDs: []string{"source_file"},
+		//					},
+		//					Payload: hybrik.DolbyVisionV2TaskPayload{
+		//						Module:        "encoder",
+		//						Profile:       5,
+		//						Location:      hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
+		//						Preprocessing: hybrik.DolbyVisionV2Preprocessing{Task: hybrik.TaskTags{Tags: []string{"preproc"}}},
+		//						Transcodes: []hybrik.Element{
+		//							{
+		//								UID:  "transcode_task_0",
+		//								Kind: "transcode",
+		//								Task: &hybrik.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{}},
+		//								Payload: hybrik.TranscodePayload{
+		//									LocationTargetPayload: hybrik.LocationTargetPayload{
+		//										Location: hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
+		//										Targets: []hybrik.TranscodeTarget{
+		//											{
+		//												FilePattern:   "file1.mp4",
+		//												ExistingFiles: "replace",
+		//												Container:     hybrik.TranscodeContainer{Kind: "elementary"},
+		//												NumPasses:     1,
+		//												Video: &hybrik.VideoTarget{
+		//													Width:          intToPtr(300),
+		//													BitrateKb:      12,
+		//													Preset:         "slow",
+		//													Codec:          "h265",
+		//													Profile:        "main10",
+		//													MinGOPFrames:   120,
+		//													Tune:           "grain",
+		//													ChromaFormat:   chromaFormatYUV420P10LE,
+		//													MaxGOPFrames:   120,
+		//													ExactGOPFrames: 120,
+		//													InterlaceMode:  "progressive",
+		//													X265Options:    "concatenation={auto_concatenation_flag}:vbv-init=0.6:vbv-end=0.6:annexb=1:hrd=1:aud=1:videoformat=5:range=full:colorprim=2:transfer=2:colormatrix=2:rc-lookahead=48:qg-size=32:scenecut=0:no-open-gop=1:frame-threads=0:repeat-headers=1:nr-inter=400:nr-intra=100:psy-rd=0:cbqpoffs=0:crqpoffs=3",
+		//													VTag:           "hvc1",
+		//													FFMPEGArgs:     " -strict experimental",
+		//												},
+		//												Audio: []hybrik.AudioTarget{},
+		//											},
+		//										},
+		//									},
+		//									Options: &hybrik.TranscodeTaskOptions{Pipeline: &hybrik.PipelineOptions{EncoderVersion: "hybrik_4.0_10bit"}},
+		//								},
+		//							},
+		//						},
+		//						PostTranscode: hybrik.DoViPostTranscode{
+		//							Task: &hybrik.TaskTags{Tags: []string{computeTagPreProcDefault}},
+		//							MP4Mux: hybrik.DoViMP4Mux{
+		//								Enabled:           true,
+		//								FilePattern:       "{source_basename}.mp4",
+		//								ElementaryStreams: []hybrik.DoViMP4MuxElementaryStream{},
+		//								CLIOptions: map[string]string{
+		//									doViMP4MuxDVH1FlagKey: "",
+		//								},
+		//							},
+		//						},
+		//					},
+		//				},
+		//			},
+		//			Connections: []hybrik.Connection{
+		//				{
+		//					From: []hybrik.ConnectionFrom{{Element: "source_file"}},
+		//					To:   hybrik.ConnectionTo{Success: []hybrik.ToSuccess{{Element: "mezzanine_qc"}}},
+		//				},
+		//				{
+		//					From: []hybrik.ConnectionFrom{{Element: "mezzanine_qc"}},
+		//					To:   hybrik.ConnectionTo{Success: []hybrik.ToSuccess{{Element: "dolby_vision_0"}}},
+		//				},
+		//			},
+		//		},
+		//	},
+		//},
+		// TODO remove once Hybrik fixes bug and we can re-enable the new structure
 		{
 			name: "a valid mp4 hevc dolbyVision transcode job is mapped correctly to a hybrik job input",
 			job:  &defaultJob,
@@ -490,31 +615,28 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 							},
 						},
 						{
-							UID:  "mezzanine_qc",
-							Kind: "dolby_vision",
-							Task: &hybrik.ElementTaskOptions{Name: "Mezzanine QC", Tags: []string{"preproc"}},
-							Payload: hybrik.DoViV2MezzanineQCPayload{
-								Module: "mezzanine_qc",
-								Params: hybrik.DoViV2MezzanineQCPayloadParams{
-									Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/mezzanine_qc"},
-									FilePattern: "jobID_mezz_qc_report.txt",
-								},
-							},
-						},
-						{
-							UID:  "dolby_vision_0",
+							UID:  "dolby_vision_task",
 							Kind: "dolby_vision",
 							Task: &hybrik.ElementTaskOptions{
-								Name:              "Encode #0",
-								RetryMethod:       "fail",
-								Tags:              []string{computeTagPreProcDefault},
-								SourceElementUIDs: []string{"source_file"},
+								Tags: []string{computeTagPreProcDefault},
 							},
-							Payload: hybrik.DolbyVisionV2TaskPayload{
-								Module:        "encoder",
-								Profile:       5,
-								Location:      hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
-								Preprocessing: hybrik.DolbyVisionV2Preprocessing{Task: hybrik.TaskTags{Tags: []string{"preproc"}}},
+							Payload: hybrik.DolbyVisionTaskPayload{
+								Module:  "profile",
+								Profile: 5,
+								MezzanineQC: hybrik.DoViMezzanineQC{
+									Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+									Task:        hybrik.TaskTags{Tags: []string{"preproc"}},
+									FilePattern: "jobID_mezz_qc_report.txt",
+									ToolVersion: "2.6.2",
+								},
+								NBCPreproc: hybrik.DoViNBCPreproc{
+									Task:           hybrik.TaskTags{Tags: []string{"preproc"}},
+									Location:       hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+									SDKVersion:     "4.2.1_ga",
+									NumTasks:       "auto",
+									IntervalLength: 48,
+									CLIOptions:     hybrik.DoViNBCPreprocCLIOptions{InputEDRAspect: "2", InputEDRPad: "0x0x0x0", InputEDRCrop: "0x0x0x0"},
+								},
 								Transcodes: []hybrik.Element{
 									{
 										UID:  "transcode_task_0",
@@ -535,12 +657,12 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 															Preset:         "slow",
 															Codec:          "h265",
 															Profile:        "main10",
-															MinGOPFrames:   120,
 															Tune:           "grain",
-															ChromaFormat:   chromaFormatYUV420P10LE,
+															MinGOPFrames:   120,
 															MaxGOPFrames:   120,
 															ExactGOPFrames: 120,
 															InterlaceMode:  "progressive",
+															ChromaFormat:   "yuv420p10le",
 															X265Options:    "concatenation={auto_concatenation_flag}:vbv-init=0.6:vbv-end=0.6:annexb=1:hrd=1:aud=1:videoformat=5:range=full:colorprim=2:transfer=2:colormatrix=2:rc-lookahead=48:qg-size=32:scenecut=0:no-open-gop=1:frame-threads=0:repeat-headers=1:nr-inter=400:nr-intra=100:psy-rd=0:cbqpoffs=0:crqpoffs=3",
 															VTag:           "hvc1",
 															FFMPEGArgs:     " -strict experimental",
@@ -554,13 +676,49 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 									},
 								},
 								PostTranscode: hybrik.DoViPostTranscode{
-									Task: &hybrik.TaskTags{Tags: []string{computeTagPreProcDefault}},
+									Task: &hybrik.TaskTags{Tags: []string{"preproc"}},
+									VESMux: &hybrik.DoViVESMux{
+										Enabled:     true,
+										Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+										FilePattern: "ves.h265",
+										SDKVersion:  "4.2.1_ga",
+									},
+									MetadataPostProc: &hybrik.DoViMetadataPostProc{
+										Enabled:     true,
+										Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+										FilePattern: "postproc.265",
+										SDKVersion:  "4.2.1_ga",
+										QCSettings: hybrik.DoViQCSettings{
+											Enabled:     true,
+											ToolVersion: "0.9.0.9",
+											Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+											FilePattern: "metadata_postproc_qc_report.txt",
+										},
+									},
 									MP4Mux: hybrik.DoViMP4Mux{
-										Enabled:           true,
-										FilePattern:       "{source_basename}.mp4",
-										ElementaryStreams: []hybrik.DoViMP4MuxElementaryStream{},
-										CLIOptions: map[string]string{
-											doViMP4MuxDVH1FlagKey: "",
+										Enabled:            true,
+										Location:           &hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
+										FilePattern:        "{source_basename}.mp4",
+										ToolVersion:        "1.2.8",
+										CopySourceStartPTS: true,
+										QCSettings: &hybrik.DoViQCSettings{
+											Enabled:     true,
+											ToolVersion: "1.1.4",
+											Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+											FilePattern: "mp4_qc_report.txt",
+										},
+										CLIOptions: map[string]string{"dvh1flag": ""},
+										ElementaryStreams: []hybrik.DoViMP4MuxElementaryStream{
+											{
+												AssetURL:        hybrik.AssetURL{StorageProvider: "s3", URL: "s3://some/path.mp4"},
+												ExtractAudio:    true,
+												ExtractLocation: &hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+												ExtractTask: &hybrik.DoViMP4MuxExtractTask{
+													RetryMethod: "retry",
+													Retry:       hybrik.Retry{Count: 3, DelaySec: 30},
+													Name:        "Demux Audio",
+												},
+											},
 										},
 									},
 								},
@@ -570,11 +728,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 					Connections: []hybrik.Connection{
 						{
 							From: []hybrik.ConnectionFrom{{Element: "source_file"}},
-							To:   hybrik.ConnectionTo{Success: []hybrik.ToSuccess{{Element: "mezzanine_qc"}}},
-						},
-						{
-							From: []hybrik.ConnectionFrom{{Element: "mezzanine_qc"}},
-							To:   hybrik.ConnectionTo{Success: []hybrik.ToSuccess{{Element: "dolby_vision_0"}}},
+							To:   hybrik.ConnectionTo{Success: []hybrik.ToSuccess{{Element: "dolby_vision_task"}}},
 						},
 					},
 				},
