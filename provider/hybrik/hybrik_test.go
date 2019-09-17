@@ -55,11 +55,12 @@ var (
 // preset db.Preset, uid string, destination storageLocation, filename string,
 //	execFeatures executionFeatures, computeTags map[db.ComputeClass]string
 type transcodeCfg struct {
-	uid          string
-	destination  storageLocation
-	filename     string
-	execFeatures executionFeatures
-	computeTags  map[db.ComputeClass]string
+	uid                  string
+	destination          storageLocation
+	filename             string
+	execFeatures         executionFeatures
+	computeTags          map[db.ComputeClass]string
+	executionEnvironment db.ExecutionEnvironment
 }
 
 func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
@@ -108,7 +109,7 @@ func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
 					Location: hybrik.TranscodeLocation{
 						StorageProvider: storageProviderGCS,
 						Path:            "gs://some_bucket/encodes",
-						Access:          &hybrik.StorageAccess{CredentialsKey: "some_key"},
+						Access:          &hybrik.StorageAccess{CredentialsKey: "some_key", MaxCrossRegionMB: -1},
 					},
 					Targets: []hybrik.TranscodeTarget{
 						{
@@ -351,6 +352,48 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 			wantErrMsg: `running "rateControl" transcode payload modifier: rate control mode "fake_mode" is not ` +
 				`supported in hybrik, the currently supported modes are map[cbr:{} vbr:{}]`,
 		},
+		{
+			name: "transcodes with inputs/outputs in AWS do not have a maxCrossRegionMB set",
+			transcodeCfg: transcodeCfg{
+				destination: storageLocation{
+					provider: storageProviderS3,
+					path:     "s3://some_bucket/encodes",
+				},
+				executionEnvironment: db.ExecutionEnvironment{
+					CredentialsAlias: "test_alias",
+				},
+			},
+			presetModifier: func(p db.Preset) db.Preset {
+				return p
+			},
+			assertion: func(payload hybrik.TranscodePayload, t *testing.T) {
+				if maxCrossRegionMB := payload.Location.Access.MaxCrossRegionMB; maxCrossRegionMB != 0 {
+					t.Errorf("maxCrossRegionMB was %d, expected it to be 0", maxCrossRegionMB)
+				}
+			},
+		},
+		{
+			name: "transcodes with inputs/outputs in GCS have a maxCrossRegionMB set to unlimited (-1)",
+			transcodeCfg: transcodeCfg{
+				uid: "some_uid",
+				destination: storageLocation{
+					provider: storageProviderGCS,
+					path:     "gs://some_bucket/encodes",
+				},
+				filename: "output.mp4",
+				executionEnvironment: db.ExecutionEnvironment{
+					CredentialsAlias: "test_alias",
+				},
+			},
+			presetModifier: func(p db.Preset) db.Preset {
+				return p
+			},
+			assertion: func(payload hybrik.TranscodePayload, t *testing.T) {
+				if maxCrossRegionMB := payload.Location.Access.MaxCrossRegionMB; maxCrossRegionMB != -1 {
+					t.Errorf("maxCrossRegionMB was %d, expected it to be -1", maxCrossRegionMB)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -364,9 +407,10 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 			}
 
 			gotElement, err := p.transcodeElementFromPreset(tt.presetModifier(defaultPreset), tt.transcodeCfg.uid, jobCfg{
-				destination:       tt.transcodeCfg.destination,
-				executionFeatures: tt.transcodeCfg.execFeatures,
-				computeTags:       tt.transcodeCfg.computeTags,
+				destination:          tt.transcodeCfg.destination,
+				executionFeatures:    tt.transcodeCfg.execFeatures,
+				computeTags:          tt.transcodeCfg.computeTags,
+				executionEnvironment: tt.transcodeCfg.executionEnvironment,
 			}, tt.transcodeCfg.filename)
 			if err != nil && tt.wantErrMsg != err.Error() {
 				t.Errorf("hybrikProvider.transcodeElementFromPreset()error = %v, wantErr %q", err, tt.wantErrMsg)

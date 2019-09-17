@@ -59,12 +59,21 @@ func (p *hybrikProvider) assetPayloadFrom(provider, url string, contents []hybri
 }
 
 func (p *hybrikProvider) storageAccessFrom(provider string, env db.ExecutionEnvironment) (*hybrik.StorageAccess, bool) {
+	var maxCrossRegionMB int
+
+	// Hybrik has a bug where they identify multi-region GCS -> region GCP
+	// transfers as triggering egress costs, so we remove their validation for
+	// GCS sources
+	if provider == storageProviderGCS {
+		maxCrossRegionMB = -1
+	}
+
 	if alias := env.CredentialsAlias; alias != "" {
-		return &hybrik.StorageAccess{CredentialsKey: alias}, true
+		return &hybrik.StorageAccess{CredentialsKey: alias, MaxCrossRegionMB: maxCrossRegionMB}, true
 	}
 
 	if provider == storageProviderGCS {
-		return &hybrik.StorageAccess{CredentialsKey: p.config.GCPCredentialsKey}, true
+		return &hybrik.StorageAccess{CredentialsKey: p.config.GCPCredentialsKey, MaxCrossRegionMB: maxCrossRegionMB}, true
 	}
 
 	return nil, false
