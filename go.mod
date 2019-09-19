@@ -4,7 +4,7 @@ require (
 	github.com/NYTimes/encoding-wrapper v0.2.0
 	github.com/NYTimes/gizmo v1.2.17
 	github.com/NYTimes/gziphandler v1.1.1
-	github.com/aws/aws-sdk-go v1.23.21
+	github.com/aws/aws-sdk-go v1.24.1
 	github.com/aws/aws-sdk-go-v2 v0.11.0
 	github.com/bitmovin/bitmovin-api-sdk-go v1.23.0-alpha.0
 	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20190917134456-4f19da2dc743
