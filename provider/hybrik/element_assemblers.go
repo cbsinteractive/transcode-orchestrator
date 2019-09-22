@@ -29,7 +29,7 @@ func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([][]hybrik.Element
 
 	idx := 0
 	for _, outputCfg := range cfg.outputCfgs {
-		element, err := p.transcodeElementFromPreset(outputCfg.localPreset, fmt.Sprintf(transcodeElementIDTemplate, idx),
+		element, err := p.transcodeElementFromPreset(outputCfg.transcodeCfg, fmt.Sprintf(transcodeElementIDTemplate, idx),
 			cfg, outputCfg.filename)
 		if err != nil {
 			return nil, err
@@ -48,7 +48,7 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Ele
 	presets := map[string]db.Preset{}
 	presetsWithoutAudio := map[string]db.Preset{}
 	for _, outputCfg := range cfg.outputCfgs {
-		preset := outputCfg.localPreset
+		preset := outputCfg.transcodeCfg
 		presets[outputCfg.filename] = preset
 
 		// removing audio so we can processing this separately

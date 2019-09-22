@@ -2,6 +2,7 @@ package service
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,18 +49,28 @@ func (s *TranscodingService) newTranscodeJob(r *http.Request) swagger.GizmoJSONR
 	}
 	outputs := make([]db.TranscodeOutput, len(input.Payload.Outputs))
 	for i, output := range input.Payload.Outputs {
-		presetMap, presetErr := s.db.GetPresetMap(output.Preset)
-		if presetErr != nil {
-			if presetErr == db.ErrPresetMapNotFound {
-				return newInvalidJobResponse(presetErr)
-			}
-			return swagger.NewErrorResponse(presetErr)
-		}
 		fileName := output.FileName
-		if fileName == "" {
-			fileName = s.defaultFileName(input.Payload.Source, presetMap)
+
+		if presetName := output.Preset; presetName != "" {
+			output, err := s.outputFromPreset(presetName, fileName, input.Payload.Source)
+			if err != nil {
+				return err
+			}
+			outputs[i] = output
+		} else if output.Config != nil {
+			if fileName == "" {
+				fileName = s.defaultFileName(
+					input.Payload.Source,
+					fmt.Sprintf("output_%d", i),
+					output.Config.Container,
+				)
+			}
+			outputs[i] = db.TranscodeOutput{FileName: fileName, Config: output.Config}
+		} else {
+			return swagger.NewErrorResponse(errors.New(
+				"either a preset name or output config must be included for each output",
+			))
 		}
-		outputs[i] = db.TranscodeOutput{FileName: fileName, Preset: *presetMap}
 	}
 	job.Outputs = outputs
 	job.ID, err = s.genID()
@@ -92,6 +103,20 @@ func (s *TranscodingService) newTranscodeJob(r *http.Request) swagger.GizmoJSONR
 	return newJobResponse(job.ID)
 }
 
+func (s *TranscodingService) outputFromPreset(preset, fileName, source string) (db.TranscodeOutput, swagger.GizmoJSONResponse) {
+	presetMap, presetErr := s.db.GetPresetMap(preset)
+	if presetErr != nil {
+		if presetErr == db.ErrPresetMapNotFound {
+			return db.TranscodeOutput{}, newInvalidJobResponse(presetErr)
+		}
+		return db.TranscodeOutput{}, swagger.NewErrorResponse(presetErr)
+	}
+	if fileName == "" {
+		fileName = s.defaultFileName(source, presetMap.Name, presetMap.OutputOpts.Extension)
+	}
+	return db.TranscodeOutput{FileName: fileName, Preset: *presetMap}, nil
+}
+
 func (s *TranscodingService) genID() (string, error) {
 	var data [8]byte
 	n, err := rand.Read(data[:])
@@ -104,15 +129,18 @@ func (s *TranscodingService) genID() (string, error) {
 	return fmt.Sprintf("%x", data), nil
 }
 
-func (s *TranscodingService) defaultFileName(source string, preset *db.PresetMap) string {
+func (s *TranscodingService) defaultFileName(source, uniqueSuffix, ext string) string {
 	sourceExtension := filepath.Ext(source)
+
 	_, source = path.Split(source)
 	source = source[:len(source)-len(sourceExtension)]
 	pattern := "%s_%s.%s"
-	if preset.OutputOpts.Extension == "m3u8" {
+
+	if ext == "m3u8" {
 		pattern = "hls/" + pattern
 	}
-	return fmt.Sprintf(pattern, source, preset.Name, preset.OutputOpts.Extension)
+
+	return fmt.Sprintf(pattern, source, uniqueSuffix, ext)
 }
 
 // swagger:route GET /jobs/{jobId} jobs getJob

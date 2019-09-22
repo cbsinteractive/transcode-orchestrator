@@ -17,8 +17,9 @@ type NewTranscodeJobInputPayload struct {
 
 	// list of outputs in this job
 	Outputs []struct {
-		FileName string `json:"fileName"`
-		Preset   string `json:"preset"`
+		FileName string                    `json:"fileName"`
+		Config   *db.TranscodeOutputConfig `json:"config,omitempty"`
+		Preset   string                    `json:"preset,omitempty"`
 	} `json:"outputs"`
 
 	// provider to use in this job

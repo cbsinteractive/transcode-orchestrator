@@ -102,13 +102,21 @@ const (
 	ComputeClassDolbyVisionMezzQC ComputeClass = "doViMezzQC"
 )
 
+// TranscodeOutputConfig represents configurations for a single output
+type TranscodeOutputConfig = Preset
+
 // TranscodeOutput represents a transcoding output. It's a combination of the
 // preset and the output file name.
 type TranscodeOutput struct {
 	// Presetmap for the output
 	//
-	// required: true
-	Preset PresetMap `redis-hash:"presetmap,expand" json:"presetmap"`
+	// required: false
+	Preset PresetMap `redis-hash:"presetmap,expand,omitempty" json:"presetmap"`
+
+	// Config for the output
+	//
+	// required: false
+	Config *TranscodeOutputConfig `redis-hash:"transcodeoutput,expand,omitempty"`
 
 	// Filename for the output
 	//

@@ -7,6 +7,7 @@ import (
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/pkg/errors"
 )
 
 type jobCfg struct {
@@ -23,8 +24,8 @@ type jobCfg struct {
 }
 
 type outputCfg struct {
-	localPreset db.Preset
-	filename    string
+	transcodeCfg db.TranscodeOutputConfig
+	filename     string
 }
 
 const (
@@ -75,21 +76,30 @@ func (p *hybrikProvider) srcFrom(job *db.Job, src storageLocation) (hybrik.Eleme
 func (p *hybrikProvider) outputCfgsFrom(job *db.Job) (map[string]outputCfg, error) {
 	presets := map[string]outputCfg{}
 
-	for _, output := range job.Outputs {
-		presetName := output.Preset.Name
-		presetResponse, err := p.GetPreset(presetName)
-		if err != nil {
-			return nil, err
-		}
+	for i, output := range job.Outputs {
+		if len(output.Preset.ProviderMapping) > 0 {
+			presetName := output.Preset.Name
+			presetResponse, err := p.GetPreset(presetName)
+			if err != nil {
+				return nil, err
+			}
 
-		localPreset, ok := presetResponse.(*db.LocalPreset)
-		if !ok {
-			return nil, fmt.Errorf("could not convert preset response into a db.LocalPreset")
-		}
+			localPreset, ok := presetResponse.(*db.LocalPreset)
+			if !ok {
+				return nil, fmt.Errorf("could not convert preset response into a db.LocalPreset")
+			}
 
-		presets[presetName] = outputCfg{
-			localPreset: localPreset.Preset,
-			filename:    output.FileName,
+			presets[presetName] = outputCfg{
+				transcodeCfg: localPreset.Preset,
+				filename:     output.FileName,
+			}
+		} else if cfg := output.Config; cfg != nil {
+			presets[fmt.Sprintf("output_%d", i)] = outputCfg{
+				transcodeCfg: *cfg,
+				filename:     output.FileName,
+			}
+		} else {
+			return nil, errors.New("all outputs must either reference a stored preset or include an output config")
 		}
 	}
 

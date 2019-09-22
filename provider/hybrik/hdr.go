@@ -136,7 +136,7 @@ func dolbyVisionEnabledOnAllPresets(cfgs map[string]outputCfg) (bool, error) {
 	record := struct{ doViPresetFound, nonDoViPresetFound bool }{}
 
 	for _, cfg := range cfgs {
-		if enabled := cfg.localPreset.Video.DolbyVisionSettings.Enabled; enabled {
+		if enabled := cfg.transcodeCfg.Video.DolbyVisionSettings.Enabled; enabled {
 			record.doViPresetFound = true
 		} else {
 			record.nonDoViPresetFound = true
