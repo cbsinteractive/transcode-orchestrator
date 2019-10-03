@@ -9,8 +9,10 @@ import (
 )
 
 const (
-	storageSchemeGCS = "gs"
-	storageSchemeS3  = "s3"
+	storageSchemeGCS   = "gs"
+	storageSchemeS3    = "s3"
+	storageSchemeHTTPS = "https"
+	storageSchemeHTTP  = "http"
 )
 
 type storageLocation struct {
@@ -90,6 +92,10 @@ func storageProviderFrom(path string) (storageProvider, error) {
 		return storageProviderS3, nil
 	case storageSchemeGCS:
 		return storageProviderGCS, nil
+	case storageSchemeHTTPS:
+		return storageProviderHTTP, nil
+	case storageSchemeHTTP:
+		return storageProviderHTTP, nil
 	}
 
 	return storageProviderUnrecognized, fmt.Errorf("the scheme %q is unsupported", u.Scheme)

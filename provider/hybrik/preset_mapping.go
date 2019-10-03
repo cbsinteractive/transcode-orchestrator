@@ -31,6 +31,7 @@ const (
 	storageProviderUnrecognized storageProvider = "unrecognized"
 	storageProviderS3           storageProvider = "s3"
 	storageProviderGCS          storageProvider = "gs"
+	storageProviderHTTP         storageProvider = "http"
 )
 
 func (p *hybrikProvider) transcodeElementsWithPresetsFrom(presets map[string]db.Preset, cfg jobCfg) ([]transcodeElementWithFilename, error) {
