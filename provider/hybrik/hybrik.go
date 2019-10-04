@@ -153,7 +153,7 @@ func (p *hybrikProvider) createJobReqFrom(job *db.Job) (hwrapper.CreateJob, erro
 		source:               srcElement,
 	}
 
-	execFeatures, err := executionFeaturesFrom(job)
+	execFeatures, err := executionFeaturesFrom(srcLocation.provider, job)
 	if err != nil {
 		return hwrapper.CreateJob{}, err
 	}
@@ -283,8 +283,14 @@ func (p *hybrikProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func executionFeaturesFrom(job *db.Job) (executionFeatures, error) {
+func executionFeaturesFrom(provider string, job *db.Job) (executionFeatures, error) {
 	features := executionFeatures{}
+
+	if provider == "http" {
+		// currently http does not support segmented rendering. Only segmented rendering is added below
+		return features, nil
+	}
+
 	if featureDefinition, ok := job.ExecutionFeatures[featureSegmentedRendering]; ok {
 		featureJSON, err := json.Marshal(featureDefinition)
 		if err != nil {
