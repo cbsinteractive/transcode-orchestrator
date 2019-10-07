@@ -23,6 +23,8 @@ lint: testdeps
 		-D dupl \
 		-D funlen \
 		-D gocritic \
+		-D wsl \
+		-D gocognit \
 		-D gochecknoinits \
 		-D unparam \
 		--deadline 5m ./...
