@@ -25,12 +25,16 @@ const (
 	elementKindDolbyVision elementKind = "dolby_vision"
 )
 
-type storageProvider = string
+type storageProvider string
+
+func (p storageProvider) supportsSegmentedRendering() bool { return p != storageProviderHTTP }
+func (p storageProvider) string() string                   { return string(p) }
 
 const (
 	storageProviderUnrecognized storageProvider = "unrecognized"
 	storageProviderS3           storageProvider = "s3"
 	storageProviderGCS          storageProvider = "gs"
+	storageProviderHTTP         storageProvider = "http"
 )
 
 func (p *hybrikProvider) transcodeElementsWithPresetsFrom(presets map[string]db.Preset, cfg jobCfg) ([]transcodeElementWithFilename, error) {

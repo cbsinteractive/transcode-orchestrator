@@ -107,7 +107,7 @@ func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
 				},
 				LocationTargetPayload: hybrik.LocationTargetPayload{
 					Location: hybrik.TranscodeLocation{
-						StorageProvider: storageProviderGCS,
+						StorageProvider: storageProviderGCS.string(),
 						Path:            "gs://some_bucket/encodes",
 						Access:          &hybrik.StorageAccess{CredentialsKey: "some_key", MaxCrossRegionMB: -1},
 					},
@@ -456,7 +456,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 								LocationTargetPayload: hybrik.LocationTargetPayload{
 									Location: hybrik.TranscodeLocation{
 										Path:            "s3://some-dest/path/jobID",
-										StorageProvider: storageProviderS3,
+										StorageProvider: storageProviderS3.string(),
 									},
 									Targets: []hybrik.TranscodeTarget{{
 										Audio: []hybrik.AudioTarget{{
@@ -985,6 +985,91 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
 					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong package task\nWant %+v\nGot %+v\nDiff %s", e,
 						g, cmp.Diff(e, g))
+				}
+			},
+		},
+		{
+			name: "sources coming from s3 support segmented rendering",
+			jobModifier: func(job db.Job) db.Job {
+				job.SourceMedia = "s3://bucket/path/file.mp4"
+				job.ExecutionFeatures = db.ExecutionFeatures{
+					featureSegmentedRendering: SegmentedRendering{Duration: 50},
+				}
+
+				return job
+			},
+			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+				elements := createJob.Payload.Elements
+				transcode, ok := elements[len(elements)-1].Payload.(hybrik.TranscodePayload)
+				if !ok {
+					t.Error("could not find a transcode payload in the job")
+					return
+				}
+
+				segRendering := transcode.SourcePipeline.SegmentedRendering
+				if segRendering == nil {
+					t.Error("segmented rendering was nil, expected segmented rendering to be set")
+					return
+				}
+
+				if g, e := segRendering.Duration, 50; g != e {
+					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong segmented rendering du"+
+						"ration:\nGot %d\nWant %d", g, e)
+				}
+			},
+		},
+		{
+			name: "sources coming from gcs support segmented rendering",
+			jobModifier: func(job db.Job) db.Job {
+				job.SourceMedia = "gs://bucket/path/file.mp4"
+				job.ExecutionFeatures = db.ExecutionFeatures{
+					featureSegmentedRendering: SegmentedRendering{Duration: 50},
+				}
+
+				return job
+			},
+			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+				elements := createJob.Payload.Elements
+				transcode, ok := elements[len(elements)-1].Payload.(hybrik.TranscodePayload)
+				if !ok {
+					t.Error("could not find a transcode payload in the job")
+					return
+				}
+
+				segRendering := transcode.SourcePipeline.SegmentedRendering
+				if segRendering == nil {
+					t.Error("segmented rendering was nil, expected segmented rendering to be set")
+					return
+				}
+
+				if g, e := segRendering.Duration, 50; g != e {
+					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong segmented rendering du"+
+						"ration:\nGot %d\nWant %d", g, e)
+				}
+			},
+		},
+		{
+			name: "sources coming from http do not support segmented rendering",
+			jobModifier: func(job db.Job) db.Job {
+				job.SourceMedia = "http://example.com/path/file.mp4"
+				job.ExecutionFeatures = db.ExecutionFeatures{
+					featureSegmentedRendering: SegmentedRendering{Duration: 50},
+				}
+
+				return job
+			},
+			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+				elements := createJob.Payload.Elements
+				transcode, ok := elements[len(elements)-1].Payload.(hybrik.TranscodePayload)
+				if !ok {
+					t.Error("could not find a transcode payload in the job")
+					return
+				}
+
+				segRendering := transcode.SourcePipeline.SegmentedRendering
+				if segRendering != nil {
+					t.Errorf("segmented rendering was %+v, expected segmented rendering to be nil", segRendering)
+					return
 				}
 			},
 		},

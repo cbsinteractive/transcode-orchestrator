@@ -24,6 +24,7 @@ lint: testdeps
 		-D funlen \
 		-D gocritic \
 		-D wsl \
+		-D gosec \
 		-D gocognit \
 		-D gochecknoinits \
 		-D unparam \
