@@ -19,6 +19,17 @@ func Test_storageProviderFrom(t *testing.T) {
 			wantProvider: storageProviderGCS,
 		},
 		{
+			name:         "http schemes are identified correctly",
+			path:         "http://some-domain.com/some-path",
+			wantProvider: storageProviderHTTP,
+		},
+
+		{
+			name:         "https schemes are identified correctly",
+			path:         "https://some-domain.com/some-path",
+			wantProvider: storageProviderHTTP,
+		},
+		{
 			name:    "unsupported schemes return a useful error",
 			path:    "fakescheme://some-bucket/some-path",
 			wantErr: `the scheme "fakescheme" is unsupported`,

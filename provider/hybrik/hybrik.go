@@ -153,7 +153,7 @@ func (p *hybrikProvider) createJobReqFrom(job *db.Job) (hwrapper.CreateJob, erro
 		source:               srcElement,
 	}
 
-	execFeatures, err := executionFeaturesFrom(srcLocation.provider, job)
+	execFeatures, err := executionFeaturesFrom(job, srcLocation.provider)
 	if err != nil {
 		return hwrapper.CreateJob{}, err
 	}
@@ -283,15 +283,11 @@ func (p *hybrikProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func executionFeaturesFrom(provider string, job *db.Job) (executionFeatures, error) {
+func executionFeaturesFrom(job *db.Job, storageProvider storageProvider) (executionFeatures, error) {
 	features := executionFeatures{}
 
-	if provider == "http" {
-		// currently http does not support segmented rendering. Only segmented rendering is added below
-		return features, nil
-	}
-
-	if featureDefinition, ok := job.ExecutionFeatures[featureSegmentedRendering]; ok {
+	supportsSegRendering := storageProvider.supportsSegmentedRendering()
+	if featureDefinition, ok := job.ExecutionFeatures[featureSegmentedRendering]; ok && supportsSegRendering {
 		featureJSON, err := json.Marshal(featureDefinition)
 		if err != nil {
 			return executionFeatures{}, fmt.Errorf("could not marshal segmented rendering cfg to json: %v", err)
@@ -383,6 +379,6 @@ func (p *hybrikProvider) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
 		InputFormats:  []string{"prores", "h264", "h265"},
 		OutputFormats: []string{"mp4", "hls", "webm", "mov"},
-		Destinations:  []string{storageProviderS3, storageProviderGCS},
+		Destinations:  []string{storageProviderS3.string(), storageProviderGCS.string()},
 	}
 }

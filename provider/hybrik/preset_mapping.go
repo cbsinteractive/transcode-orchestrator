@@ -25,7 +25,10 @@ const (
 	elementKindDolbyVision elementKind = "dolby_vision"
 )
 
-type storageProvider = string
+type storageProvider string
+
+func (p storageProvider) supportsSegmentedRendering() bool { return p != storageProviderHTTP }
+func (p storageProvider) string() string                   { return string(p) }
 
 const (
 	storageProviderUnrecognized storageProvider = "unrecognized"

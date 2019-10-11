@@ -22,7 +22,7 @@ type storageLocation struct {
 
 func (p *hybrikProvider) transcodeLocationFrom(dest storageLocation, env db.ExecutionEnvironment) hybrik.TranscodeLocation {
 	location := hybrik.TranscodeLocation{
-		StorageProvider: dest.provider,
+		StorageProvider: dest.provider.string(),
 		Path:            dest.path,
 	}
 
@@ -35,7 +35,7 @@ func (p *hybrikProvider) transcodeLocationFrom(dest storageLocation, env db.Exec
 
 func (p *hybrikProvider) assetURLFrom(dest storageLocation, env db.ExecutionEnvironment) hybrik.AssetURL {
 	assetURL := hybrik.AssetURL{
-		StorageProvider: dest.provider,
+		StorageProvider: dest.provider.string(),
 		URL:             dest.path,
 	}
 
@@ -46,9 +46,9 @@ func (p *hybrikProvider) assetURLFrom(dest storageLocation, env db.ExecutionEnvi
 	return assetURL
 }
 
-func (p *hybrikProvider) assetPayloadFrom(provider, url string, contents []hybrik.AssetContents, env db.ExecutionEnvironment) hybrik.AssetPayload {
+func (p *hybrikProvider) assetPayloadFrom(provider storageProvider, url string, contents []hybrik.AssetContents, env db.ExecutionEnvironment) hybrik.AssetPayload {
 	assetPayload := hybrik.AssetPayload{
-		StorageProvider: provider,
+		StorageProvider: provider.string(),
 		URL:             url,
 		Contents:        contents,
 	}
@@ -60,7 +60,7 @@ func (p *hybrikProvider) assetPayloadFrom(provider, url string, contents []hybri
 	return assetPayload
 }
 
-func (p *hybrikProvider) storageAccessFrom(provider string, env db.ExecutionEnvironment) (*hybrik.StorageAccess, bool) {
+func (p *hybrikProvider) storageAccessFrom(provider storageProvider, env db.ExecutionEnvironment) (*hybrik.StorageAccess, bool) {
 	var maxCrossRegionMB int
 
 	// Hybrik has a bug where they identify multi-region GCS -> region GCP
