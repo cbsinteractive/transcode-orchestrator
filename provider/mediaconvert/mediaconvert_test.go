@@ -109,7 +109,7 @@ func Test_mcProvider_CreatePreset(t *testing.T) {
 							Codec: mediaconvert.VideoCodecH264,
 							H264Settings: &mediaconvert.H264Settings{
 								Bitrate:            aws.Int64(400000),
-								CodecLevel:         mediaconvert.H264CodecLevelLevel41,
+								CodecLevel:         mediaconvert.H264CodecLevelAuto,
 								CodecProfile:       mediaconvert.H264CodecProfileHigh,
 								InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
 								QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,

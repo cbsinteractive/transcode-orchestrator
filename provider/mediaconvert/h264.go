@@ -32,11 +32,6 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		return nil, err
 	}
 
-	level, err := h264CodecLevelFrom(preset.Video.ProfileLevel)
-	if err != nil {
-		return nil, err
-	}
-
 	interlaceMode, err := h264InterlaceModeFrom(preset.Video.InterlaceMode)
 	if err != nil {
 		return nil, err
@@ -54,7 +49,7 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 			GopSize:            aws.Float64(gopSize),
 			RateControlMode:    rateControl,
 			CodecProfile:       profile,
-			CodecLevel:         level,
+			CodecLevel:         mediaconvert.H264CodecLevelAuto,
 			InterlaceMode:      interlaceMode,
 			QualityTuningLevel: tuning,
 		},
@@ -86,47 +81,6 @@ func h264CodecProfileFrom(profile string) (mediaconvert.H264CodecProfile, error)
 		return mediaconvert.H264CodecProfileHigh, nil
 	default:
 		return "", fmt.Errorf("h264 profile %q is not supported with mediaconvert", profile)
-	}
-}
-
-func h264CodecLevelFrom(level string) (mediaconvert.H264CodecLevel, error) {
-	switch level {
-	case "":
-		return mediaconvert.H264CodecLevelAuto, nil
-	case "1", "1.0":
-		return mediaconvert.H264CodecLevelLevel1, nil
-	case "1.1":
-		return mediaconvert.H264CodecLevelLevel11, nil
-	case "1.2":
-		return mediaconvert.H264CodecLevelLevel12, nil
-	case "1.3":
-		return mediaconvert.H264CodecLevelLevel13, nil
-	case "2", "2.0":
-		return mediaconvert.H264CodecLevelLevel2, nil
-	case "2.1":
-		return mediaconvert.H264CodecLevelLevel21, nil
-	case "2.2":
-		return mediaconvert.H264CodecLevelLevel22, nil
-	case "3", "3.0":
-		return mediaconvert.H264CodecLevelLevel3, nil
-	case "3.1":
-		return mediaconvert.H264CodecLevelLevel31, nil
-	case "3.2":
-		return mediaconvert.H264CodecLevelLevel32, nil
-	case "4", "4.0":
-		return mediaconvert.H264CodecLevelLevel4, nil
-	case "4.1":
-		return mediaconvert.H264CodecLevelLevel41, nil
-	case "4.2":
-		return mediaconvert.H264CodecLevelLevel42, nil
-	case "5", "5.0":
-		return mediaconvert.H264CodecLevelLevel5, nil
-	case "5.1":
-		return mediaconvert.H264CodecLevelLevel51, nil
-	case "5.2":
-		return mediaconvert.H264CodecLevelLevel52, nil
-	default:
-		return "", fmt.Errorf("h264 level %q is not supported with mediaconvert", level)
 	}
 }
 
