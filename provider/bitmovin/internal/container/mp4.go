@@ -24,7 +24,11 @@ func NewMP4Assembler(api *bitmovin.BitmovinApi) *MP4Assembler {
 
 // Assemble creates MP4 outputs
 func (a *MP4Assembler) Assemble(cfg AssemblerCfg) error {
-	streams := []model.MuxingStream{cfg.VidMuxingStream}
+	streams := []model.MuxingStream{}
+
+	if !(cfg.VidMuxingStream == model.MuxingStream{}) {
+		streams = append(streams, cfg.VidMuxingStream)
+	}
 
 	if !(cfg.AudMuxingStream == model.MuxingStream{}) {
 		streams = append(streams, cfg.AudMuxingStream)

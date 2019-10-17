@@ -12,8 +12,8 @@ import (
 const defaultAACSampleRate = 48000
 
 // NewAAC creates a AAC codec configuration and returns its ID
-func NewAAC(api *bitmovin.BitmovinApi, bitrate string) (string, error) {
-	createCfg, err := aacConfigFrom(bitrate)
+func NewAAC(api *bitmovin.BitmovinApi, bitrate string, customData *map[string]map[string]interface{}) (string, error) {
+	createCfg, err := aacConfigFrom(bitrate, customData)
 	if err != nil {
 		return "", err
 	}
@@ -26,15 +26,16 @@ func NewAAC(api *bitmovin.BitmovinApi, bitrate string) (string, error) {
 	return cfg.Id, nil
 }
 
-func aacConfigFrom(bitrate string) (model.AacAudioConfiguration, error) {
+func aacConfigFrom(bitrate string, customData *map[string]map[string]interface{}) (model.AacAudioConfiguration, error) {
 	convertedBitrate, err := strconv.ParseInt(bitrate, 10, 64)
 	if err != nil {
 		return model.AacAudioConfiguration{}, errors.Wrapf(err, "parsing audio bitrate %q to int64", bitrate)
 	}
 
 	return model.AacAudioConfiguration{
-		Name:    fmt.Sprintf("aac_%s_%d", bitrate, defaultAACSampleRate),
-		Bitrate: &convertedBitrate,
-		Rate:    floatToPtr(defaultAACSampleRate),
+		Name:       fmt.Sprintf("aac_%s_%d", bitrate, defaultAACSampleRate),
+		Bitrate:    &convertedBitrate,
+		Rate:       floatToPtr(defaultAACSampleRate),
+		CustomData: customData,
 	}, nil
 }

@@ -29,8 +29,8 @@ const (
 )
 
 // ContainerFrom is a helper for extracting the container value from customData
-func ContainerFrom(data types.CustomData) (string, error) {
-	contnr, err := types.CustomDataStringValAtKeys(data, customDataKeyContainer, customDataKeyContainerName)
+func ContainerFrom(details Details) (string, error) {
+	contnr, err := types.CustomDataStringValAtKeys(details.CustomData, customDataKeyContainer, customDataKeyContainerName)
 	if err != nil {
 		return "", errors.New("extracting container from custom data")
 	}

@@ -63,28 +63,30 @@ func (a *HLSAssembler) Assemble(cfg AssemblerCfg) error {
 		}
 	}
 
-	vidTSMuxing, err := a.api.TSMuxing.Create(cfg.EncID, model.TsMuxing{
-		SegmentLength: floatToPtr(float64(cfg.SegDuration)),
-		SegmentNaming: "seg_%number%.ts",
-		Streams:       []model.MuxingStream{cfg.VidMuxingStream},
-		Outputs: []model.EncodingOutput{
-			storage.EncodingOutputFrom(cfg.OutputID, path.Join(cfg.ManifestMasterPath, cfg.VidCfgID)),
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "creating video ts muxing")
-	}
+	if !(cfg.VidMuxingStream == model.MuxingStream{}) {
+		vidTSMuxing, err := a.api.TSMuxing.Create(cfg.EncID, model.TsMuxing{
+			SegmentLength: floatToPtr(float64(cfg.SegDuration)),
+			SegmentNaming: "seg_%number%.ts",
+			Streams:       []model.MuxingStream{cfg.VidMuxingStream},
+			Outputs: []model.EncodingOutput{
+				storage.EncodingOutputFrom(cfg.OutputID, path.Join(cfg.ManifestMasterPath, cfg.VidCfgID)),
+			},
+		})
+		if err != nil {
+			return errors.Wrap(err, "creating video ts muxing")
+		}
 
-	_, err = a.api.HLSStreams.Create(cfg.ManifestID, model.StreamInfo{
-		Audio:       cfg.AudCfgID,
-		Uri:         fmt.Sprintf("%s.m3u8", cfg.VidCfgID),
-		SegmentPath: cfg.VidCfgID,
-		EncodingId:  cfg.EncID,
-		StreamId:    cfg.VidStreamID,
-		MuxingId:    vidTSMuxing.Id,
-	})
-	if err != nil {
-		return errors.Wrap(err, "creating video stream info")
+		_, err = a.api.HLSStreams.Create(cfg.ManifestID, model.StreamInfo{
+			Audio:       cfg.AudCfgID,
+			Uri:         fmt.Sprintf("%s.m3u8", cfg.VidCfgID),
+			SegmentPath: cfg.VidCfgID,
+			EncodingId:  cfg.EncID,
+			StreamId:    cfg.VidStreamID,
+			MuxingId:    vidTSMuxing.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "creating video stream info")
+		}
 	}
 
 	return nil

@@ -49,6 +49,7 @@ const (
 	cfgStoreH265AAC   cfgStore = "h265aac"
 	cfgStoreVP8Vorbis cfgStore = "vp8vorbis"
 	cfgStoreH265      cfgStore = "h265"
+	cfgStoreAAC       cfgStore = "aac"
 )
 
 func init() {
@@ -129,6 +130,7 @@ func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 			cfgStoreH264AAC:   configuration.NewH264AAC(api),
 			cfgStoreH265AAC:   configuration.NewH265AAC(api),
 			cfgStoreVP8Vorbis: configuration.NewVP8Vorbis(api),
+			cfgStoreAAC:       configuration.NewAAC(api),
 		},
 		containerSvcs: map[mediaContainer]containerSvc{
 			containerHLS: {
@@ -196,11 +198,9 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		SelectionMode: model.StreamSelectionMode_AUTO,
 	}
 
-	vidInputStreams := []model.StreamInput{inputStream}
-	audInputStreams := []model.StreamInput{inputStream}
-
+	audioOnly := make([]bool, len(job.Outputs))
 	var generatingHLS bool
-	for _, o := range job.Outputs {
+	for i, o := range job.Outputs {
 		if o.Preset.OutputOpts.Extension == containerWebM {
 			break // can't be HLSAssembler
 		}
@@ -210,15 +210,25 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			return nil, err
 		}
 
-		contnr, err := configuration.ContainerFrom(details.CustomData)
+		contnr, err := configuration.ContainerFrom(details)
 		if err != nil {
 			return nil, errors.Wrap(err, "extracting container from customData")
 		}
+
+		if details.Video == nil {
+			audioOnly[i] = true
+		} else {
+			audioOnly[i] = false
+		}
+
 		if contnr == containerHLS {
 			generatingHLS = true
 			break
 		}
 	}
+
+	vidInputStreams := []model.StreamInput{inputStream}
+	audInputStreams := []model.StreamInput{inputStream}
 
 	var manifestID, manifestMasterPath, manifestMasterFilename string
 	if generatingHLS {
@@ -260,16 +270,25 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 
 	audMuxingStreams := make(map[string]model.MuxingStream)
 	audStreams := make(map[string]*model.Stream)
-	for _, o := range job.Outputs {
+	for i, o := range job.Outputs {
 		presetID := o.Preset.ProviderMapping[Name]
 		details, err := p.cfgDetailsFrom(presetID)
 		if err != nil {
 			return nil, err
 		}
 
-		audCfgID, err := configuration.AudCfgIDFrom(details.CustomData)
-		if err != nil {
-			return nil, err
+		audCfgID := ""
+		if audioOnly[i] {
+			audCfg, err := p.api.Encoding.Configurations.Audio.Aac.Get(presetID)
+			audCfgID = audCfg.Id
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			audCfgID, err = configuration.AudCfgIDFrom(details.CustomData)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		_, audCfgExists := audMuxingStreams[audCfgID]
@@ -289,24 +308,39 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			audCfgExists = true
 		}
 
-		vidStream, err := p.api.Encoding.Encodings.Streams.Create(enc.Id, model.Stream{
-			CodecConfigId: presetID,
-			InputStreams:  vidInputStreams,
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "adding video stream to the encoding")
-		}
-
-		vidMuxingStream := model.MuxingStream{StreamId: vidStream.Id}
-
-		mediaContainer, err := configuration.ContainerFrom(details.CustomData)
+		cSvcs := containerSvc{}
+		mediaContainer, err := configuration.ContainerFrom(details)
 		if err != nil {
 			return nil, err
 		}
 
-		contnrSvcs, err := p.containerServicesFrom(mediaContainer, details.Video.CodecConfigType())
-		if err != nil {
-			return nil, err
+		vidStreamID := ""
+		vidMuxingStream := model.MuxingStream{}
+		if !audioOnly[i] {
+			vidStream, err := p.api.Encoding.Encodings.Streams.Create(enc.Id, model.Stream{
+				CodecConfigId: presetID,
+				InputStreams:  vidInputStreams,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "adding video stream to the encoding")
+			}
+
+			vidStreamID = vidStream.Id
+			vidMuxingStream.StreamId = vidStreamID //model.MuxingStream{StreamId: vidStream.Id}
+
+			contnrSvcs, err := p.containerServicesFrom(mediaContainer, details.Video.CodecConfigType())
+			if err != nil {
+				return nil, err
+			}
+
+			cSvcs = contnrSvcs
+		} else {
+			contnrSvcs, err := p.containerServicesFrom(mediaContainer, details.Audio.CodecConfigType())
+			if err != nil {
+				return nil, err
+			}
+
+			cSvcs = contnrSvcs
 		}
 
 		audStreamID := ""
@@ -314,7 +348,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			audStreamID = audStreams[audCfgID].Id
 		}
 
-		if err = contnrSvcs.assembler.Assemble(container.AssemblerCfg{
+		if err = cSvcs.assembler.Assemble(container.AssemblerCfg{
 			EncID:              enc.Id,
 			OutputID:           outputID,
 			DestPath:           destPath,
@@ -322,7 +356,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			AudCfgID:           audCfgID,
 			VidCfgID:           presetID,
 			AudStreamID:        audStreamID,
-			VidStreamID:        vidStream.Id,
+			VidStreamID:        vidStreamID,
 			AudMuxingStream:    audMuxingStreams[audCfgID],
 			VidMuxingStream:    vidMuxingStream,
 			ManifestID:         manifestID,
@@ -509,6 +543,8 @@ func (p *bitmovinProvider) cfgServiceFrom(vcodec, acodec string) (configuration.
 		return p.cfgStores[cfgStoreVP8Vorbis], nil
 	} else if vcodec == codecH265 && acodec == "" {
 		return p.cfgStores[cfgStoreH265], nil
+	} else if vcodec == "" && acodec == codecAAC {
+		return p.cfgStores[cfgStoreAAC], nil
 	}
 
 	return nil, fmt.Errorf("the pair of vcodec: %q and acodec: %q is not yet supported", vcodec, acodec)

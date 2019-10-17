@@ -21,7 +21,7 @@ func NewH265AAC(api *bitmovin.BitmovinApi) *H265AAC {
 
 // Create will create a new H265AAC configuration based on a preset
 func (c *H265AAC) Create(preset db.Preset) (string, error) {
-	audCfgID, err := codec.NewAAC(c.api, preset.Audio.Bitrate)
+	audCfgID, err := codec.NewAAC(c.api, preset.Audio.Bitrate, customDataWith("", preset.Container))
 	if err != nil {
 		return "", err
 	}
