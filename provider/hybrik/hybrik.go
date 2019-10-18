@@ -333,16 +333,16 @@ func (p *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 	return preset.Name, nil
 }
 
-func videoTargetsFrom(preset db.VideoPreset, rateControl string) (hwrapper.VideoTarget, error) {
+func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.VideoTarget, error) {
 	if (preset == db.VideoPreset{}) {
-		return hwrapper.VideoTarget{}, nil
+		return nil, nil
 	}
 
 	var minGOPFrames, maxGOPFrames, gopSize int
 
 	gopSize, err := strconv.Atoi(preset.GopSize)
 	if err != nil {
-		return hwrapper.VideoTarget{}, err
+		return &hwrapper.VideoTarget{}, err
 	}
 
 	minGOPFrames = gopSize
@@ -350,7 +350,7 @@ func videoTargetsFrom(preset db.VideoPreset, rateControl string) (hwrapper.Video
 
 	bitrate, err := strconv.Atoi(preset.Bitrate)
 	if err != nil {
-		return hwrapper.VideoTarget{}, ErrBitrateNan
+		return &hwrapper.VideoTarget{}, ErrBitrateNan
 	}
 
 	var videoWidth *int
@@ -360,7 +360,7 @@ func videoTargetsFrom(preset db.VideoPreset, rateControl string) (hwrapper.Video
 		var presetWidth int
 		presetWidth, err = strconv.Atoi(preset.Width)
 		if err != nil {
-			return hwrapper.VideoTarget{}, ErrVideoWidthNan
+			return &hwrapper.VideoTarget{}, ErrVideoWidthNan
 		}
 		videoWidth = &presetWidth
 	}
@@ -369,7 +369,7 @@ func videoTargetsFrom(preset db.VideoPreset, rateControl string) (hwrapper.Video
 		var presetHeight int
 		presetHeight, err = strconv.Atoi(preset.Height)
 		if err != nil {
-			return hwrapper.VideoTarget{}, ErrVideoHeightNan
+			return &hwrapper.VideoTarget{}, ErrVideoHeightNan
 		}
 		videoHeight = &presetHeight
 	}
@@ -384,7 +384,7 @@ func videoTargetsFrom(preset db.VideoPreset, rateControl string) (hwrapper.Video
 		videoLevel = ""
 	}
 
-	return hwrapper.VideoTarget{
+	return &hwrapper.VideoTarget{
 		Width:             videoWidth,
 		Height:            videoHeight,
 		BitrateMode:       strings.ToLower(rateControl),
@@ -402,7 +402,7 @@ func videoTargetsFrom(preset db.VideoPreset, rateControl string) (hwrapper.Video
 	}, nil
 }
 
-func audioTargetsFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
+func audioTargetFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
 	if (preset == db.AudioPreset{}) {
 		return []hwrapper.AudioTarget{}, nil
 	}
