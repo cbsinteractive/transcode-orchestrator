@@ -40,6 +40,8 @@ github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 h1:xJ4a3vCFaGF/jqvzLM
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/bitmovin/bitmovin-api-sdk-go v1.24.0-alpha.0 h1:cjvi87BKdLItCfCLFUwF1SDeWuPcTa5HIXe3KMeHvvs=
 github.com/bitmovin/bitmovin-api-sdk-go v1.24.0-alpha.0/go.mod h1:Ho8JxtJ2Yf6Gwi9z+5oXuEi2xaIFiFPSs70YuXA7eTo=
+github.com/bitmovin/bitmovin-api-sdk-go v1.27.0-alpha.0 h1:9wyyOeO7e544bjgyyVI8tLOWb2FT2cFYZgImjZFGaFY=
+github.com/bitmovin/bitmovin-api-sdk-go v1.27.0-alpha.0/go.mod h1:Ho8JxtJ2Yf6Gwi9z+5oXuEi2xaIFiFPSs70YuXA7eTo=
 github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 h1:DDGfHa7BWjL4YnC6+E63dPcxHo2sUxDIu8g3QgEJdRY=
 github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869/go.mod h1:Ekp36dRnpXw/yCqJaO+ZrUyxD+3VXMFFr56k5XYrpB4=
 github.com/bradfitz/gomemcache v0.0.0-20180710155616-bc664df96737/go.mod h1:PmM6Mmwb0LSuEubjR8N7PtNe1KxZLtOUHtbeikc5h60=
