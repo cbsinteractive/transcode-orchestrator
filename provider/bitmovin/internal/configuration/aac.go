@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// AAC is a configuration service for content in this codec pair
+// AAC is a configuration service for content using only this codec
 type AAC struct {
 	api *bitmovin.BitmovinApi
 }
@@ -31,7 +31,7 @@ func (c *AAC) Create(preset db.Preset) (string, error) {
 }
 
 // Get retrieves audio with a presetID
-// the function will return a boolean indicating whether the video
+// the function will return a boolean indicating whether the audio
 // configuration was found, a config object and an optional error
 func (c *AAC) Get(cfgID string) (bool, Details, error) {
 	audCfg, customData, err := c.audioConfigWithCustomDataFrom(cfgID)
@@ -42,7 +42,7 @@ func (c *AAC) Get(cfgID string) (bool, Details, error) {
 	return true, Details{nil, audCfg, customData}, nil
 }
 
-// Delete removes the audio / video configurations
+// Delete removes the audio configurations
 func (c *AAC) Delete(cfgID string) (found bool, e error) {
 	customData, err := c.audioCustomDataFrom(cfgID)
 	if err != nil {
