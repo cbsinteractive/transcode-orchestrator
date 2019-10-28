@@ -280,10 +280,10 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		audCfgID := ""
 		if audioOnly[i] {
 			audCfg, err := p.api.Encoding.Configurations.Audio.Aac.Get(presetID)
-			audCfgID = audCfg.Id
 			if err != nil {
 				return nil, err
 			}
+			audCfgID = audCfg.Id
 		} else {
 			audCfgID, err = configuration.AudCfgIDFrom(details.CustomData)
 			if err != nil {
