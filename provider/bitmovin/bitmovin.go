@@ -210,7 +210,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			return nil, err
 		}
 
-		contnr, err := configuration.ContainerFrom(details)
+		contnr, err := configuration.ContainerFrom(details.CustomData)
 		if err != nil {
 			return nil, errors.Wrap(err, "extracting container from customData")
 		}
@@ -309,7 +309,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		}
 
 		cSvcs := containerSvc{}
-		mediaContainer, err := configuration.ContainerFrom(details)
+		mediaContainer, err := configuration.ContainerFrom(details.CustomData)
 		if err != nil {
 			return nil, err
 		}
