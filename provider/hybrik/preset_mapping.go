@@ -3,7 +3,6 @@ package hybrik
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/video-transcoding-api/db"
@@ -57,16 +56,6 @@ func (p *hybrikProvider) transcodeElementsWithPresetsFrom(presets map[string]db.
 }
 
 func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string, cfg jobCfg, filename string) (hybrik.Element, error) {
-	var minGOPFrames, maxGOPFrames, gopSize int
-
-	gopSize, err := strconv.Atoi(preset.Video.GopSize)
-	if err != nil {
-		return hybrik.Element{}, err
-	}
-
-	minGOPFrames = gopSize
-	maxGOPFrames = gopSize
-
 	container := ""
 	for _, c := range p.Capabilities().OutputFormats {
 		if preset.Container == c || (preset.Container == "m3u8" && c == hls) {
@@ -78,43 +67,12 @@ func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string
 		return hybrik.Element{}, ErrUnsupportedContainer
 	}
 
-	bitrate, err := strconv.Atoi(preset.Video.Bitrate)
+	videoTarget, err := videoTargetFrom(preset.Video, preset.RateControl)
 	if err != nil {
-		return hybrik.Element{}, ErrBitrateNan
+		return hybrik.Element{}, errors.Wrap(err, "building video targets")
 	}
 
-	var videoWidth *int
-	var videoHeight *int
-
-	if preset.Video.Width != "" {
-		var presetWidth int
-		presetWidth, err = strconv.Atoi(preset.Video.Width)
-		if err != nil {
-			return hybrik.Element{}, ErrVideoWidthNan
-		}
-		videoWidth = &presetWidth
-	}
-
-	if preset.Video.Height != "" {
-		var presetHeight int
-		presetHeight, err = strconv.Atoi(preset.Video.Height)
-		if err != nil {
-			return hybrik.Element{}, ErrVideoHeightNan
-		}
-		videoHeight = &presetHeight
-	}
-
-	videoProfile := strings.ToLower(preset.Video.Profile)
-	videoLevel := preset.Video.ProfileLevel
-
-	// TODO: Understand video-transcoding-api profile + level settings in relation to vp8
-	// For now, we will omit and leave to encoder defaults
-	if preset.Video.Codec == "vp8" {
-		videoProfile = ""
-		videoLevel = ""
-	}
-
-	audioTargets, err := audioTargetsFrom(preset.Audio)
+	audioTarget, err := audioTargetFrom(preset.Audio)
 	if err != nil {
 		return hybrik.Element{}, errors.Wrap(err, "building audio targets")
 	}
@@ -134,23 +92,8 @@ func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string
 					Kind: container,
 				},
 				NumPasses: numPasses,
-				Video: &hybrik.VideoTarget{
-					Width:             videoWidth,
-					Height:            videoHeight,
-					BitrateMode:       strings.ToLower(preset.RateControl),
-					BitrateKb:         bitrate / 1000,
-					Preset:            presetSlow,
-					Codec:             preset.Video.Codec,
-					ChromaFormat:      chromaFormatYUV420P,
-					Profile:           videoProfile,
-					Level:             videoLevel,
-					MinGOPFrames:      minGOPFrames,
-					MaxGOPFrames:      maxGOPFrames,
-					ExactGOPFrames:    maxGOPFrames,
-					InterlaceMode:     preset.Video.InterlaceMode,
-					UseSceneDetection: false,
-				},
-				Audio: audioTargets,
+				Video:     videoTarget,
+				Audio:     audioTarget,
 			}},
 		},
 	}
@@ -193,7 +136,7 @@ func transcodePayloadModifiersFor(preset db.Preset) []transcodePayloadModifier {
 	modifiers := []transcodePayloadModifier{}
 
 	// Rate control
-	if preset.RateControl != "" {
+	if preset.RateControl != "" && preset.Video != (db.VideoPreset{}) {
 		modifiers = append(modifiers, transcodePayloadModifier{name: "rateControl", runFunc: enrichTranscodePayloadWithRateControl})
 	}
 

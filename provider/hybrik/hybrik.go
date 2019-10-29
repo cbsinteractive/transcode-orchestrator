@@ -333,7 +333,76 @@ func (p *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
 	return preset.Name, nil
 }
 
-func audioTargetsFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
+func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.VideoTarget, error) {
+	if (preset == db.VideoPreset{}) {
+		return nil, nil
+	}
+
+	var minGOPFrames, maxGOPFrames, gopSize int
+
+	gopSize, err := strconv.Atoi(preset.GopSize)
+	if err != nil {
+		return &hwrapper.VideoTarget{}, err
+	}
+
+	minGOPFrames = gopSize
+	maxGOPFrames = gopSize
+
+	bitrate, err := strconv.Atoi(preset.Bitrate)
+	if err != nil {
+		return &hwrapper.VideoTarget{}, ErrBitrateNan
+	}
+
+	var videoWidth *int
+	var videoHeight *int
+
+	if preset.Width != "" {
+		var presetWidth int
+		presetWidth, err = strconv.Atoi(preset.Width)
+		if err != nil {
+			return &hwrapper.VideoTarget{}, ErrVideoWidthNan
+		}
+		videoWidth = &presetWidth
+	}
+
+	if preset.Height != "" {
+		var presetHeight int
+		presetHeight, err = strconv.Atoi(preset.Height)
+		if err != nil {
+			return &hwrapper.VideoTarget{}, ErrVideoHeightNan
+		}
+		videoHeight = &presetHeight
+	}
+
+	videoProfile := strings.ToLower(preset.Profile)
+	videoLevel := preset.ProfileLevel
+
+	// TODO: Understand video-transcoding-api profile + level settings in relation to vp8
+	// For now, we will omit and leave to encoder defaults
+	if preset.Codec == "vp8" {
+		videoProfile = ""
+		videoLevel = ""
+	}
+
+	return &hwrapper.VideoTarget{
+		Width:             videoWidth,
+		Height:            videoHeight,
+		BitrateMode:       strings.ToLower(rateControl),
+		BitrateKb:         bitrate / 1000,
+		Preset:            presetSlow,
+		Codec:             preset.Codec,
+		ChromaFormat:      chromaFormatYUV420P,
+		Profile:           videoProfile,
+		Level:             videoLevel,
+		MinGOPFrames:      minGOPFrames,
+		MaxGOPFrames:      maxGOPFrames,
+		ExactGOPFrames:    maxGOPFrames,
+		InterlaceMode:     preset.InterlaceMode,
+		UseSceneDetection: false,
+	}, nil
+}
+
+func audioTargetFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
 	if (preset == db.AudioPreset{}) {
 		return []hwrapper.AudioTarget{}, nil
 	}
