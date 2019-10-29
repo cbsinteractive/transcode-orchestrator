@@ -189,6 +189,7 @@ type VideoPreset struct {
 	Codec               string              `json:"codec,omitempty" redis-hash:"codec,omitempty"`
 	Bitrate             string              `json:"bitrate,omitempty" redis-hash:"bitrate,omitempty"`
 	GopSize             string              `json:"gopSize,omitempty" redis-hash:"gopsize,omitempty"`
+	GopUnit             string              `json:"gopUnit,omitempty" redis-hash:"gopunit,omitempty"`
 	GopMode             string              `json:"gopMode,omitempty" redis-hash:"gopmode,omitempty"`
 	InterlaceMode       string              `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
 	HDR10Settings       HDR10Settings       `json:"hdr10" redis-hash:"hdr10,expand,omitempty"`

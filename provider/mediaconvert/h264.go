@@ -22,6 +22,11 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		return nil, errors.Wrapf(err, "parsing gop size %q to int64", preset.Video.GopSize)
 	}
 
+	gopUnit, err := h264GopUnitFrom(preset.Video.GopUnit)
+	if err != nil {
+		return nil, err
+	}
+
 	rateControl, err := h264RateControlModeFrom(preset.RateControl)
 	if err != nil {
 		return nil, err
@@ -47,6 +52,7 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		H264Settings: &mediaconvert.H264Settings{
 			Bitrate:            aws.Int64(bitrate),
 			GopSize:            aws.Float64(gopSize),
+			GopSizeUnits:       gopUnit,
 			RateControlMode:    rateControl,
 			CodecProfile:       profile,
 			CodecLevel:         mediaconvert.H264CodecLevelAuto,
@@ -54,6 +60,18 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 			QualityTuningLevel: tuning,
 		},
 	}, nil
+}
+
+func h264GopUnitFrom(gopUnit string) (mediaconvert.H264GopSizeUnits, error) {
+	gopUnit = strings.ToLower(gopUnit)
+	switch gopUnit {
+	case "", "frames":
+		return mediaconvert.H264GopSizeUnitsFrames, nil
+	case "seconds":
+		return mediaconvert.H264GopSizeUnitsSeconds, nil
+	default:
+		return "", fmt.Errorf("gop unit %q is not supported with mediaconvert", gopUnit)
+	}
 }
 
 func h264RateControlModeFrom(rateControl string) (mediaconvert.H264RateControlMode, error) {
