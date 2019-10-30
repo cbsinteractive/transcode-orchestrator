@@ -26,7 +26,7 @@ func NewProgressiveWebMAssembler(api *bitmovin.BitmovinApi) *ProgressiveWebMAsse
 func (a *ProgressiveWebMAssembler) Assemble(cfg AssemblerCfg) error {
 	_, err := a.api.Encoding.Encodings.Muxings.ProgressiveWebm.Create(cfg.EncID, model.ProgressiveWebmMuxing{
 		Filename:             path.Base(cfg.OutputFilename),
-		Streams:              []model.MuxingStream{cfg.VidMuxingStream, cfg.AudMuxingStream},
+		Streams:              streamsFrom(cfg),
 		StreamConditionsMode: model.StreamConditionsMode_DROP_STREAM,
 		Outputs: []model.EncodingOutput{
 			storage.EncodingOutputFrom(cfg.OutputID, path.Dir(path.Join(cfg.DestPath, cfg.OutputFilename))),

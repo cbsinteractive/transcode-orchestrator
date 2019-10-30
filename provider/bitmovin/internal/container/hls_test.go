@@ -14,17 +14,15 @@ import (
 
 func TestNewHLSAssembler(t *testing.T) {
 	defaultAssemblerCfg := AssemblerCfg{
-		EncID:       "testEncID",
-		OutputID:    "testOutputID",
-		AudCfgID:    "testAudCfgID",
-		VidCfgID:    "testVidCfgID",
-		AudStreamID: "testAudStreamID",
-		VidStreamID: "testVidStreamID",
+		EncID:    "testEncID",
+		OutputID: "testOutputID",
+		AudCfgID: "testAudCfgID",
+		VidCfgID: "testVidCfgID",
 		AudMuxingStream: model.MuxingStream{
-			StreamId: "testAudMuxingStreamID",
+			StreamId: "testAudStreamID",
 		},
 		VidMuxingStream: model.MuxingStream{
-			StreamId: "testVidMuxingStreamID",
+			StreamId: "testVidStreamID",
 		},
 		ManifestID:         "testManifestID",
 		ManifestMasterPath: "test/master/manifest/path",
@@ -57,7 +55,7 @@ func TestNewHLSAssembler(t *testing.T) {
 				}
 
 				expectedAudioMuxing := model.TsMuxing{
-					Streams: []model.MuxingStream{{StreamId: "testAudMuxingStreamID"}},
+					Streams: []model.MuxingStream{{StreamId: "testAudStreamID"}},
 					Outputs: []model.EncodingOutput{{
 						OutputId:   "testOutputID",
 						OutputPath: "test/master/manifest/path/testAudCfgID",
@@ -72,7 +70,7 @@ func TestNewHLSAssembler(t *testing.T) {
 				}
 
 				expectedVideoMuxing := model.TsMuxing{
-					Streams: []model.MuxingStream{{StreamId: "testVidMuxingStreamID"}},
+					Streams: []model.MuxingStream{{StreamId: "testVidStreamID"}},
 					Outputs: []model.EncodingOutput{{
 						OutputId:   "testOutputID",
 						OutputPath: "test/master/manifest/path/testVidCfgID",
@@ -142,16 +140,14 @@ func TestNewHLSAssembler(t *testing.T) {
 		{
 			name: "an hls config with only video results in the correct calls to the HLSContainerAPI",
 			cfg: AssemblerCfg{
-				EncID:       "testEncID",
-				OutputID:    "testOutputID",
-				VidCfgID:    "testVidCfgID",
-				VidStreamID: "testVidStreamID",
+				EncID:    "testEncID",
+				OutputID: "testOutputID",
+				VidCfgID: "testVidCfgID",
 				VidMuxingStream: model.MuxingStream{
-					StreamId: "testVidMuxingStreamID",
+					StreamId: "testVidStreamID",
 				},
 				ManifestID:         "testManifestID",
 				ManifestMasterPath: "test/master/manifest/path",
-				SkipAudioCreation:  true,
 				SegDuration:        88,
 			},
 			api: hlsContainerAPI(),
@@ -170,7 +166,7 @@ func TestNewHLSAssembler(t *testing.T) {
 				}
 
 				expectedVideoMuxing := model.TsMuxing{
-					Streams: []model.MuxingStream{{StreamId: "testVidMuxingStreamID"}},
+					Streams: []model.MuxingStream{{StreamId: "testVidStreamID"}},
 					Outputs: []model.EncodingOutput{{
 						OutputId:   "testOutputID",
 						OutputPath: "test/master/manifest/path/testVidCfgID",

@@ -25,7 +25,7 @@ func NewCMAFAssembler(api CMAFContainerAPI) *CMAFAssembler {
 
 // Assemble creates HLS outputs
 func (a *CMAFAssembler) Assemble(cfg AssemblerCfg) error {
-	if !cfg.SkipAudioCreation {
+	if cfg.AudCfgID != "" {
 		audCMAFMuxing, err := a.api.CMAFMuxing.Create(cfg.EncID, model.CmafMuxing{
 			SegmentLength: floatToPtr(float64(cfg.SegDuration)),
 			SegmentNaming: "seg_%number%.m4a",
@@ -49,7 +49,7 @@ func (a *CMAFAssembler) Assemble(cfg AssemblerCfg) error {
 			SegmentPath:     cfg.AudCfgID,
 			Characteristics: []string{"public.accessibility.describes-video"},
 			EncodingId:      cfg.EncID,
-			StreamId:        cfg.AudStreamID,
+			StreamId:        cfg.AudMuxingStream.StreamId,
 			MuxingId:        audCMAFMuxing.Id,
 		})
 		if err != nil {
@@ -57,33 +57,35 @@ func (a *CMAFAssembler) Assemble(cfg AssemblerCfg) error {
 		}
 	}
 
-	vidCMAFMuxing, err := a.api.CMAFMuxing.Create(cfg.EncID, model.CmafMuxing{
-		SegmentLength: floatToPtr(float64(cfg.SegDuration)),
-		SegmentNaming: "seg_%number%.m4v",
-		Streams:       []model.MuxingStream{cfg.VidMuxingStream},
-		Outputs: []model.EncodingOutput{
-			storage.EncodingOutputFrom(cfg.OutputID, path.Join(cfg.ManifestMasterPath, cfg.VidCfgID)),
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "creating video cmaf muxing")
-	}
+	if cfg.VidCfgID != "" {
+		vidCMAFMuxing, err := a.api.CMAFMuxing.Create(cfg.EncID, model.CmafMuxing{
+			SegmentLength: floatToPtr(float64(cfg.SegDuration)),
+			SegmentNaming: "seg_%number%.m4v",
+			Streams:       []model.MuxingStream{cfg.VidMuxingStream},
+			Outputs: []model.EncodingOutput{
+				storage.EncodingOutputFrom(cfg.OutputID, path.Join(cfg.ManifestMasterPath, cfg.VidCfgID)),
+			},
+		})
+		if err != nil {
+			return errors.Wrap(err, "creating video cmaf muxing")
+		}
 
-	vidSegLoc, err := filepath.Rel(path.Dir(path.Join(cfg.DestPath, cfg.OutputFilename)), path.Join(cfg.ManifestMasterPath, cfg.VidCfgID))
-	if err != nil {
-		return errors.Wrap(err, "constructing video segment location")
-	}
+		vidSegLoc, err := filepath.Rel(path.Dir(path.Join(cfg.DestPath, cfg.OutputFilename)), path.Join(cfg.ManifestMasterPath, cfg.VidCfgID))
+		if err != nil {
+			return errors.Wrap(err, "constructing video segment location")
+		}
 
-	_, err = a.api.HLSStreams.Create(cfg.ManifestID, model.StreamInfo{
-		Audio:       cfg.AudCfgID,
-		Uri:         fmt.Sprintf("%s.m3u8", cfg.VidCfgID),
-		SegmentPath: vidSegLoc,
-		EncodingId:  cfg.EncID,
-		StreamId:    cfg.VidStreamID,
-		MuxingId:    vidCMAFMuxing.Id,
-	})
-	if err != nil {
-		return errors.Wrap(err, "creating video stream info")
+		_, err = a.api.HLSStreams.Create(cfg.ManifestID, model.StreamInfo{
+			Audio:       cfg.AudCfgID,
+			Uri:         fmt.Sprintf("%s.m3u8", cfg.VidCfgID),
+			SegmentPath: vidSegLoc,
+			EncodingId:  cfg.EncID,
+			StreamId:    cfg.VidMuxingStream.StreamId,
+			MuxingId:    vidCMAFMuxing.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "creating video stream info")
+		}
 	}
 
 	return nil

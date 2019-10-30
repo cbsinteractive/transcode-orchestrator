@@ -1,22 +1,24 @@
 package configuration
 
 import (
+	"fmt"
+
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/configuration/codec"
-	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/types"
 	"github.com/pkg/errors"
 )
 
 // VP8Vorbis is a configuration service for content in this codec pair
 type VP8Vorbis struct {
-	api *bitmovin.BitmovinApi
+	api  *bitmovin.BitmovinApi
+	repo db.PresetSummaryRepository
 }
 
 // NewVP8Vorbis returns a service for managing VP8 / Vorbis configurations
-func NewVP8Vorbis(api *bitmovin.BitmovinApi) *VP8Vorbis {
-	return &VP8Vorbis{api: api}
+func NewVP8Vorbis(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *VP8Vorbis {
+	return &VP8Vorbis{api: api, repo: repo}
 }
 
 // Create will create a new VP8 configuration based on a preset
@@ -26,88 +28,52 @@ func (c *VP8Vorbis) Create(preset db.Preset) (string, error) {
 		return "", err
 	}
 
-	vidCfgID, err := codec.NewVP8(c.api, preset, customDataWith(audCfgID, preset.Container))
+	vidCfgID, err := codec.NewVP8(c.api, preset)
 	if err != nil {
 		return "", err
 	}
 
-	return vidCfgID, nil
+	err = c.repo.CreatePresetSummary(&db.PresetSummary{
+		Name:          preset.Name,
+		Container:     preset.Container,
+		VideoCodec:    string(model.CodecConfigType_VP8),
+		VideoConfigID: vidCfgID,
+		AudioCodec:    string(model.CodecConfigType_VORBIS),
+		AudioConfigID: audCfgID,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return preset.Name, nil
 }
 
-// Get retrieves audio / video configuration with a presetID
-func (c *VP8Vorbis) Get(cfgID string) (bool, Details, error) {
-	vidCfg, customData, err := c.vidConfigWithCustomDataFrom(cfgID)
-	if err != nil {
-		return false, Details{}, err
-	}
-
-	audCfgID, err := AudCfgIDFrom(customData)
-	if err != nil {
-		return false, Details{}, err
-	}
-
-	if audCfgID == "" {
-		return false, Details{}, err
-	}
-
-	audCfg, err := c.api.Encoding.Configurations.Audio.Vorbis.Get(audCfgID)
-	if err != nil {
-		return false, Details{}, errors.Wrapf(err, "getting the audio config with ID %q", audCfgID)
-	}
-
-	return true, Details{vidCfg, audCfg, customData}, nil
+// Get retrieves audio / video configuration with a presetName
+func (c *VP8Vorbis) Get(presetName string) (db.PresetSummary, error) {
+	return c.repo.GetPresetSummary(presetName)
 }
 
 // Delete removes the audio / video configurations
-func (c *VP8Vorbis) Delete(cfgID string) (found bool, e error) {
-	customData, err := c.vidCustomDataFrom(cfgID)
+func (c *VP8Vorbis) Delete(presetName string) error {
+	summary, err := c.Get(presetName)
 	if err != nil {
-		return found, err
+		return err
 	}
 
-	audCfgID, err := AudCfgIDFrom(customData)
+	_, err = c.api.Encoding.Configurations.Audio.Vorbis.Delete(summary.AudioConfigID)
 	if err != nil {
-		return found, err
+		return errors.Wrap(err, "removing the audio config")
 	}
 
-	audCfg, err := c.api.Encoding.Configurations.Audio.Vorbis.Get(audCfgID)
+	_, err = c.api.Encoding.Configurations.Video.Vp8.Delete(summary.VideoConfigID)
 	if err != nil {
-		return found, errors.Wrap(err, "retrieving audio configuration")
-	}
-	found = true
-
-	_, err = c.api.Encoding.Configurations.Audio.Vorbis.Delete(audCfg.Id)
-	if err != nil {
-		return found, errors.Wrap(err, "removing the audio config")
+		return errors.Wrap(err, "removing the video config")
 	}
 
-	_, err = c.api.Encoding.Configurations.Video.Vp8.Delete(cfgID)
+	err = c.repo.DeletePresetSummary(presetName)
 	if err != nil {
-		return found, errors.Wrap(err, "removing the video config")
+		return fmt.Errorf("deleting preset summary: %w", err)
 	}
 
-	return found, nil
-}
-
-func (c *VP8Vorbis) vidConfigWithCustomDataFrom(cfgID string) (*model.Vp8VideoConfiguration, types.CustomData, error) {
-	vidCfg, err := c.api.Encoding.Configurations.Video.Vp8.Get(cfgID)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "retrieving configuration with config ID")
-	}
-
-	data, err := c.vidCustomDataFrom(vidCfg.Id)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return vidCfg, data, nil
-}
-
-func (c *VP8Vorbis) vidCustomDataFrom(cfgID string) (types.CustomData, error) {
-	data, err := c.api.Encoding.Configurations.Video.Vp8.Customdata.Get(cfgID)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving custom data with config ID")
-	}
-
-	return data.CustomData, nil
+	return nil
 }

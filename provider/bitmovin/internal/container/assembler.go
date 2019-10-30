@@ -14,10 +14,22 @@ type AssemblerCfg struct {
 	DestPath                         string
 	OutputFilename                   string
 	AudCfgID, VidCfgID               string
-	AudStreamID, VidStreamID         string
 	AudMuxingStream, VidMuxingStream model.MuxingStream
 	ManifestID                       string
 	ManifestMasterPath               string
-	SkipAudioCreation                bool
 	SegDuration                      uint
+}
+
+func streamsFrom(cfg AssemblerCfg) []model.MuxingStream {
+	streams := []model.MuxingStream{}
+
+	if !(cfg.VidMuxingStream == model.MuxingStream{}) {
+		streams = append(streams, cfg.VidMuxingStream)
+	}
+
+	if !(cfg.AudMuxingStream == model.MuxingStream{}) {
+		streams = append(streams, cfg.AudMuxingStream)
+	}
+
+	return streams
 }

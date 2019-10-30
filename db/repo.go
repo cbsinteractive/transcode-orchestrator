@@ -25,6 +25,13 @@ var (
 	// ErrLocalPresetAlreadyExists is the error returned when the local preset already
 	// exists.
 	ErrLocalPresetAlreadyExists = errors.New("local preset already exists")
+
+	// ErrPresetSummaryAlreadyExists is the error returned when the preset summary already
+	// exists.
+	ErrPresetSummaryAlreadyExists = errors.New("preset summary already exists")
+
+	// ErrPresetSummaryNotFound is the error returned when the preset summary is not found
+	ErrPresetSummaryNotFound = errors.New("preset summary not found")
 )
 
 // Repository represents the repository for persisting types of the API.
@@ -32,6 +39,7 @@ type Repository interface {
 	JobRepository
 	PresetMapRepository
 	LocalPresetRepository
+	PresetSummaryRepository
 }
 
 // JobRepository is the interface that defines the set of methods for managing Job
@@ -70,4 +78,12 @@ type LocalPresetRepository interface {
 	UpdateLocalPreset(*LocalPreset) error
 	DeleteLocalPreset(*LocalPreset) error
 	GetLocalPreset(name string) (*LocalPreset, error)
+}
+
+// PresetSummaryRepository provides an interface that defines the set of methods for
+// managing preset summaries when storing remote reference state is hard to do externally
+type PresetSummaryRepository interface {
+	CreatePresetSummary(*PresetSummary) error
+	DeletePresetSummary(name string) error
+	GetPresetSummary(name string) (PresetSummary, error)
 }

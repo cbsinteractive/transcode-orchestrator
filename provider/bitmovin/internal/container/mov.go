@@ -26,7 +26,7 @@ func NewMOVAssembler(api *bitmovin.BitmovinApi) *MOVAssembler {
 func (a *MOVAssembler) Assemble(cfg AssemblerCfg) error {
 	_, err := a.api.Encoding.Encodings.Muxings.ProgressiveMov.Create(cfg.EncID, model.ProgressiveMovMuxing{
 		Filename:             path.Base(cfg.OutputFilename),
-		Streams:              []model.MuxingStream{cfg.VidMuxingStream, cfg.AudMuxingStream},
+		Streams:              streamsFrom(cfg),
 		StreamConditionsMode: model.StreamConditionsMode_DROP_STREAM,
 		Outputs: []model.EncodingOutput{
 			storage.EncodingOutputFrom(cfg.OutputID, path.Dir(path.Join(cfg.DestPath, cfg.OutputFilename))),

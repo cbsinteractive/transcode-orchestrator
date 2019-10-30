@@ -10,8 +10,8 @@ import (
 )
 
 // NewVP8 creates a VP8 codec configuration and returns its ID
-func NewVP8(api *bitmovin.BitmovinApi, preset db.Preset, customData *map[string]map[string]interface{}) (string, error) {
-	newVidCfg, err := vp8ConfigFrom(preset, customData)
+func NewVP8(api *bitmovin.BitmovinApi, preset db.Preset) (string, error) {
+	newVidCfg, err := vp8ConfigFrom(preset)
 	if err != nil {
 		return "", errors.Wrap(err, "creating vp8 config object")
 	}
@@ -24,10 +24,8 @@ func NewVP8(api *bitmovin.BitmovinApi, preset db.Preset, customData *map[string]
 	return vidCfg.Id, nil
 }
 
-func vp8ConfigFrom(preset db.Preset, customData *map[string]map[string]interface{}) (model.Vp8VideoConfiguration, error) {
+func vp8ConfigFrom(preset db.Preset) (model.Vp8VideoConfiguration, error) {
 	cfg := model.Vp8VideoConfiguration{}
-
-	cfg.CustomData = customData
 
 	cfg.Name = strings.ToLower(preset.Name)
 

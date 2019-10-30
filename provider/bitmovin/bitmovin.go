@@ -11,6 +11,7 @@ import (
 	"github.com/bitmovin/bitmovin-api-sdk-go/query"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/db/redis"
 	"github.com/cbsinteractive/video-transcoding-api/provider"
 	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/configuration"
 	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/container"
@@ -49,6 +50,7 @@ const (
 	cfgStoreH265AAC   cfgStore = "h265aac"
 	cfgStoreVP8Vorbis cfgStore = "vp8vorbis"
 	cfgStoreH265      cfgStore = "h265"
+	cfgStoreAAC       cfgStore = "aac"
 )
 
 func init() {
@@ -121,14 +123,21 @@ func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 		return nil, err
 	}
 
+	dbRepo, err := redis.NewRepository(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing bitmovin wrapper: %s", err)
+	}
+
 	return &bitmovinProvider{
 		api:         api,
+		repo:        dbRepo,
 		providerCfg: cfg.Bitmovin,
 		cfgStores: map[cfgStore]configuration.Store{
-			cfgStoreH265:      configuration.NewH265(api),
-			cfgStoreH264AAC:   configuration.NewH264AAC(api),
-			cfgStoreH265AAC:   configuration.NewH265AAC(api),
-			cfgStoreVP8Vorbis: configuration.NewVP8Vorbis(api),
+			cfgStoreH265:      configuration.NewH265(api, dbRepo),
+			cfgStoreH264AAC:   configuration.NewH264AAC(api, dbRepo),
+			cfgStoreH265AAC:   configuration.NewH265AAC(api, dbRepo),
+			cfgStoreVP8Vorbis: configuration.NewVP8Vorbis(api, dbRepo),
+			cfgStoreAAC:       configuration.NewAAC(api, dbRepo),
 		},
 		containerSvcs: map[mediaContainer]containerSvc{
 			containerHLS: {
@@ -168,9 +177,20 @@ type bitmovinProvider struct {
 	providerCfg   *config.Bitmovin
 	cfgStores     map[cfgStore]configuration.Store
 	containerSvcs map[mediaContainer]containerSvc
+	repo          db.Repository
 }
 
 func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
+	presets := make([]db.PresetSummary, len(job.Outputs))
+	for idx, output := range job.Outputs {
+		summary, err := p.repo.GetPresetSummary(output.Preset.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		presets[idx] = summary
+	}
+
 	inputID, mediaPath, err := storage.NewInput(job.SourceMedia, storage.InputAPI{
 		S3:    p.api.Encoding.Inputs.S3,
 		GCS:   p.api.Encoding.Inputs.Gcs,
@@ -200,21 +220,8 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	audInputStreams := []model.StreamInput{inputStream}
 
 	var generatingHLS bool
-	for _, o := range job.Outputs {
-		if o.Preset.OutputOpts.Extension == containerWebM {
-			break // can't be HLSAssembler
-		}
-
-		details, err := p.cfgDetailsFrom(o.Preset.ProviderMapping[Name])
-		if err != nil {
-			return nil, err
-		}
-
-		contnr, err := configuration.ContainerFrom(details.CustomData)
-		if err != nil {
-			return nil, errors.Wrap(err, "extracting container from customData")
-		}
-		if contnr == containerHLS {
+	for _, preset := range presets {
+		if preset.Container == containerHLS {
 			generatingHLS = true
 			break
 		}
@@ -258,24 +265,11 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		return nil, errors.Wrap(err, "creating encoding")
 	}
 
-	audMuxingStreams := make(map[string]model.MuxingStream)
-	audStreams := make(map[string]*model.Stream)
-	for _, o := range job.Outputs {
-		presetID := o.Preset.ProviderMapping[Name]
-		details, err := p.cfgDetailsFrom(presetID)
-		if err != nil {
-			return nil, err
-		}
+	audMuxingStreams := map[string]model.MuxingStream{}
+	for idx, o := range job.Outputs {
+		preset := presets[idx]
 
-		audCfgID, err := configuration.AudCfgIDFrom(details.CustomData)
-		if err != nil {
-			return nil, err
-		}
-
-		_, audCfgExists := audMuxingStreams[audCfgID]
-		audCfgValid := audCfgID != ""
-
-		if !audCfgExists && audCfgValid {
+		if audCfgID := preset.AudioConfigID; audCfgID != "" && audMuxingStreams[audCfgID].StreamId == "" {
 			audStream, err := p.api.Encoding.Encodings.Streams.Create(enc.Id, model.Stream{
 				CodecConfigId: audCfgID,
 				InputStreams:  audInputStreams,
@@ -285,33 +279,24 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			}
 
 			audMuxingStreams[audCfgID] = model.MuxingStream{StreamId: audStream.Id}
-			audStreams[audCfgID] = audStream
-			audCfgExists = true
 		}
 
-		vidStream, err := p.api.Encoding.Encodings.Streams.Create(enc.Id, model.Stream{
-			CodecConfigId: presetID,
-			InputStreams:  vidInputStreams,
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "adding video stream to the encoding")
+		var vidMuxingStream model.MuxingStream
+		if vidCfgID := preset.VideoConfigID; vidCfgID != "" {
+			vidStream, err := p.api.Encoding.Encodings.Streams.Create(enc.Id, model.Stream{
+				CodecConfigId: vidCfgID,
+				InputStreams:  vidInputStreams,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "adding video stream to the encoding")
+			}
+
+			vidMuxingStream = model.MuxingStream{StreamId: vidStream.Id}
 		}
 
-		vidMuxingStream := model.MuxingStream{StreamId: vidStream.Id}
-
-		mediaContainer, err := configuration.ContainerFrom(details.CustomData)
-		if err != nil {
-			return nil, err
-		}
-
-		contnrSvcs, err := p.containerServicesFrom(mediaContainer, details.Video.CodecConfigType())
+		contnrSvcs, err := p.containerServicesFrom(preset.Container, model.CodecConfigType(preset.VideoCodec))
 		if err != nil {
 			return nil, err
-		}
-
-		audStreamID := ""
-		if _, ok := audStreams[audCfgID]; ok {
-			audStreamID = audStreams[audCfgID].Id
 		}
 
 		if err = contnrSvcs.assembler.Assemble(container.AssemblerCfg{
@@ -319,15 +304,12 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			OutputID:           outputID,
 			DestPath:           destPath,
 			OutputFilename:     o.FileName,
-			AudCfgID:           audCfgID,
-			VidCfgID:           presetID,
-			AudStreamID:        audStreamID,
-			VidStreamID:        vidStream.Id,
-			AudMuxingStream:    audMuxingStreams[audCfgID],
+			AudCfgID:           preset.AudioConfigID,
+			VidCfgID:           preset.VideoConfigID,
+			AudMuxingStream:    audMuxingStreams[preset.AudioConfigID],
 			VidMuxingStream:    vidMuxingStream,
 			ManifestID:         manifestID,
 			ManifestMasterPath: manifestMasterPath,
-			SkipAudioCreation:  !audCfgExists,
 			SegDuration:        job.StreamingParams.SegmentDuration,
 		}); err != nil {
 			return nil, err
@@ -442,31 +424,23 @@ func (p *bitmovinProvider) CreatePreset(preset db.Preset) (string, error) {
 }
 
 // DeletePreset loops over registered cfg services and attempts to delete them
-func (p *bitmovinProvider) DeletePreset(presetID string) error {
-	for _, svc := range p.cfgStores {
-		found, err := svc.Delete(presetID)
-		if found {
-			return err
-		}
+func (p *bitmovinProvider) DeletePreset(presetName string) error {
+	summary, err := p.repo.GetPresetSummary(presetName)
+	if err != nil {
+		return err
 	}
 
-	return errors.New("preset not found")
+	svc, err := p.cfgServiceFrom(summary.VideoCodec, summary.AudioCodec)
+	if err != nil {
+		return err
+	}
+
+	return svc.Delete(presetName)
 }
 
 // GetPreset searches for a preset from the registered cfg services
-func (p *bitmovinProvider) GetPreset(presetID string) (interface{}, error) {
-	return p.cfgDetailsFrom(presetID)
-}
-
-func (p *bitmovinProvider) cfgDetailsFrom(presetID string) (configuration.Details, error) {
-	for _, svc := range p.cfgStores {
-		found, preset, err := svc.Get(presetID)
-		if found {
-			return preset, err
-		}
-	}
-
-	return configuration.Details{}, errors.New("preset not found")
+func (p *bitmovinProvider) GetPreset(presetName string) (interface{}, error) {
+	return p.repo.GetPresetSummary(presetName)
 }
 
 func (p *bitmovinProvider) destinationForJob(job *db.Job) string {
@@ -501,14 +475,18 @@ func (bitmovinProvider) Capabilities() provider.Capabilities {
 
 func (p *bitmovinProvider) cfgServiceFrom(vcodec, acodec string) (configuration.Store, error) {
 	vcodec, acodec = strings.ToLower(vcodec), strings.ToLower(acodec)
-	if vcodec == codecH264 && acodec == codecAAC {
+
+	switch vcodec + acodec {
+	case codecH264 + codecAAC:
 		return p.cfgStores[cfgStoreH264AAC], nil
-	} else if vcodec == codecH265 && acodec == codecAAC {
+	case codecH265 + codecAAC:
 		return p.cfgStores[cfgStoreH265AAC], nil
-	} else if vcodec == codecVP8 && acodec == codecVorbis {
+	case codecVP8 + codecVorbis:
 		return p.cfgStores[cfgStoreVP8Vorbis], nil
-	} else if vcodec == codecH265 && acodec == "" {
+	case codecH265:
 		return p.cfgStores[cfgStoreH265], nil
+	case codecAAC:
+		return p.cfgStores[cfgStoreAAC], nil
 	}
 
 	return nil, fmt.Errorf("the pair of vcodec: %q and acodec: %q is not yet supported", vcodec, acodec)

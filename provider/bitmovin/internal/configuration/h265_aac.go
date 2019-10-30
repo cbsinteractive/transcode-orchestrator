@@ -1,22 +1,24 @@
 package configuration
 
 import (
+	"fmt"
+
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/configuration/codec"
-	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/types"
 	"github.com/pkg/errors"
 )
 
 // H265AAC is a configuration service for content in this codec pair
 type H265AAC struct {
-	api *bitmovin.BitmovinApi
+	api  *bitmovin.BitmovinApi
+	repo db.PresetSummaryRepository
 }
 
 // NewH265AAC returns a service for managing h.265 / AAC configurations
-func NewH265AAC(api *bitmovin.BitmovinApi) *H265AAC {
-	return &H265AAC{api: api}
+func NewH265AAC(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *H265AAC {
+	return &H265AAC{api: api, repo: repo}
 }
 
 // Create will create a new H265AAC configuration based on a preset
@@ -26,90 +28,54 @@ func (c *H265AAC) Create(preset db.Preset) (string, error) {
 		return "", err
 	}
 
-	vidCfgID, err := codec.NewH265(c.api, preset, customDataWith(audCfgID, preset.Container))
+	vidCfgID, err := codec.NewH265(c.api, preset)
 	if err != nil {
 		return "", err
 	}
 
-	return vidCfgID, nil
+	err = c.repo.CreatePresetSummary(&db.PresetSummary{
+		Name:          preset.Name,
+		Container:     preset.Container,
+		VideoCodec:    string(model.CodecConfigType_H265),
+		VideoConfigID: vidCfgID,
+		AudioCodec:    string(model.CodecConfigType_AAC),
+		AudioConfigID: audCfgID,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return preset.Name, nil
 }
 
 // Get retrieves audio / video configuration with a presetID
 // the function will return a boolean indicating whether the video
 // configuration was found, a config object and an optional error
-func (c *H265AAC) Get(cfgID string) (bool, Details, error) {
-	vidCfg, customData, err := c.vidConfigWithCustomDataFrom(cfgID)
-	if err != nil {
-		return false, Details{}, err
-	}
-
-	audCfgID, err := AudCfgIDFrom(customData)
-	if err != nil {
-		return false, Details{}, err
-	}
-
-	if audCfgID == "" {
-		return false, Details{}, err
-	}
-
-	audCfg, err := c.api.Encoding.Configurations.Audio.Aac.Get(audCfgID)
-	if err != nil {
-		return false, Details{}, errors.Wrapf(err, "getting the audio configuration with ID %q", audCfgID)
-	}
-
-	return true, Details{vidCfg, audCfg, customData}, nil
+func (c *H265AAC) Get(presetName string) (db.PresetSummary, error) {
+	return c.repo.GetPresetSummary(presetName)
 }
 
 // Delete removes the audio / video configurations
-func (c *H265AAC) Delete(cfgID string) (found bool, e error) {
-	customData, err := c.vidCustomDataFrom(cfgID)
+func (c *H265AAC) Delete(presetName string) error {
+	summary, err := c.Get(presetName)
 	if err != nil {
-		return found, err
+		return err
 	}
 
-	audCfgID, err := AudCfgIDFrom(customData)
+	_, err = c.api.Encoding.Configurations.Audio.Aac.Delete(summary.AudioConfigID)
 	if err != nil {
-		return found, err
+		return errors.Wrap(err, "removing the audio config")
 	}
 
-	audCfg, err := c.api.Encoding.Configurations.Audio.Aac.Get(audCfgID)
+	_, err = c.api.Encoding.Configurations.Video.H265.Delete(summary.VideoConfigID)
 	if err != nil {
-		return found, errors.Wrap(err, "retrieving audio configuration")
-	}
-	found = true
-
-	_, err = c.api.Encoding.Configurations.Audio.Aac.Delete(audCfg.Id)
-	if err != nil {
-		return found, errors.Wrap(err, "removing the audio config")
+		return errors.Wrap(err, "removing the video config")
 	}
 
-	_, err = c.api.Encoding.Configurations.Video.H265.Delete(cfgID)
+	err = c.repo.DeletePresetSummary(presetName)
 	if err != nil {
-		return found, errors.Wrap(err, "removing the video config")
+		return fmt.Errorf("deleting preset summary: %w", err)
 	}
 
-	return found, nil
-}
-
-func (c *H265AAC) vidConfigWithCustomDataFrom(cfgID string) (*model.H265VideoConfiguration, types.CustomData, error) {
-	vidCfg, err := c.api.Encoding.Configurations.Video.H265.Get(cfgID)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "retrieving configuration with config ID")
-	}
-
-	data, err := c.vidCustomDataFrom(vidCfg.Id)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return vidCfg, data, nil
-}
-
-func (c *H265AAC) vidCustomDataFrom(cfgID string) (types.CustomData, error) {
-	data, err := c.api.Encoding.Configurations.Video.H265.Customdata.Get(cfgID)
-	if err != nil {
-		return nil, errors.Wrap(err, "retrieving custom data with config ID")
-	}
-
-	return data.CustomData, nil
+	return nil
 }

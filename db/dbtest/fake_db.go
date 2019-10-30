@@ -8,10 +8,11 @@ import (
 )
 
 type fakeRepository struct {
-	triggerError bool
-	presetmaps   map[string]*db.PresetMap
-	localpresets map[string]*db.LocalPreset
-	jobs         []*db.Job
+	triggerError    bool
+	presetmaps      map[string]*db.PresetMap
+	localpresets    map[string]*db.LocalPreset
+	presetSummaries map[string]db.PresetSummary
+	jobs            []*db.Job
 }
 
 // NewFakeRepository creates a new instance of the fake repository
@@ -19,9 +20,10 @@ type fakeRepository struct {
 // memory.
 func NewFakeRepository(triggerError bool) db.Repository {
 	return &fakeRepository{
-		triggerError: triggerError,
-		presetmaps:   make(map[string]*db.PresetMap),
-		localpresets: make(map[string]*db.LocalPreset),
+		triggerError:    triggerError,
+		presetmaps:      make(map[string]*db.PresetMap),
+		localpresets:    make(map[string]*db.LocalPreset),
+		presetSummaries: make(map[string]db.PresetSummary),
 	}
 }
 
@@ -197,4 +199,48 @@ func (d *fakeRepository) DeleteLocalPreset(preset *db.LocalPreset) error {
 	}
 	delete(d.localpresets, preset.Name)
 	return nil
+}
+
+func (d *fakeRepository) CreatePresetSummary(preset *db.PresetSummary) error {
+	if d.triggerError {
+		return errors.New("database error")
+	}
+
+	if preset == nil || preset.Name == "" {
+		return errors.New("invalid preset summary")
+	}
+
+	if _, ok := d.presetSummaries[preset.Name]; ok {
+		return db.ErrPresetSummaryAlreadyExists
+	}
+
+	d.presetSummaries[preset.Name] = *preset
+
+	return nil
+}
+
+func (d *fakeRepository) DeletePresetSummary(presetName string) error {
+	if d.triggerError {
+		return errors.New("database error")
+	}
+
+	if _, ok := d.presetSummaries[presetName]; !ok {
+		return db.ErrPresetSummaryNotFound
+	}
+
+	delete(d.presetSummaries, presetName)
+
+	return nil
+}
+
+func (d *fakeRepository) GetPresetSummary(presetName string) (db.PresetSummary, error) {
+	if d.triggerError {
+		return db.PresetSummary{}, errors.New("database error")
+	}
+
+	if preset, ok := d.presetSummaries[presetName]; ok {
+		return preset, nil
+	}
+
+	return db.PresetSummary{}, db.ErrPresetSummaryNotFound
 }

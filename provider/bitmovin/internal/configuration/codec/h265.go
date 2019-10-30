@@ -17,8 +17,8 @@ var h265Levels = []model.LevelH265{
 }
 
 // NewH265 creates a H.265 codec configuration and returns its ID
-func NewH265(api *bitmovin.BitmovinApi, preset db.Preset, customData *map[string]map[string]interface{}) (string, error) {
-	newVidCfg, err := h265ConfigFrom(preset, customData)
+func NewH265(api *bitmovin.BitmovinApi, preset db.Preset) (string, error) {
+	newVidCfg, err := h265ConfigFrom(preset)
 	if err != nil {
 		return "", errors.Wrap(err, "creating h265 config object")
 	}
@@ -31,10 +31,8 @@ func NewH265(api *bitmovin.BitmovinApi, preset db.Preset, customData *map[string
 	return vidCfg.Id, nil
 }
 
-func h265ConfigFrom(preset db.Preset, customData *map[string]map[string]interface{}) (model.H265VideoConfiguration, error) {
+func h265ConfigFrom(preset db.Preset) (model.H265VideoConfiguration, error) {
 	cfg := model.H265VideoConfiguration{}
-
-	cfg.CustomData = customData
 
 	cfg.Name = strings.ToLower(preset.Name)
 

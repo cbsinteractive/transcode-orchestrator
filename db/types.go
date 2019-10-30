@@ -139,6 +139,19 @@ type StreamingParams struct {
 // representing the corresponding custom feature definition
 type ExecutionFeatures map[string]interface{}
 
+// PresetSummary holds references to external resources that represent the configurations
+// of audio and video streams and their containers
+//
+// swagger:model
+type PresetSummary struct {
+	Name          string `redis-hash:"-"`
+	Container     string `redis-hash:"container"`
+	VideoCodec    string `redis-hash:"videocodec,omitempty"`
+	VideoConfigID string `redis-hash:"videoconfigid,omitempty"`
+	AudioCodec    string `redis-hash:"audiocodec,omitempty"`
+	AudioConfigID string `redis-hash:"audioconfigid,omitempty"`
+}
+
 // LocalPreset is a struct to persist encoding configurations. Some providers don't have
 // the ability to store presets on it's side so we persist locally.
 //
