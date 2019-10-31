@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"path"
 	"strings"
-	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/db/redis"
 	"github.com/cbsinteractive/video-transcoding-api/provider"
 	"github.com/pkg/errors"
 )
@@ -24,7 +24,10 @@ const (
 )
 
 func init() {
-	provider.Register(Name, mediaconvertFactory)
+	err := provider.Register(Name, mediaconvertFactory)
+	if err != nil {
+		fmt.Printf("registering mediaconvert factory: %v", err)
+	}
 }
 
 type mediaconvertClient interface {
@@ -38,17 +41,18 @@ type mediaconvertClient interface {
 }
 
 type mcProvider struct {
-	client mediaconvertClient
-	cfg    *config.MediaConvert
+	client     mediaconvertClient
+	cfg        *config.MediaConvert
+	repository db.Repository
+}
+
+type outputCfg struct {
+	output   mediaconvert.Output
+	filename string
 }
 
 func (p *mcProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
-	presets, err := p.outputPresetsFrom(job.Outputs)
-	if err != nil {
-		return nil, errors.Wrap(err, "building map of output presetID to MediaConvert preset")
-	}
-
-	outputGroups, err := p.outputGroupsFrom(job, presets)
+	outputGroups, err := p.outputGroupsFrom(job)
 	if err != nil {
 		return nil, errors.Wrap(err, "generating Mediaconvert output groups")
 	}
@@ -83,74 +87,54 @@ func (p *mcProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func (p *mcProvider) outputPresetsFrom(outputs []db.TranscodeOutput) (map[string]mediaconvert.Preset, error) {
-	presetCh := make(chan *presetResult)
-	presets := map[string]mediaconvert.Preset{}
-
-	var wg sync.WaitGroup
-	for _, output := range outputs {
-		presetID, ok := output.Preset.ProviderMapping[Name]
-		if !ok {
-			return nil, provider.ErrPresetMapNotFound
-		}
-
-		wg.Add(1)
-		go p.makeGetPresetRequest(presetID, presetCh, &wg)
-	}
-
-	go func() {
-		wg.Wait()
-		close(presetCh)
-	}()
-
-	for res := range presetCh {
-		if res.err != nil {
-			return nil, fmt.Errorf("error getting preset info: %s", res.err)
-		}
-
-		presets[res.presetID] = res.preset
-	}
-
-	return presets, nil
-}
-
-func (p *mcProvider) outputGroupsFrom(job *db.Job, presets map[string]mediaconvert.Preset) ([]mediaconvert.OutputGroup, error) {
-	outputGroups := map[mediaconvert.ContainerType][]db.TranscodeOutput{}
+func (p *mcProvider) outputGroupsFrom(job *db.Job) ([]mediaconvert.OutputGroup, error) {
+	outputGroups := map[mediaconvert.ContainerType][]outputCfg{}
 	for _, output := range job.Outputs {
-		presetID, ok := output.Preset.ProviderMapping[Name]
-		if !ok {
-			return nil, provider.ErrPresetMapNotFound
+		presetName := output.Preset.Name
+		presetResponse, err := p.GetPreset(presetName)
+		if err != nil {
+			return nil, err
 		}
 
-		preset, ok := presets[presetID]
+		localPreset, ok := presetResponse.(*db.LocalPreset)
 		if !ok {
-			return nil, errors.New("mediaconvert preset not found in preset results")
+			return nil, fmt.Errorf("could not convert preset response into a db.LocalPreset")
 		}
 
-		container := preset.Settings.ContainerSettings.Container
-		outputGroups[container] = append(outputGroups[container], output)
+		mcOutput, err := outputFrom(localPreset.Preset)
+		if err != nil {
+			return nil, fmt.Errorf("could not determine output settings from db.Preset %v: %w",
+				localPreset.Preset, err)
+		}
+
+		cSettings := mcOutput.ContainerSettings
+		if cSettings == nil {
+			return nil, fmt.Errorf("no container was found on outout settings %+v", mcOutput)
+		}
+
+		outputGroups[cSettings.Container] = append(outputGroups[cSettings.Container], outputCfg{
+			output:   mcOutput,
+			filename: output.FileName,
+		})
 	}
 
 	mcOutputGroups := []mediaconvert.OutputGroup{}
 	for container, outputs := range outputGroups {
 		mcOutputGroup := mediaconvert.OutputGroup{}
 
-		var mcOutputs []mediaconvert.Output
-		for _, output := range outputs {
-			presetID, ok := output.Preset.ProviderMapping[Name]
-			if !ok {
-				return nil, provider.ErrPresetMapNotFound
-			}
-
-			rawExtension := path.Ext(output.FileName)
-			filename := strings.Replace(path.Base(output.FileName), rawExtension, "", 1)
+		mcOutputs := make([]mediaconvert.Output, len(outputs))
+		for i, o := range outputs {
+			rawExtension := path.Ext(o.filename)
+			filename := strings.Replace(path.Base(o.filename), rawExtension, "", 1)
 			extension := strings.Replace(rawExtension, ".", "", -1)
 
-			mcOutputs = append(mcOutputs, mediaconvert.Output{
-				Preset:       aws.String(presetID),
-				NameModifier: aws.String(filename),
-				Extension:    aws.String(extension),
-			})
+			mcOutputs[i] = mediaconvert.Output{
+				NameModifier:      aws.String(filename),
+				Extension:         aws.String(extension),
+				ContainerSettings: o.output.ContainerSettings,
+				AudioDescriptions: o.output.AudioDescriptions,
+				VideoDescription:  o.output.VideoDescription,
+			}
 		}
 		mcOutputGroup.Outputs = mcOutputs
 
@@ -204,102 +188,29 @@ func destinationPathFrom(destBase string, jobID string) string {
 	return fmt.Sprintf("%s/%s/", strings.TrimRight(destBase, "/"), jobID)
 }
 
-type presetResult struct {
-	presetID string
-	preset   mediaconvert.Preset
-	err      error
-}
-
-func (p *mcProvider) makeGetPresetRequest(presetID string, ch chan *presetResult, wg *sync.WaitGroup) {
-	defer wg.Done()
-	result := &presetResult{presetID: presetID}
-
-	presetResp, err := p.fetchPreset(presetID)
-	if err != nil {
-		result.err = err
-		ch <- result
-		return
-	}
-
-	result.preset = presetResp
-	ch <- result
-}
-
 func (p *mcProvider) CreatePreset(preset db.Preset) (string, error) {
-	container, err := containerFrom(preset.Container)
-	if err != nil {
-		return "", errors.Wrap(err, "mapping preset container to MediaConvert container")
-	}
-
-	var videoPreset *mediaconvert.VideoDescription
-	if preset.Video != (db.VideoPreset{}) {
-		videoPreset, err = videoPresetFrom(preset)
-		if err != nil {
-			return "", errors.Wrap(err, "generating video preset")
-		}
-	}
-
-	var audioPresets []mediaconvert.AudioDescription
-	if preset.Audio != (db.AudioPreset{}) {
-		audioPreset, err := audioPresetFrom(preset)
-		if err != nil {
-			return "", errors.Wrap(err, "generating audio preset")
-		}
-		audioPresets = append(audioPresets, audioPreset)
-	}
-
-	presetInput := mediaconvert.CreatePresetInput{
-		Name:        &preset.Name,
-		Description: &preset.Description,
-		Settings: &mediaconvert.PresetSettings{
-			ContainerSettings: &mediaconvert.ContainerSettings{
-				Container: container,
-			},
-			VideoDescription:  videoPreset,
-			AudioDescriptions: audioPresets,
-		},
-	}
-
-	resp, err := p.client.CreatePresetRequest(&presetInput).Send(context.Background())
+	err := p.repository.CreateLocalPreset(&db.LocalPreset{
+		Name:   preset.Name,
+		Preset: preset,
+	})
 	if err != nil {
 		return "", err
 	}
-	if resp == nil || resp.Preset == nil || resp.Preset.Name == nil {
-		return "", fmt.Errorf("unexpected response from MediaConvert: %v", resp)
-	}
 
-	return *resp.Preset.Name, nil
+	return preset.Name, nil
 }
 
 func (p *mcProvider) GetPreset(presetID string) (interface{}, error) {
-	preset, err := p.fetchPreset(presetID)
-	if err != nil {
-		return nil, err
-	}
-
-	return preset, err
-}
-
-func (p *mcProvider) fetchPreset(presetID string) (mediaconvert.Preset, error) {
-	preset, err := p.client.GetPresetRequest(&mediaconvert.GetPresetInput{
-		Name: aws.String(presetID),
-	}).Send(context.Background())
-	if err != nil {
-		return mediaconvert.Preset{}, err
-	}
-	if preset == nil || preset.Preset == nil {
-		return mediaconvert.Preset{}, fmt.Errorf("unexpected response from MediaConvert: %v", preset)
-	}
-
-	return *preset.Preset, err
+	return p.repository.GetLocalPreset(presetID)
 }
 
 func (p *mcProvider) DeletePreset(presetID string) error {
-	_, err := p.client.DeletePresetRequest(&mediaconvert.DeletePresetInput{
-		Name: aws.String(presetID),
-	}).Send(context.Background())
+	preset, err := p.GetPreset(presetID)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return p.repository.DeleteLocalPreset(preset.(*db.LocalPreset))
 }
 
 func (p *mcProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
@@ -412,8 +323,14 @@ func mediaconvertFactory(cfg *config.Config) (provider.TranscodingProvider, erro
 		URL: cfg.MediaConvert.Endpoint,
 	}
 
+	dbRepo, err := redis.NewRepository(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing mediaconvert wrapper: %s", err)
+	}
+
 	return &mcProvider{
-		client: mediaconvert.New(mcCfg),
-		cfg:    cfg.MediaConvert,
+		client:     mediaconvert.New(mcCfg),
+		cfg:        cfg.MediaConvert,
+		repository: dbRepo,
 	}, nil
 }

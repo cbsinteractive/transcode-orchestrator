@@ -12,6 +12,40 @@ import (
 	"github.com/pkg/errors"
 )
 
+func outputFrom(preset db.Preset) (mediaconvert.Output, error) {
+	container, err := containerFrom(preset.Container)
+	if err != nil {
+		return mediaconvert.Output{}, errors.Wrap(err, "mapping preset container to MediaConvert container")
+	}
+
+	var videoPreset *mediaconvert.VideoDescription
+	if preset.Video != (db.VideoPreset{}) {
+		videoPreset, err = videoPresetFrom(preset)
+		if err != nil {
+			return mediaconvert.Output{}, errors.Wrap(err, "generating video preset")
+		}
+	}
+
+	var audioPresets []mediaconvert.AudioDescription
+	if preset.Audio != (db.AudioPreset{}) {
+		audioPreset, err := audioPresetFrom(preset)
+		if err != nil {
+			return mediaconvert.Output{}, errors.Wrap(err, "generating audio preset")
+		}
+		audioPresets = append(audioPresets, audioPreset)
+	}
+
+	output := mediaconvert.Output{
+		ContainerSettings: &mediaconvert.ContainerSettings{
+			Container: container,
+		},
+		VideoDescription:  videoPreset,
+		AudioDescriptions: audioPresets,
+	}
+
+	return output, nil
+}
+
 func providerStatusFrom(status mediaconvert.JobStatus) provider.Status {
 	switch status {
 	case mediaconvert.JobStatusSubmitted:

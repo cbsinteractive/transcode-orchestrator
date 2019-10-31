@@ -2,12 +2,14 @@ package mediaconvert
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/video-transcoding-api/db/dbtest"
 	"github.com/cbsinteractive/video-transcoding-api/provider"
 	"github.com/google/go-cmp/cmp"
 )
@@ -36,7 +38,7 @@ var (
 	}
 
 	h265Preset = db.Preset{
-		Name:        "preset_name",
+		Name:        "another_preset_name",
 		Description: "test_desc",
 		Container:   "mp4",
 		RateControl: "CBR",
@@ -58,7 +60,7 @@ var (
 		Outputs: []db.TranscodeOutput{
 			{
 				Preset: db.PresetMap{
-					Name: "preset1",
+					Name: "preset_name",
 					ProviderMapping: map[string]string{
 						"mediaconvert": "preset1",
 					},
@@ -67,7 +69,7 @@ var (
 			},
 			{
 				Preset: db.PresetMap{
-					Name: "preset2",
+					Name: "another_preset_name",
 					ProviderMapping: map[string]string{
 						"mediaconvert": "preset2",
 					},
@@ -82,117 +84,23 @@ var (
 )
 
 func Test_mcProvider_CreatePreset(t *testing.T) {
-	tests := []struct {
-		name          string
-		preset        db.Preset
-		wantPresetReq mediaconvert.CreatePresetInput
-		wantErr       bool
-	}{
-		{
-			name:   "a valid h264/aac mp4 preset results in the expected mediaconvert preset sent to AWS API",
-			preset: defaultPreset,
-			wantPresetReq: mediaconvert.CreatePresetInput{
-				Name:        aws.String("preset_name"),
-				Description: aws.String("test_desc"),
-				Settings: &mediaconvert.PresetSettings{
-					ContainerSettings: &mediaconvert.ContainerSettings{
-						Container: mediaconvert.ContainerTypeMp4,
-					},
-					VideoDescription: &mediaconvert.VideoDescription{
-						Height:            aws.Int64(400),
-						Width:             aws.Int64(300),
-						RespondToAfd:      mediaconvert.RespondToAfdNone,
-						ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-						TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-						AntiAlias:         mediaconvert.AntiAliasEnabled,
-						CodecSettings: &mediaconvert.VideoCodecSettings{
-							Codec: mediaconvert.VideoCodecH264,
-							H264Settings: &mediaconvert.H264Settings{
-								Bitrate:            aws.Int64(400000),
-								CodecLevel:         mediaconvert.H264CodecLevelAuto,
-								CodecProfile:       mediaconvert.H264CodecProfileHigh,
-								InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
-								QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
-								RateControlMode:    mediaconvert.H264RateControlModeVbr,
-								GopSize:            aws.Float64(120),
-							},
-						},
-					},
-					AudioDescriptions: []mediaconvert.AudioDescription{
-						{
-							CodecSettings: &mediaconvert.AudioCodecSettings{
-								Codec: mediaconvert.AudioCodecAac,
-								AacSettings: &mediaconvert.AacSettings{
-									Bitrate:         aws.Int64(20000),
-									CodecProfile:    mediaconvert.AacCodecProfileLc,
-									CodingMode:      mediaconvert.AacCodingModeCodingMode20,
-									RateControlMode: mediaconvert.AacRateControlModeCbr,
-									SampleRate:      aws.Int64(defaultAudioSampleRate),
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name:   "a valid h265/aac mp4 preset results in the expected mediaconvert preset sent to AWS API",
-			preset: h265Preset,
-			wantPresetReq: mediaconvert.CreatePresetInput{
-				Name:        aws.String("preset_name"),
-				Description: aws.String("test_desc"),
-				Settings: &mediaconvert.PresetSettings{
-					ContainerSettings: &mediaconvert.ContainerSettings{
-						Container: mediaconvert.ContainerTypeMp4,
-					},
-					VideoDescription: &mediaconvert.VideoDescription{
-						Height:            aws.Int64(400),
-						Width:             aws.Int64(300),
-						RespondToAfd:      mediaconvert.RespondToAfdNone,
-						ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-						TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-						AntiAlias:         mediaconvert.AntiAliasEnabled,
-						CodecSettings: &mediaconvert.VideoCodecSettings{
-							Codec: mediaconvert.VideoCodecH265,
-							H265Settings: &mediaconvert.H265Settings{
-								Bitrate:                        aws.Int64(400000),
-								GopSize:                        aws.Float64(120),
-								CodecLevel:                     mediaconvert.H265CodecLevelAuto,
-								CodecProfile:                   mediaconvert.H265CodecProfileMainMain,
-								InterlaceMode:                  mediaconvert.H265InterlaceModeProgressive,
-								QualityTuningLevel:             mediaconvert.H265QualityTuningLevelSinglePassHq,
-								RateControlMode:                mediaconvert.H265RateControlModeCbr,
-								WriteMp4PackagingType:          mediaconvert.H265WriteMp4PackagingTypeHvc1,
-								AlternateTransferFunctionSei:   mediaconvert.H265AlternateTransferFunctionSeiDisabled,
-								SpatialAdaptiveQuantization:    mediaconvert.H265SpatialAdaptiveQuantizationEnabled,
-								TemporalAdaptiveQuantization:   mediaconvert.H265TemporalAdaptiveQuantizationEnabled,
-								FlickerAdaptiveQuantization:    mediaconvert.H265FlickerAdaptiveQuantizationEnabled,
-								SceneChangeDetect:              mediaconvert.H265SceneChangeDetectEnabled,
-								UnregisteredSeiTimecode:        mediaconvert.H265UnregisteredSeiTimecodeDisabled,
-								SampleAdaptiveOffsetFilterMode: mediaconvert.H265SampleAdaptiveOffsetFilterModeAdaptive,
-							},
-						},
-					},
-				},
-			},
-		},
+	client := &testMediaConvertClient{t: t}
+	p := &mcProvider{client: client, repository: dbtest.NewFakeRepository(false)}
+	presetName, err := p.CreatePreset(defaultPreset)
+	if err != nil {
+		t.Errorf("mcProvider.CreatePreset() did not expect an error, got %+v", err)
+		return
 	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			client := &testMediaConvertClient{t: t}
-			p := &mcProvider{client: client}
-			_, err := p.CreatePreset(tt.preset)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("mcProvider.CreatePreset() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 
-			if g, e := *client.createPresetCalledWith, tt.wantPresetReq; !reflect.DeepEqual(g, e) {
-				t.Fatalf("CreatePreset(): wrong preset request\nWant %+v\nGot %+v\nDiff %s", e,
-					g, cmp.Diff(e, g))
-			}
-		})
+	preset, err := p.GetPreset(presetName)
+	if err != nil {
+		t.Errorf("didn't expect GetPreset to return an error, got %+v", err)
+		return
+	}
+
+	if g, e := preset.(*db.LocalPreset).Preset, defaultPreset; !reflect.DeepEqual(g, e) {
+		t.Fatalf("CreatePreset(): wrong preset \nWant %+v\nGot %+v\nDiff %s", e,
+			g, cmp.Diff(e, g))
 	}
 }
 
@@ -200,7 +108,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 	tests := []struct {
 		name           string
 		presetModifier func(preset db.Preset) db.Preset
-		assertion      func(*mediaconvert.CreatePresetInput, *testing.T)
+		assertion      func(mediaconvert.Output, *testing.T)
 		wantErrMsg     string
 	}{
 		{
@@ -209,8 +117,8 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 				p.Container = "m3u8"
 				return p
 			},
-			assertion: func(input *mediaconvert.CreatePresetInput, t *testing.T) {
-				if g, e := input.Settings.ContainerSettings.Container, mediaconvert.ContainerTypeM3u8; g != e {
+			assertion: func(output mediaconvert.Output, t *testing.T) {
+				if g, e := output.ContainerSettings.Container, mediaconvert.ContainerTypeM3u8; g != e {
 					t.Fatalf("got %q, expected %q", g, e)
 				}
 			},
@@ -221,8 +129,8 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 				p.Container = "cmaf"
 				return p
 			},
-			assertion: func(input *mediaconvert.CreatePresetInput, t *testing.T) {
-				if g, e := input.Settings.ContainerSettings.Container, mediaconvert.ContainerTypeCmfc; g != e {
+			assertion: func(output mediaconvert.Output, t *testing.T) {
+				if g, e := output.ContainerSettings.Container, mediaconvert.ContainerTypeCmfc; g != e {
 					t.Fatalf("got %q, expected %q", g, e)
 				}
 			},
@@ -236,8 +144,8 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 				p.Video.HDR10Settings.MasterDisplay = "G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(100000000000,0)"
 				return p
 			},
-			assertion: func(input *mediaconvert.CreatePresetInput, t *testing.T) {
-				colorSpaceConversion := input.Settings.VideoDescription.VideoPreprocessors.ColorCorrector.ColorSpaceConversion
+			assertion: func(output mediaconvert.Output, t *testing.T) {
+				colorSpaceConversion := output.VideoDescription.VideoPreprocessors.ColorCorrector.ColorSpaceConversion
 				if g, e := colorSpaceConversion, mediaconvert.ColorSpaceConversionForceHdr10; g != e {
 					t.Fatalf("got %q, expected %q", g, e)
 				}
@@ -257,7 +165,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 					MaxFrameAverageLightLevel: aws.Int64(400),
 				}
 
-				gotHDR10Metadata := input.Settings.VideoDescription.VideoPreprocessors.ColorCorrector.Hdr10Metadata
+				gotHDR10Metadata := output.VideoDescription.VideoPreprocessors.ColorCorrector.Hdr10Metadata
 				if g, e := gotHDR10Metadata, wantHDR10Metadata; !reflect.DeepEqual(g, e) {
 					t.Fatalf("got %q, expected %q", g, e)
 				}
@@ -364,62 +272,94 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			client := &testMediaConvertClient{t: t}
-			p := &mcProvider{client: client}
-			_, err := p.CreatePreset(tt.presetModifier(defaultPreset))
-			if err != nil && tt.wantErrMsg != err.Error() {
-				t.Errorf("mcProvider.CreatePreset() error = %v, wantErr %q", err, tt.wantErrMsg)
+
+			repo, err := fakeDBWithPresets(tt.presetModifier(defaultPreset))
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			p := &mcProvider{client: client, repository: repo, cfg: &config.MediaConvert{Destination: "s3://some_dest"}}
+
+			_, err = p.Transcode(&db.Job{
+				ID: "jobID", ProviderName: Name, SourceMedia: "s3://some/path.mp4",
+				Outputs: []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+			})
+			if err != nil && !strings.Contains(err.Error(), tt.wantErrMsg) {
+				t.Errorf("mcProvider.Transcode() error = %v, wantErr %q", err, tt.wantErrMsg)
 				return
 			}
 
 			if tt.assertion != nil {
-				tt.assertion(client.createPresetCalledWith, t)
+				tt.assertion(client.createJobCalledWith.Settings.OutputGroups[0].Outputs[0], t)
 			}
 		})
 	}
 }
 
 func Test_mcProvider_GetPreset(t *testing.T) {
-	presetID := "some_preset"
 	client := &testMediaConvertClient{t: t}
-	p := &mcProvider{client: client}
-	_, err := p.GetPreset(presetID)
+
+	fakeDB, err := fakeDBWithPresets(defaultPreset)
 	if err != nil {
-		t.Fatalf("expected GetPreset() not to return an error, got: %v", err)
+		t.Errorf("mcProvider.DeletePreset() error = %v", err)
+		return
 	}
 
-	if g, e := client.getPresetCalledWith, presetID; g != e {
-		t.Fatalf("got %q, expected %q", g, e)
+	p := &mcProvider{client: client, repository: fakeDB}
+
+	_, err = p.GetPreset(defaultPreset.Name)
+	if err != nil {
+		t.Fatalf("expected GetPreset() not to return an error, got: %v", err)
 	}
 }
 
 func Test_mcProvider_DeletePreset(t *testing.T) {
-	presetID := "some_preset_id"
 	client := &testMediaConvertClient{t: t}
-	p := &mcProvider{client: client}
-	err := p.DeletePreset(presetID)
+
+	fakeDB, err := fakeDBWithPresets(defaultPreset)
+	if err != nil {
+		t.Errorf("mcProvider.DeletePreset() error = %v", err)
+		return
+	}
+
+	p := &mcProvider{client: client, repository: fakeDB}
+
+	_, err = p.GetPreset(defaultPreset.Name)
+	if err != nil {
+		t.Fatalf("did not expect GetPreset() to return an error, got %+v", err)
+	}
+
+	err = p.DeletePreset(defaultPreset.Name)
 	if err != nil {
 		t.Fatalf("expected DeletePreset() not to return an error, got: %v", err)
 	}
 
-	if g, e := client.deletePresetCalledWith, presetID; g != e {
-		t.Fatalf("got %q, expected %q", g, e)
+	_, err = p.GetPreset(defaultPreset.Name)
+	if err == nil || err.Error() != "local preset not found" {
+		t.Fatal("expected GetPreset() to return an error, not nil")
 	}
 }
 
 func Test_mcProvider_Transcode(t *testing.T) {
 	tests := []struct {
-		name                string
-		job                 *db.Job
-		presetContainerType mediaconvert.ContainerType
-		destination         string
-		wantJobReq          mediaconvert.CreateJobInput
-		wantErr             bool
+		name        string
+		job         *db.Job
+		preset      db.Preset
+		destination string
+		wantJobReq  mediaconvert.CreateJobInput
+		wantErr     bool
 	}{
 		{
-			name:                "a valid mp4 transcode job is mapped correctly to a mediaconvert job input",
-			job:                 &defaultJob,
-			presetContainerType: mediaconvert.ContainerTypeMp4,
-			destination:         "s3://some/destination",
+			name: "a valid h264/aac mp4 transcode job is mapped correctly to a mediaconvert job input",
+			job: &db.Job{
+				ID:           "jobID",
+				ProviderName: Name,
+				SourceMedia:  "s3://some/path.mp4",
+				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+			},
+			preset:      defaultPreset,
+			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
 				Role:  aws.String(""),
 				Queue: aws.String(""),
@@ -448,13 +388,44 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							Outputs: []mediaconvert.Output{
 								{
 									NameModifier: aws.String("file1"),
-									Preset:       aws.String("preset1"),
-									Extension:    aws.String("mp4"),
-								},
-								{
-									NameModifier: aws.String("file2"),
-									Preset:       aws.String("preset2"),
-									Extension:    aws.String("mp4"),
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeMp4,
+									},
+									VideoDescription: &mediaconvert.VideoDescription{
+										Height:            aws.Int64(400),
+										Width:             aws.Int64(300),
+										RespondToAfd:      mediaconvert.RespondToAfdNone,
+										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+										AntiAlias:         mediaconvert.AntiAliasEnabled,
+										CodecSettings: &mediaconvert.VideoCodecSettings{
+											Codec: mediaconvert.VideoCodecH264,
+											H264Settings: &mediaconvert.H264Settings{
+												Bitrate:            aws.Int64(400000),
+												CodecLevel:         mediaconvert.H264CodecLevelAuto,
+												CodecProfile:       mediaconvert.H264CodecProfileHigh,
+												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+												RateControlMode:    mediaconvert.H264RateControlModeVbr,
+												GopSize:            aws.Float64(120),
+											},
+										},
+									},
+									AudioDescriptions: []mediaconvert.AudioDescription{
+										{
+											CodecSettings: &mediaconvert.AudioCodecSettings{
+												Codec: mediaconvert.AudioCodecAac,
+												AacSettings: &mediaconvert.AacSettings{
+													Bitrate:         aws.Int64(20000),
+													CodecProfile:    mediaconvert.AacCodecProfileLc,
+													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+													RateControlMode: mediaconvert.AacRateControlModeCbr,
+													SampleRate:      aws.Int64(defaultAudioSampleRate),
+												},
+											},
+										},
+									},
+									Extension: aws.String("mp4"),
 								},
 							},
 						},
@@ -463,10 +434,15 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			},
 		},
 		{
-			name:                "a valid hls transcode job is mapped correctly to a mediaconvert job input",
-			job:                 &defaultJob,
-			presetContainerType: mediaconvert.ContainerTypeM3u8,
-			destination:         "s3://some/destination",
+			name: "a valid h265 video-only mp4 transcode job is mapped correctly to a mediaconvert job input",
+			job: &db.Job{
+				ID:           "jobID",
+				ProviderName: Name,
+				SourceMedia:  "s3://some/path.mp4",
+				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: h265Preset.Name}, FileName: "file1.mp4"}},
+			},
+			preset:      h265Preset,
+			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
 				Role:  aws.String(""),
 				Queue: aws.String(""),
@@ -487,80 +463,46 @@ func Test_mcProvider_Transcode(t *testing.T) {
 					OutputGroups: []mediaconvert.OutputGroup{
 						{
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeHlsGroupSettings,
-								HlsGroupSettings: &mediaconvert.HlsGroupSettings{
-									Destination:            aws.String("s3://some/destination/jobID/"),
-									SegmentLength:          aws.Int64(6),
-									MinSegmentLength:       aws.Int64(0),
-									DirectoryStructure:     mediaconvert.HlsDirectoryStructureSingleDirectory,
-									ManifestDurationFormat: mediaconvert.HlsManifestDurationFormatFloatingPoint,
-									OutputSelection:        mediaconvert.HlsOutputSelectionManifestsAndSegments,
-									SegmentControl:         mediaconvert.HlsSegmentControlSegmentedFiles,
+								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+								FileGroupSettings: &mediaconvert.FileGroupSettings{
+									Destination: aws.String("s3://some/destination/jobID/"),
 								},
 							},
 							Outputs: []mediaconvert.Output{
 								{
 									NameModifier: aws.String("file1"),
-									Preset:       aws.String("preset1"),
-									Extension:    aws.String("mp4"),
-								},
-								{
-									NameModifier: aws.String("file2"),
-									Preset:       aws.String("preset2"),
-									Extension:    aws.String("mp4"),
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name:                "a valid cmaf transcode job is mapped correctly to a mediaconvert job input",
-			job:                 &defaultJob,
-			presetContainerType: mediaconvert.ContainerTypeCmfc,
-			destination:         "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				Role:  aws.String(""),
-				Queue: aws.String(""),
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": {
-									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-								},
-							},
-							FileInput: aws.String("s3://some/path.mp4"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeCmafGroupSettings,
-								CmafGroupSettings: &mediaconvert.CmafGroupSettings{
-									Destination:            aws.String("s3://some/destination/jobID/"),
-									SegmentLength:          aws.Int64(6),
-									FragmentLength:         aws.Int64(6),
-									ManifestDurationFormat: mediaconvert.CmafManifestDurationFormatFloatingPoint,
-									SegmentControl:         mediaconvert.CmafSegmentControlSegmentedFiles,
-									WriteDashManifest:      mediaconvert.CmafWriteDASHManifestEnabled,
-									WriteHlsManifest:       mediaconvert.CmafWriteHLSManifestEnabled,
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									Preset:       aws.String("preset1"),
-									Extension:    aws.String("mp4"),
-								},
-								{
-									NameModifier: aws.String("file2"),
-									Preset:       aws.String("preset2"),
-									Extension:    aws.String("mp4"),
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeMp4,
+									},
+									VideoDescription: &mediaconvert.VideoDescription{
+										Height:            aws.Int64(400),
+										Width:             aws.Int64(300),
+										RespondToAfd:      mediaconvert.RespondToAfdNone,
+										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+										AntiAlias:         mediaconvert.AntiAliasEnabled,
+										CodecSettings: &mediaconvert.VideoCodecSettings{
+											Codec: mediaconvert.VideoCodecH265,
+											H265Settings: &mediaconvert.H265Settings{
+												Bitrate:                        aws.Int64(400000),
+												GopSize:                        aws.Float64(120),
+												CodecLevel:                     mediaconvert.H265CodecLevelAuto,
+												CodecProfile:                   mediaconvert.H265CodecProfileMainMain,
+												InterlaceMode:                  mediaconvert.H265InterlaceModeProgressive,
+												QualityTuningLevel:             mediaconvert.H265QualityTuningLevelSinglePassHq,
+												RateControlMode:                mediaconvert.H265RateControlModeCbr,
+												WriteMp4PackagingType:          mediaconvert.H265WriteMp4PackagingTypeHvc1,
+												AlternateTransferFunctionSei:   mediaconvert.H265AlternateTransferFunctionSeiDisabled,
+												SpatialAdaptiveQuantization:    mediaconvert.H265SpatialAdaptiveQuantizationEnabled,
+												TemporalAdaptiveQuantization:   mediaconvert.H265TemporalAdaptiveQuantizationEnabled,
+												FlickerAdaptiveQuantization:    mediaconvert.H265FlickerAdaptiveQuantizationEnabled,
+												SceneChangeDetect:              mediaconvert.H265SceneChangeDetectEnabled,
+												UnregisteredSeiTimecode:        mediaconvert.H265UnregisteredSeiTimecodeDisabled,
+												SampleAdaptiveOffsetFilterMode: mediaconvert.H265SampleAdaptiveOffsetFilterModeAdaptive,
+											},
+										},
+									},
+									Extension: aws.String("mp4"),
 								},
 							},
 						},
@@ -573,11 +515,19 @@ func Test_mcProvider_Transcode(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			client := &testMediaConvertClient{t: t, getPresetContainerType: tt.presetContainerType}
-			p := &mcProvider{client: client, cfg: &config.MediaConvert{
-				Destination: tt.destination,
-			}}
-			_, err := p.Transcode(tt.job)
+			repo, err := fakeDBWithPresets(tt.preset)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			client := &testMediaConvertClient{t: t}
+			p := &mcProvider{
+				client:     client,
+				cfg:        &config.MediaConvert{Destination: tt.destination},
+				repository: repo,
+			}
+			_, err = p.Transcode(tt.job)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("mcProvider.Transcode() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -718,4 +668,27 @@ func Test_mcProvider_JobStatus(t *testing.T) {
 			}
 		})
 	}
+}
+
+func fakeDBWithPresets(presets ...db.Preset) (db.Repository, error) {
+	fakeDB := dbtest.NewFakeRepository(false)
+
+	for _, preset := range presets {
+		err := fakeDB.CreateLocalPreset(&db.LocalPreset{Name: preset.Name, Preset: preset})
+		if err != nil {
+			return nil, err
+		}
+
+		err = fakeDB.CreatePresetMap(&db.PresetMap{
+			Name: preset.Name,
+			ProviderMapping: map[string]string{
+				Name: preset.Name,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return fakeDB, nil
 }
