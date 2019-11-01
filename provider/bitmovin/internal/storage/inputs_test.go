@@ -170,6 +170,48 @@ func TestNewInput(t *testing.T) {
 	}
 }
 
+func TestInputPathParsing(t *testing.T) {
+	tests := []struct {
+		name, src, expectPath string
+	}{
+		{
+			name:       "a http source url without query params returns the correct path",
+			src:        "http://somedomain.com/path/file.mp4",
+			expectPath: "/path/file.mp4",
+		},
+		{
+			name:       "a http source url with query params returns the correct path with params attached",
+			src:        "http://somedomain.com/path/file.mp4?someparam=somevalue",
+			expectPath: "/path/file.mp4?someparam=somevalue",
+		},
+		{
+			name:       "an https source url without query params returns the correct path",
+			src:        "https://somedomain.com/path/file.mp4",
+			expectPath: "/path/file.mp4",
+		},
+		{
+			name:       "an https source url with query params returns the correct path with params attached",
+			src:        "https://somedomain.com/path/file.mp4?someparam=somevalue",
+			expectPath: "/path/file.mp4?someparam=somevalue",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			_, path, err := NewInput(tt.src, fakeInputAPIReturningInputID("some-http-input-id"), nil)
+			if err != nil {
+				t.Errorf("did not expect NewInput to return an error, got %v\n", err)
+				return
+			}
+
+			if g, e := path, tt.expectPath; g != e {
+				t.Errorf("NewInput() wrong path: got %q, expected %q", g, e)
+			}
+		})
+	}
+}
+
 func fakeInputAPIReturningInputID(id string) InputAPI {
 	return InputAPI{
 		S3:    &fakeS3InputAPI{inputIDToReturn: id},
