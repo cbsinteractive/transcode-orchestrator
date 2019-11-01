@@ -78,7 +78,7 @@ func httpInput(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputI
 		return "", "", errors.Wrap(err, "creating http input")
 	}
 
-	return input.Id, srcMediaURL.Path, nil
+	return input.Id, srcMediaURL.RequestURI(), nil
 }
 
 func httpsInput(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID string, path string, err error) {
@@ -89,5 +89,5 @@ func httpsInput(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (input
 		return "", "", errors.Wrap(err, "creating https input")
 	}
 
-	return input.Id, srcMediaURL.Path, nil
+	return input.Id, srcMediaURL.RequestURI(), nil
 }
