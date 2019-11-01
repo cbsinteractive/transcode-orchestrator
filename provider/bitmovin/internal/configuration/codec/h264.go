@@ -76,12 +76,25 @@ func h264ConfigFrom(preset db.Preset) (model.H264VideoConfiguration, error) {
 
 	presetGOPSize := preset.Video.GopSize
 	if presetGOPSize != "" {
-		gopSize, err := gopSizeFrom(presetGOPSize)
-		if err != nil {
-			return model.H264VideoConfiguration{}, err
+		switch strings.ToLower(preset.Video.GopUnit) {
+		case "frames", "":
+			gopSize, err := gopSizeFrom(presetGOPSize)
+			if err != nil {
+				return model.H264VideoConfiguration{}, err
+			}
+			cfg.MinGop = gopSize
+			cfg.MaxGop = gopSize
+		case "seconds":
+			gopSize, err := keyIntervalFrom(presetGOPSize)
+			if err != nil {
+				return model.H264VideoConfiguration{}, err
+			}
+			cfg.MinKeyframeInterval = gopSize
+			cfg.MaxKeyframeInterval = gopSize
 		}
-		cfg.MaxGop = gopSize // TODO: investigate this to ensure it respects preset gop mode and size
-	}
+
+		cfg.SceneCutThreshold = int32ToPtr(int32(0))
+	} // TODO: investigate this to ensure it respects preset gop mode and size
 
 	return cfg, nil
 }
@@ -121,4 +134,13 @@ func gopSizeFrom(presetGOPSize string) (*int32, error) {
 	}
 
 	return int32ToPtr(int32(dim)), nil
+}
+
+func keyIntervalFrom(presetGOPSize string) (*float64, error) {
+	dim, err := strconv.ParseFloat(presetGOPSize, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return floatToPtr(dim), nil
 }

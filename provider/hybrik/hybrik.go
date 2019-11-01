@@ -338,15 +338,18 @@ func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.Video
 		return nil, nil
 	}
 
-	var minGOPFrames, maxGOPFrames, gopSize int
-
 	gopSize, err := strconv.Atoi(preset.GopSize)
 	if err != nil {
 		return &hwrapper.VideoTarget{}, err
 	}
 
-	minGOPFrames = gopSize
-	maxGOPFrames = gopSize
+	var exactGOPFrames, exactKeyFrames int
+	switch strings.ToLower(preset.GopUnit) {
+	case "seconds":
+		exactKeyFrames = gopSize
+	case "frames", "":
+		exactGOPFrames = gopSize
+	}
 
 	bitrate, err := strconv.Atoi(preset.Bitrate)
 	if err != nil {
@@ -394,9 +397,8 @@ func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.Video
 		ChromaFormat:      chromaFormatYUV420P,
 		Profile:           videoProfile,
 		Level:             videoLevel,
-		MinGOPFrames:      minGOPFrames,
-		MaxGOPFrames:      maxGOPFrames,
-		ExactGOPFrames:    maxGOPFrames,
+		ExactGOPFrames:    exactGOPFrames,
+		ExactKeyFrame:     exactKeyFrames,
 		InterlaceMode:     preset.InterlaceMode,
 		UseSceneDetection: false,
 	}, nil

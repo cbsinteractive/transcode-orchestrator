@@ -74,11 +74,24 @@ func h265ConfigFrom(preset db.Preset) (model.H265VideoConfiguration, error) {
 
 	presetGOPSize := preset.Video.GopSize
 	if presetGOPSize != "" {
-		gopSize, err := gopSizeFrom(presetGOPSize)
-		if err != nil {
-			return model.H265VideoConfiguration{}, err
+		switch strings.ToLower(preset.Video.GopUnit) {
+		case "frames", "":
+			gopSize, err := gopSizeFrom(presetGOPSize)
+			if err != nil {
+				return model.H265VideoConfiguration{}, err
+			}
+			cfg.MinGop = gopSize
+			cfg.MaxGop = gopSize
+		case "seconds":
+			gopSize, err := keyIntervalFrom(presetGOPSize)
+			if err != nil {
+				return model.H265VideoConfiguration{}, err
+			}
+			cfg.MinKeyframeInterval = gopSize
+			cfg.MaxKeyframeInterval = gopSize
 		}
-		cfg.MaxGop = gopSize
+
+		cfg.SceneCutThreshold = int32ToPtr(int32(0))
 	}
 
 	if hdr10 := preset.Video.HDR10Settings; hdr10.Enabled {

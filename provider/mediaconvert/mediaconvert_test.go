@@ -29,6 +29,7 @@ var (
 			Codec:         "h264",
 			Bitrate:       "400000",
 			GopSize:       "120",
+			GopUnit:       "frames",
 			InterlaceMode: "progressive",
 		},
 		Audio: db.AudioPreset{
@@ -49,6 +50,7 @@ var (
 			Codec:         "h265",
 			Bitrate:       "400000",
 			GopSize:       "120",
+			GopUnit:       "frames",
 			InterlaceMode: "progressive",
 		},
 	}
@@ -408,6 +410,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
 												RateControlMode:    mediaconvert.H264RateControlModeVbr,
 												GopSize:            aws.Float64(120),
+												GopSizeUnits:       "FRAMES",
 											},
 										},
 									},
@@ -486,6 +489,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 											H265Settings: &mediaconvert.H265Settings{
 												Bitrate:                        aws.Int64(400000),
 												GopSize:                        aws.Float64(120),
+												GopSizeUnits:                   "FRAMES",
 												CodecLevel:                     mediaconvert.H265CodecLevelAuto,
 												CodecProfile:                   mediaconvert.H265CodecProfileMainMain,
 												InterlaceMode:                  mediaconvert.H265InterlaceModeProgressive,
