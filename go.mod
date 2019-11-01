@@ -6,7 +6,6 @@ require (
 	github.com/aws/aws-sdk-go-v2 v0.15.0
 	github.com/bitmovin/bitmovin-api-sdk-go v1.27.0-alpha.0
 	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20191031180025-00f04ed90532
-	github.com/flavioribeiro/zencoder v0.0.0-20161215190743-745874544382
 	github.com/fsouza/ctxlogger v1.5.8
 	github.com/fsouza/gizmo-stackdriver-logging v1.3.1
 	github.com/go-redis/redis v6.15.6+incompatible
