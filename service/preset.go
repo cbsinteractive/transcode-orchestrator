@@ -141,6 +141,9 @@ func (s *TranscodingService) newPreset(r *http.Request) swagger.GizmoJSONRespons
 	if len(presetMap.ProviderMapping) > 0 {
 		if shouldCreatePresetMap {
 			err = s.db.CreatePresetMap(presetMap)
+			if err == db.ErrPresetMapAlreadyExists {
+				err = s.updatePresetMapResolvingConflicts(presetMap)
+			}
 		} else {
 			err = s.db.UpdatePresetMap(presetMap)
 		}
