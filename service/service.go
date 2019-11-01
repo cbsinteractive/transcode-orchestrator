@@ -106,3 +106,21 @@ func (s *TranscodingService) Endpoints() map[string]map[string]http.HandlerFunc 
 		},
 	}
 }
+
+func (s *TranscodingService) updatePresetMapResolvingConflicts(presetMap *db.PresetMap) error {
+	m, err := s.db.GetPresetMap(presetMap.Name)
+	if err != nil {
+		return fmt.Errorf("fetching presetMap when attempting to resolve conflicts: %w", err)
+	}
+
+	for k, v := range m.ProviderMapping {
+		presetMap.ProviderMapping[k] = v
+	}
+
+	err = s.db.UpdatePresetMap(presetMap)
+	if err != nil {
+		return fmt.Errorf("updating presetMap after resolving conflicts: %w", err)
+	}
+
+	return nil
+}
