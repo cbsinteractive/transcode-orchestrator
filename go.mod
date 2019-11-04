@@ -1,7 +1,7 @@
 module github.com/cbsinteractive/video-transcoding-api
 
 require (
-	github.com/NYTimes/gizmo v1.3.0
+	github.com/NYTimes/gizmo v1.3.1
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/aws/aws-sdk-go-v2 v0.15.0
 	github.com/bitmovin/bitmovin-api-sdk-go v1.27.0-alpha.0
