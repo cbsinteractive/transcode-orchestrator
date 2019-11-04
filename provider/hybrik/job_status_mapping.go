@@ -66,7 +66,7 @@ func filesFrom(task hybrik.TaskResult) ([]provider.OutputFile, bool, error) {
 				normalizedPath := strings.TrimRight(assetVersion.Location.Path, "/")
 				files = append(files, provider.OutputFile{
 					Path:      fmt.Sprintf("%s/%s", normalizedPath, component.Name),
-					Container: strings.Replace(path.Ext(component.Name), ".", "", -1),
+					Container: containerFrom(component),
 					FileSize:  int64(component.Descriptor.Size),
 				})
 			}
@@ -74,6 +74,20 @@ func filesFrom(task hybrik.TaskResult) ([]provider.OutputFile, bool, error) {
 	}
 
 	return files, len(files) > 0, nil
+}
+
+const assetMediaInfoType = "ASSET"
+
+func containerFrom(component hybrik.AssetComponentResult) string {
+	if infos := component.MediaAnalyze.MediaInfo; len(infos) > 0 {
+		for _, i := range infos {
+			if i.StreamType == assetMediaInfoType && i.ASSET.Format != "" {
+				return i.ASSET.Format
+			}
+		}
+	}
+
+	return strings.Replace(path.Ext(component.Name), ".", "", -1)
 }
 
 func taskHasOutputs(task hybrik.TaskResult, matchers []taskWithOutputMatcher) bool {

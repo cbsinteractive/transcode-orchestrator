@@ -40,6 +40,17 @@ func Test_filesFrom(t *testing.T) {
 			},
 		},
 		{
+			name: "returns a valid container when the filename contains no extension",
+			file: "testdata/task_status_filename_no_extension.json",
+			outputFiles: []provider.OutputFile{
+				{
+					Path:      "s3://vtg-tsymborski-test-bucket/encodes/046afa431fe57178/CBS_NCISNO_509_AA_30M_6CH_528",
+					Container: "mp4",
+					FileSize:  163718122,
+				},
+			},
+		},
+		{
 			name: "pulls the correct data from legacy dolby vision post-process tasks",
 			file: "testdata/task_status_legacy_dovi_post_process.json",
 			outputFiles: []provider.OutputFile{
