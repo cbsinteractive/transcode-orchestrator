@@ -89,6 +89,8 @@ func h265ConfigFrom(preset db.Preset) (model.H265VideoConfiguration, error) {
 			}
 			cfg.MinKeyframeInterval = gopSize
 			cfg.MaxKeyframeInterval = gopSize
+		default:
+			return model.H265VideoConfiguration{}, fmt.Errorf("GopUnit %v not recognized", preset.Video.GopUnit)
 		}
 
 		cfg.SceneCutThreshold = int32ToPtr(int32(0))

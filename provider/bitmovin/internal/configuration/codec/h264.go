@@ -91,6 +91,8 @@ func h264ConfigFrom(preset db.Preset) (model.H264VideoConfiguration, error) {
 			}
 			cfg.MinKeyframeInterval = gopSize
 			cfg.MaxKeyframeInterval = gopSize
+		default:
+			return model.H264VideoConfiguration{}, fmt.Errorf("GopUnit %v not recognized", preset.Video.GopUnit)
 		}
 
 		cfg.SceneCutThreshold = int32ToPtr(int32(0))

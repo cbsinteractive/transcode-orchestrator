@@ -349,6 +349,8 @@ func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.Video
 		exactKeyFrames = gopSize
 	case db.GopUnitFrames, "":
 		exactGOPFrames = gopSize
+	default:
+		return &hwrapper.VideoTarget{}, fmt.Errorf("GopUnit %v not recognized", preset.GopUnit)
 	}
 
 	bitrate, err := strconv.Atoi(preset.Bitrate)
