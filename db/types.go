@@ -196,6 +196,17 @@ type VideoPreset struct {
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision" redis-hash:"dolbyvision,expand,omitempty"`
 }
 
+// GopUnit defines the unit used to measure gops
+type GopUnit = string
+
+const (
+	// GopUnitFrames uses Gop Frames in transcode job
+	GopUnitFrames GopUnit = "frames"
+
+	// GopUnitSeconds uses Key Intervals in transcode job
+	GopUnitSeconds GopUnit = "seconds"
+)
+
 // HDR10Settings defines a set of configurations for defining HDR10 metadata
 type HDR10Settings struct {
 	Enabled       bool   `json:"enabled" redis-hash:"enabled"`

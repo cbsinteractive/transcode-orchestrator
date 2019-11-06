@@ -78,9 +78,9 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 func h265GopUnitFrom(gopUnit string) (mediaconvert.H265GopSizeUnits, error) {
 	gopUnit = strings.ToLower(gopUnit)
 	switch gopUnit {
-	case "", "frames":
+	case "", db.GopUnitFrames:
 		return mediaconvert.H265GopSizeUnitsFrames, nil
-	case "seconds":
+	case db.GopUnitSeconds:
 		return mediaconvert.H265GopSizeUnitsSeconds, nil
 	default:
 		return "", fmt.Errorf("gop unit %q is not supported with mediaconvert", gopUnit)

@@ -345,9 +345,9 @@ func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.Video
 
 	var exactGOPFrames, exactKeyFrames int
 	switch strings.ToLower(preset.GopUnit) {
-	case "seconds":
+	case db.GopUnitSeconds:
 		exactKeyFrames = gopSize
-	case "frames", "":
+	case db.GopUnitFrames, "":
 		exactGOPFrames = gopSize
 	}
 

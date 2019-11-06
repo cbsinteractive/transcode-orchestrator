@@ -75,14 +75,14 @@ func h265ConfigFrom(preset db.Preset) (model.H265VideoConfiguration, error) {
 	presetGOPSize := preset.Video.GopSize
 	if presetGOPSize != "" {
 		switch strings.ToLower(preset.Video.GopUnit) {
-		case "frames", "":
+		case db.GopUnitFrames, "":
 			gopSize, err := gopSizeFrom(presetGOPSize)
 			if err != nil {
 				return model.H265VideoConfiguration{}, err
 			}
 			cfg.MinGop = gopSize
 			cfg.MaxGop = gopSize
-		case "seconds":
+		case db.GopUnitSeconds:
 			gopSize, err := keyIntervalFrom(presetGOPSize)
 			if err != nil {
 				return model.H265VideoConfiguration{}, err
