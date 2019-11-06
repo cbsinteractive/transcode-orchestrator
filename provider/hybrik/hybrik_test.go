@@ -63,6 +63,15 @@ type transcodeCfg struct {
 	executionEnvironment db.ExecutionEnvironment
 }
 
+// updates default preset for quick test of gop structs
+func updateGopStruct(gopSize string, gopUnit string) db.Preset {
+	var p = defaultPreset
+	p.Video.GopSize = gopSize
+	p.Video.GopUnit = gopUnit
+
+	return p
+}
+
 func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
 	tests := []struct {
 		name                 string
@@ -122,10 +131,8 @@ func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
 								Codec:          defaultPreset.Video.Codec,
 								BitrateKb:      400,
 								Preset:         presetSlow,
-								MaxGOPFrames:   120,
 								ExactGOPFrames: 120,
 								ChromaFormat:   chromaFormatYUV420P,
-								MinGOPFrames:   120,
 								BitrateMode:    "cbr",
 								Profile:        "high",
 								Level:          "4.1",
@@ -480,10 +487,75 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 											Codec:          "h264",
 											Profile:        "high",
 											Level:          "4.1",
-											MinGOPFrames:   120,
-											MaxGOPFrames:   120,
 											ExactGOPFrames: 120,
 											InterlaceMode:  "progressive",
+										},
+									}},
+								},
+							},
+						},
+					},
+					Connections: []hybrik.Connection{
+						{
+							From: []hybrik.ConnectionFrom{{Element: "source_file"}},
+							To: hybrik.ConnectionTo{
+								Success: []hybrik.ToSuccess{{Element: "transcode_task_0"}},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:   "a valid mp4 transcode job with gop unit in seconds is mapped correctly to a hybrik job input",
+			job:    &defaultJob,
+			preset: updateGopStruct("2", "seconds"),
+			wantJob: hybrik.CreateJob{
+				Name: "Job jobID [path.mp4]",
+				Payload: hybrik.CreateJobPayload{
+					Elements: []hybrik.Element{
+						{
+							UID:  "source_file",
+							Kind: "source",
+							Payload: hybrik.ElementPayload{
+								Kind:    "asset_urls",
+								Payload: []hybrik.AssetPayload{{StorageProvider: "s3", URL: "s3://some/path.mp4"}},
+							},
+						},
+						{
+							UID:  "transcode_task_0",
+							Kind: "transcode",
+							Task: &hybrik.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{}},
+							Payload: hybrik.TranscodePayload{
+								LocationTargetPayload: hybrik.LocationTargetPayload{
+									Location: hybrik.TranscodeLocation{
+										Path:            "s3://some-dest/path/jobID",
+										StorageProvider: storageProviderS3.string(),
+									},
+									Targets: []hybrik.TranscodeTarget{{
+										Audio: []hybrik.AudioTarget{{
+											BitrateKb: 20,
+											Channels:  2,
+											Codec:     "aac",
+										}},
+										Container: hybrik.TranscodeContainer{
+											Kind: "mp4",
+										},
+										ExistingFiles: "replace",
+										FilePattern:   "file1.mp4",
+										NumPasses:     2,
+										Video: &hybrik.VideoTarget{
+											Width:         intToPtr(300),
+											Height:        intToPtr(400),
+											BitrateMode:   "cbr",
+											BitrateKb:     400,
+											Preset:        presetSlow,
+											ChromaFormat:  chromaFormatYUV420P,
+											Codec:         "h264",
+											Profile:       "high",
+											Level:         "4.1",
+											ExactKeyFrame: 2,
+											InterlaceMode: "progressive",
 										},
 									}},
 								},
@@ -702,8 +774,6 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 															Codec:          "h265",
 															Profile:        "main10",
 															Tune:           "grain",
-															MinGOPFrames:   120,
-															MaxGOPFrames:   120,
 															ExactGOPFrames: 120,
 															InterlaceMode:  "progressive",
 															ChromaFormat:   "yuv420p10le",

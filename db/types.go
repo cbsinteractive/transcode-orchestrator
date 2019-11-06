@@ -189,11 +189,23 @@ type VideoPreset struct {
 	Codec               string              `json:"codec,omitempty" redis-hash:"codec,omitempty"`
 	Bitrate             string              `json:"bitrate,omitempty" redis-hash:"bitrate,omitempty"`
 	GopSize             string              `json:"gopSize,omitempty" redis-hash:"gopsize,omitempty"`
+	GopUnit             string              `json:"gopUnit,omitempty" redis-hash:"gopunit,omitempty"`
 	GopMode             string              `json:"gopMode,omitempty" redis-hash:"gopmode,omitempty"`
 	InterlaceMode       string              `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
 	HDR10Settings       HDR10Settings       `json:"hdr10" redis-hash:"hdr10,expand,omitempty"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision" redis-hash:"dolbyvision,expand,omitempty"`
 }
+
+// GopUnit defines the unit used to measure gops
+type GopUnit = string
+
+const (
+	// GopUnitFrames uses Gop Frames in transcode job
+	GopUnitFrames GopUnit = "frames"
+
+	// GopUnitSeconds uses Key Intervals in transcode job
+	GopUnitSeconds GopUnit = "seconds"
+)
 
 // HDR10Settings defines a set of configurations for defining HDR10 metadata
 type HDR10Settings struct {

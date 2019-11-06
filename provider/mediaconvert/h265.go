@@ -22,6 +22,11 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		return nil, errors.Wrapf(err, "parsing gop size %q to int64", preset.Video.GopSize)
 	}
 
+	gopUnit, err := h265GopUnitFrom(preset.Video.GopUnit)
+	if err != nil {
+		return nil, err
+	}
+
 	rateControl, err := h265RateControlModeFrom(preset.RateControl)
 	if err != nil {
 		return nil, err
@@ -52,6 +57,7 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		H265Settings: &mediaconvert.H265Settings{
 			Bitrate:                        aws.Int64(bitrate),
 			GopSize:                        aws.Float64(gopSize),
+			GopSizeUnits:                   gopUnit,
 			RateControlMode:                rateControl,
 			CodecProfile:                   profile,
 			CodecLevel:                     level,
@@ -67,6 +73,18 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 			SampleAdaptiveOffsetFilterMode: mediaconvert.H265SampleAdaptiveOffsetFilterModeAdaptive,
 		},
 	}, nil
+}
+
+func h265GopUnitFrom(gopUnit string) (mediaconvert.H265GopSizeUnits, error) {
+	gopUnit = strings.ToLower(gopUnit)
+	switch gopUnit {
+	case "", db.GopUnitFrames:
+		return mediaconvert.H265GopSizeUnitsFrames, nil
+	case db.GopUnitSeconds:
+		return mediaconvert.H265GopSizeUnitsSeconds, nil
+	default:
+		return "", fmt.Errorf("gop unit %q is not supported with mediaconvert", gopUnit)
+	}
 }
 
 func h265RateControlModeFrom(rateControl string) (mediaconvert.H265RateControlMode, error) {
