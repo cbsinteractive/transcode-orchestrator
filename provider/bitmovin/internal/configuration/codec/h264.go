@@ -94,7 +94,7 @@ func h264ConfigFrom(preset db.Preset) (model.H264VideoConfiguration, error) {
 		}
 
 		cfg.SceneCutThreshold = int32ToPtr(int32(0))
-	} // TODO: investigate this to ensure it respects preset gop mode and size
+	}
 
 	return cfg, nil
 }
