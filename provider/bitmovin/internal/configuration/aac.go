@@ -41,9 +41,7 @@ func (c *AAC) Create(preset db.Preset) (string, error) {
 	return preset.Name, nil
 }
 
-// Get retrieves audio with a presetID
-// the function will return a boolean indicating whether the audio
-// configuration was found, a config object and an optional error
+// Get retrieves a stored db.PresetSummary by its name
 func (c *AAC) Get(presetName string) (db.PresetSummary, error) {
 	return c.repo.GetPresetSummary(presetName)
 }
