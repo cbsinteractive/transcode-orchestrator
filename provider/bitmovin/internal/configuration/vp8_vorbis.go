@@ -48,7 +48,7 @@ func (c *VP8Vorbis) Create(preset db.Preset) (string, error) {
 	return preset.Name, nil
 }
 
-// Get retrieves audio / video configuration with a presetName
+// Get retrieves a stored db.PresetSummary by its name
 func (c *VP8Vorbis) Get(presetName string) (db.PresetSummary, error) {
 	return c.repo.GetPresetSummary(presetName)
 }

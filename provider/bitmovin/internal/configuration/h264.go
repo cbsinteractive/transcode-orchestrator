@@ -10,20 +10,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-// AAC is a configuration service for content using only this codec
-type AAC struct {
+// H264 is a configuration service for content in h.264
+type H264 struct {
 	api  *bitmovin.BitmovinApi
 	repo db.PresetSummaryRepository
 }
 
-// NewAAC returns a service for managing AAC audio only configurations
-func NewAAC(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *AAC {
-	return &AAC{api: api, repo: repo}
+// NewH264 returns a service for managing h.264 configurations
+func NewH264(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *H264 {
+	return &H264{api: api, repo: repo}
 }
 
-// Create will create a new AAC configuration based on a preset
-func (c *AAC) Create(preset db.Preset) (string, error) {
-	audCfgID, err := codec.NewAAC(c.api, preset.Audio.Bitrate)
+// Create will create a new H264 configuration based on a preset
+func (c *H264) Create(preset db.Preset) (string, error) {
+	vidCfgID, err := codec.NewH264(c.api, preset)
 	if err != nil {
 		return "", err
 	}
@@ -31,8 +31,8 @@ func (c *AAC) Create(preset db.Preset) (string, error) {
 	err = c.repo.CreatePresetSummary(&db.PresetSummary{
 		Name:          preset.Name,
 		Container:     preset.Container,
-		AudioCodec:    string(model.CodecConfigType_AAC),
-		AudioConfigID: audCfgID,
+		VideoCodec:    string(model.CodecConfigType_H264),
+		VideoConfigID: vidCfgID,
 	})
 	if err != nil {
 		return "", err
@@ -42,20 +42,20 @@ func (c *AAC) Create(preset db.Preset) (string, error) {
 }
 
 // Get retrieves a stored db.PresetSummary by its name
-func (c *AAC) Get(presetName string) (db.PresetSummary, error) {
+func (c *H264) Get(presetName string) (db.PresetSummary, error) {
 	return c.repo.GetPresetSummary(presetName)
 }
 
-// Delete removes the audio configurations
-func (c *AAC) Delete(presetName string) error {
+// Delete removes the video configuration
+func (c *H264) Delete(presetName string) error {
 	summary, err := c.Get(presetName)
 	if err != nil {
 		return err
 	}
 
-	_, err = c.api.Encoding.Configurations.Audio.Aac.Delete(summary.AudioConfigID)
+	_, err = c.api.Encoding.Configurations.Video.H264.Delete(summary.VideoConfigID)
 	if err != nil {
-		return errors.Wrap(err, "removing the audio config")
+		return errors.Wrap(err, "removing the video config")
 	}
 
 	err = c.repo.DeletePresetSummary(presetName)
