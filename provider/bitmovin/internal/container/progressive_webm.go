@@ -1,7 +1,6 @@
 package container
 
 import (
-	"fmt"
 	"path"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
@@ -72,18 +71,23 @@ func (e *ProgressiveWebMStatusEnricher) Enrich(s provider.JobStatus) (provider.J
 			return s, errors.Wrapf(err, "retrieving muxing information with ID %q", muxing.Id)
 		}
 
-		if len(info.VideoTracks) == 0 {
-			return s, fmt.Errorf("no video track found for encodingID %s muxingID %s", s.ProviderJobID, muxing.Id)
+		var (
+			height, width int64
+			videoCodec    string
+		)
+		if len(info.VideoTracks) > 0 {
+			track := info.VideoTracks[0]
+			height, width = dimentionToInt64(track.FrameHeight), dimentionToInt64(track.FrameWidth)
+			videoCodec = track.Codec
 		}
 
-		firstVidTrack := info.VideoTracks[0]
 		s.Output.Files = append(s.Output.Files, provider.OutputFile{
 			Path:       s.Output.Destination + muxing.Filename,
 			Container:  info.ContainerFormat,
 			FileSize:   int64Value(info.FileSize),
-			VideoCodec: firstVidTrack.Codec,
-			Width:      int64(int32Value(firstVidTrack.FrameWidth)),
-			Height:     int64(int32Value(firstVidTrack.FrameHeight)),
+			VideoCodec: videoCodec,
+			Width:      width,
+			Height:     height,
 		})
 	}
 
