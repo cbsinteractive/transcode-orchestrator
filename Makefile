@@ -28,6 +28,7 @@ lint: testdeps
 		-D gocognit \
 		-D gochecknoinits \
 		-D unparam \
+		-D gomnd \
 		--deadline 5m ./...
 
 gotest: testdeps
