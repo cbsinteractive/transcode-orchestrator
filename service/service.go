@@ -9,6 +9,7 @@ import (
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/cbsinteractive/video-transcoding-api/db/redis"
+	"github.com/cbsinteractive/video-transcoding-api/service/exceptions"
 	"github.com/cbsinteractive/video-transcoding-api/swagger"
 	"github.com/fsouza/ctxlogger"
 	"github.com/gorilla/handlers"
@@ -18,9 +19,10 @@ import (
 // TranscodingService will implement server.JSONService and handle all requests
 // to the server.
 type TranscodingService struct {
-	config *config.Config
-	db     db.Repository
-	logger *logrus.Logger
+	config      *config.Config
+	db          db.Repository
+	logger      *logrus.Logger
+	errReporter exceptions.Reporter
 }
 
 // NewTranscodingService will instantiate a JSONService
@@ -30,7 +32,19 @@ func NewTranscodingService(cfg *config.Config, logger *logrus.Logger) (*Transcod
 	if err != nil {
 		return nil, fmt.Errorf("error initializing Redis client: %s", err)
 	}
-	return &TranscodingService{config: cfg, db: dbRepo, logger: logger}, nil
+
+	var errReporter exceptions.Reporter
+	if cfg.SentryDSN != "" {
+		errReporter, err = exceptions.NewSentryReporter(cfg.SentryDSN, cfg.Env)
+		if err != nil {
+			return nil, fmt.Errorf("error initializing Sentry exceptions reporter: %v", err)
+		}
+	} else {
+		errReporter = &exceptions.NoopReporter{}
+		logger.Info("no sentry config detected, disabling sentry integration")
+	}
+
+	return &TranscodingService{config: cfg, db: dbRepo, logger: logger, errReporter: errReporter}, nil
 }
 
 // Prefix returns the string prefix used for all endpoints within
@@ -56,6 +70,10 @@ func (s *TranscodingService) JSONMiddleware(j server.JSONEndpoint) server.JSONEn
 	return func(r *http.Request) (int, interface{}, error) {
 		status, res, err := j(r)
 		if err != nil {
+			if s.errReporter != nil {
+				s.errReporter.ReportException(fmt.Errorf("req err url=%s method=%s status=%d result=%v err=%v",
+					r.URL.String(), r.Method, status, res, err))
+			}
 			return swagger.NewErrorResponse(err).WithStatus(status).Result()
 		}
 		return status, res, nil

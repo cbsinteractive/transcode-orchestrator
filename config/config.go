@@ -13,6 +13,8 @@ type Config struct {
 	Server                 *server.Config
 	SwaggerManifest        string `envconfig:"SWAGGER_MANIFEST_PATH"`
 	DefaultSegmentDuration uint   `envconfig:"DEFAULT_SEGMENT_DURATION" default:"5"`
+	SentryDSN              string `envconfig:"SENTRY_DSN"`
+	Env                    string `envconfig:"ENV" default:"dev"`
 	Redis                  *storage.Config
 	EncodingCom            *EncodingCom
 	ElasticTranscoder      *ElasticTranscoder

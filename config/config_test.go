@@ -15,6 +15,8 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	os.Clearenv()
 	accessLog := "/var/log/transcoding-api-access.log"
 	setEnvs(map[string]string{
+		"ENV":                                      "some_env",
+		"SENTRY_DSN":                               "some_dsn",
 		"SENTINEL_ADDRS":                           "10.10.10.10:26379,10.10.10.11:26379,10.10.10.12:26379",
 		"SENTINEL_MASTER_NAME":                     "super-master",
 		"REDIS_ADDR":                               "localhost:6379",
@@ -63,6 +65,8 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	expectedCfg := Config{
 		SwaggerManifest:        "/opt/video-transcoding-api-swagger.json",
 		DefaultSegmentDuration: 3,
+		Env:                    "some_env",
+		SentryDSN:              "some_dsn",
 		Redis: &storage.Config{
 			SentinelAddrs:      "10.10.10.10:26379,10.10.10.11:26379,10.10.10.12:26379",
 			SentinelMasterName: "super-master",
@@ -169,6 +173,7 @@ func TestLoadConfigFromEnvWithDefaults(t *testing.T) {
 	})
 	cfg := LoadConfig()
 	expectedCfg := Config{
+		Env:                    "dev",
 		SwaggerManifest:        "/opt/video-transcoding-api-swagger.json",
 		DefaultSegmentDuration: 5,
 		Redis: &storage.Config{

@@ -8,6 +8,7 @@ require (
 	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20191031180025-00f04ed90532
 	github.com/fsouza/ctxlogger v1.5.8
 	github.com/fsouza/gizmo-stackdriver-logging v1.3.1
+	github.com/getsentry/sentry-go v0.3.1
 	github.com/go-redis/redis v6.15.6+incompatible
 	github.com/google/go-cmp v0.3.1
 	github.com/google/gops v0.3.6
@@ -15,9 +16,6 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kr/pretty v0.1.0
 	github.com/mitchellh/hashstructure v1.0.0
-	github.com/mitchellh/mapstructure v1.1.2 // indirect
-	github.com/onsi/ginkgo v1.8.0 // indirect
-	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.4.2
 )
