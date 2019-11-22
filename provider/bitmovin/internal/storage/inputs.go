@@ -14,7 +14,7 @@ const (
 	schemeHTTPS = "https"
 )
 
-type inputCreator func(*url.URL, InputAPI, *config.Bitmovin) (inputID string, path string, err error)
+type inputCreator func(*url.URL, InputAPI, *config.Bitmovin) (inputID string, err error)
 
 var inputCreators = map[string]inputCreator{
 	schemeS3:    s3Input,
@@ -24,22 +24,22 @@ var inputCreators = map[string]inputCreator{
 }
 
 // NewInput creates an input and returns an inputID and the media path or an error
-func NewInput(srcMediaLoc string, api InputAPI, cfg *config.Bitmovin) (inputID string, path string, err error) {
+func NewInput(srcMediaLoc string, api InputAPI, cfg *config.Bitmovin) (inputID string, err error) {
 	mediaURL, err := url.Parse(srcMediaLoc)
 	if err != nil {
-		return "", "", fmt.Errorf("could not parse source media location %q", srcMediaLoc)
+		return "", fmt.Errorf("could not parse source media location %q", srcMediaLoc)
 	}
 
 	creator, found := inputCreators[mediaURL.Scheme]
 	if !found {
-		return "", "", fmt.Errorf("invalid scheme %q, only s3, gcs, http, and https urls are supported", mediaURL.Scheme)
+		return "", fmt.Errorf("invalid scheme %q, only s3, gcs, http, and https urls are supported", mediaURL.Scheme)
 	}
 
 	return creator(mediaURL, api, cfg)
 }
 
-func s3Input(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID string, path string, err error) {
-	bucket, mediaPath := parseS3URL(srcMediaURL)
+func s3Input(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID string, err error) {
+	bucket, _ := parseS3URL(srcMediaURL)
 
 	input, err := api.S3.Create(model.S3Input{
 		CloudRegion: model.AwsCloudRegion(cfg.AWSStorageRegion),
@@ -48,14 +48,14 @@ func s3Input(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID 
 		SecretKey:   cfg.SecretAccessKey,
 	})
 	if err != nil {
-		return "", "", errors.Wrap(err, "creating s3 input")
+		return "", errors.Wrap(err, "creating s3 input")
 	}
 
-	return input.Id, mediaPath, nil
+	return input.Id, nil
 }
 
-func gcsInput(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID string, path string, err error) {
-	bucket, mediaPath := parseGCSURL(srcMediaURL)
+func gcsInput(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID string, err error) {
+	bucket, _ := parseGCSURL(srcMediaURL)
 
 	input, err := api.GCS.Create(model.GcsInput{
 		CloudRegion: model.GoogleCloudRegion(cfg.GCSStorageRegion),
@@ -64,30 +64,30 @@ func gcsInput(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID
 		SecretKey:   cfg.GCSSecretAccessKey,
 	})
 	if err != nil {
-		return "", "", errors.Wrap(err, "creating gcs input")
+		return "", errors.Wrap(err, "creating gcs input")
 	}
 
-	return input.Id, mediaPath, nil
+	return input.Id, nil
 }
 
-func httpInput(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID string, path string, err error) {
+func httpInput(srcMediaURL *url.URL, api InputAPI, _ *config.Bitmovin) (inputID string, err error) {
 	input, err := api.HTTP.Create(model.HttpInput{
 		Host: srcMediaURL.Host,
 	})
 	if err != nil {
-		return "", "", errors.Wrap(err, "creating http input")
+		return "", errors.Wrap(err, "creating http input")
 	}
 
-	return input.Id, srcMediaURL.RequestURI(), nil
+	return input.Id, nil
 }
 
-func httpsInput(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID string, path string, err error) {
+func httpsInput(srcMediaURL *url.URL, api InputAPI, _ *config.Bitmovin) (inputID string, err error) {
 	input, err := api.HTTPS.Create(model.HttpsInput{
 		Host: srcMediaURL.Host,
 	})
 	if err != nil {
-		return "", "", errors.Wrap(err, "creating https input")
+		return "", errors.Wrap(err, "creating https input")
 	}
 
-	return input.Id, srcMediaURL.RequestURI(), nil
+	return input.Id, nil
 }

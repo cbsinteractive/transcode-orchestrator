@@ -83,6 +83,8 @@ type ExecutionEnvironment struct {
 	Region           string                  `redis-hash:"region,omitempty" json:"region"`
 	ComputeTags      map[ComputeClass]string `redis-hash:"computetags,omitempty,expand" json:"computeTags,omitempty"`
 	CredentialsAlias string                  `redis-hash:"credentialsalias,omitempty" json:"credentialsAlias,omitempty"`
+	InputAlias       string                  `redis-hash:"inputalias,omitempty" json:"inputAlias,omitempty"`
+	OutputAlias      string                  `redis-hash:"outputalias,omitempty" json:"outputAlias,omitempty"`
 }
 
 // ComputeClass represents a group of resources with similar capability

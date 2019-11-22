@@ -193,12 +193,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		presets[idx] = summary
 	}
 
-	inputID, mediaPath, err := storage.NewInput(job.SourceMedia, storage.InputAPI{
-		S3:    p.api.Encoding.Inputs.S3,
-		GCS:   p.api.Encoding.Inputs.Gcs,
-		HTTP:  p.api.Encoding.Inputs.Http,
-		HTTPS: p.api.Encoding.Inputs.Https,
-	}, p.providerCfg)
+	inputID, mediaPath, err := p.inputFrom(job.SourceMedia, job.ExecutionEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -333,6 +328,52 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		ProviderJobID: encResp.Id,
 		Status:        provider.StatusQueued,
 	}, nil
+}
+
+func (p *bitmovinProvider) inputFrom(src string, executionEnv db.ExecutionEnvironment) (inputID string, path string, err error) {
+	mediaPath, err := storage.PathFrom(src)
+	if err != nil {
+		return "", "", err
+	}
+
+	if alias := executionEnv.InputAlias; alias != "" {
+		return alias, mediaPath, nil
+	}
+
+	inputID, err = storage.NewInput(src, storage.InputAPI{
+		S3:    p.api.Encoding.Inputs.S3,
+		GCS:   p.api.Encoding.Inputs.Gcs,
+		HTTP:  p.api.Encoding.Inputs.Http,
+		HTTPS: p.api.Encoding.Inputs.Https,
+	}, p.providerCfg)
+	if err != nil {
+		return "", mediaPath, err
+	}
+
+	return inputID, mediaPath, nil
+}
+
+func (p *bitmovinProvider) outputFrom(src string, executionEnv db.ExecutionEnvironment) (inputID string, path string, err error) {
+	mediaPath, err := storage.PathFrom(src)
+	if err != nil {
+		return "", "", err
+	}
+
+	if alias := executionEnv.InputAlias; alias != "" {
+		return alias, mediaPath, nil
+	}
+
+	inputID, err = storage.NewInput(src, storage.InputAPI{
+		S3:    p.api.Encoding.Inputs.S3,
+		GCS:   p.api.Encoding.Inputs.Gcs,
+		HTTP:  p.api.Encoding.Inputs.Http,
+		HTTPS: p.api.Encoding.Inputs.Https,
+	}, p.providerCfg)
+	if err != nil {
+		return "", mediaPath, err
+	}
+
+	return inputID, mediaPath, nil
 }
 
 func (p *bitmovinProvider) containerServicesFrom(mediaContainer string, cfgType model.CodecConfigType) (containerSvc, error) {
