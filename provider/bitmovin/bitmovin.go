@@ -193,24 +193,15 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		presets[idx] = summary
 	}
 
-	inputID, mediaPath, err := storage.NewInput(job.SourceMedia, storage.InputAPI{
-		S3:    p.api.Encoding.Inputs.S3,
-		GCS:   p.api.Encoding.Inputs.Gcs,
-		HTTP:  p.api.Encoding.Inputs.Http,
-		HTTPS: p.api.Encoding.Inputs.Https,
-	}, p.providerCfg)
+	inputID, mediaPath, err := p.inputFrom(job)
 	if err != nil {
 		return nil, err
 	}
 
-	outputID, destPath, err := storage.NewOutput(p.destinationForJob(job), storage.OutputAPI{
-		S3:  p.api.Encoding.Outputs.S3,
-		GCS: p.api.Encoding.Outputs.Gcs,
-	}, p.providerCfg)
+	outputID, destPath, err := p.outputFrom(job)
 	if err != nil {
 		return nil, err
 	}
-	destPath = path.Join(destPath, job.ID)
 
 	inputStream := model.StreamInput{
 		InputId:       inputID,
@@ -333,6 +324,51 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		ProviderJobID: encResp.Id,
 		Status:        provider.StatusQueued,
 	}, nil
+}
+
+func (p *bitmovinProvider) inputFrom(job *db.Job) (inputID string, srcPath string, err error) {
+	srcPath, err = storage.PathFrom(job.SourceMedia)
+	if err != nil {
+		return "", "", err
+	}
+
+	if alias := job.ExecutionEnv.InputAlias; alias != "" {
+		return alias, srcPath, nil
+	}
+
+	inputID, err = storage.NewInput(job.SourceMedia, storage.InputAPI{
+		S3:    p.api.Encoding.Inputs.S3,
+		GCS:   p.api.Encoding.Inputs.Gcs,
+		HTTP:  p.api.Encoding.Inputs.Http,
+		HTTPS: p.api.Encoding.Inputs.Https,
+	}, p.providerCfg)
+	if err != nil {
+		return "", srcPath, err
+	}
+
+	return inputID, srcPath, nil
+}
+
+func (p *bitmovinProvider) outputFrom(job *db.Job) (inputID string, destPath string, err error) {
+	destPath, err = storage.PathFrom(job.SourceMedia)
+	if err != nil {
+		return "", "", err
+	}
+
+	if alias := job.ExecutionEnv.OutputAlias; alias != "" {
+		return alias, destPath, nil
+	}
+
+	outputID, err := storage.NewOutput(p.destinationForJob(job), storage.OutputAPI{
+		S3:  p.api.Encoding.Outputs.S3,
+		GCS: p.api.Encoding.Outputs.Gcs,
+	}, p.providerCfg)
+	if err != nil {
+		return "", destPath, err
+	}
+	destPath = path.Join(destPath, job.ID)
+
+	return outputID, destPath, nil
 }
 
 func (p *bitmovinProvider) containerServicesFrom(mediaContainer string, cfgType model.CodecConfigType) (containerSvc, error) {

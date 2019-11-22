@@ -13,7 +13,7 @@ const (
 	defaultOutputACL = model.AclPermission_PRIVATE
 )
 
-type outputCreator func(*url.URL, OutputAPI, *config.Bitmovin) (outputID string, path string, err error)
+type outputCreator func(*url.URL, OutputAPI, *config.Bitmovin) (outputID string, err error)
 
 var outputCreators = map[string]outputCreator{
 	schemeS3:  s3Output,
@@ -21,15 +21,15 @@ var outputCreators = map[string]outputCreator{
 }
 
 // NewOutput creates an output and returns an outputId and the folder path or an error
-func NewOutput(destLoc string, api OutputAPI, cfg *config.Bitmovin) (outputID string, path string, err error) {
+func NewOutput(destLoc string, api OutputAPI, cfg *config.Bitmovin) (outputID string, err error) {
 	mediaURL, err := url.Parse(destLoc)
 	if err != nil {
-		return "", "", errors.Errorf("could not parse destination media location %q: %v", destLoc, err)
+		return "", errors.Errorf("could not parse destination media location %q: %v", destLoc, err)
 	}
 
 	creator, found := outputCreators[mediaURL.Scheme]
 	if !found {
-		return "", "", errors.Errorf("invalid scheme %q, only s3 and gcs outputs are supported", mediaURL.Scheme)
+		return "", errors.Errorf("invalid scheme %q, only s3 and gcs outputs are supported", mediaURL.Scheme)
 	}
 
 	return creator(mediaURL, api, cfg)
@@ -44,8 +44,8 @@ func EncodingOutputFrom(outputID, path string) model.EncodingOutput {
 	}
 }
 
-func s3Output(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, string, error) {
-	bucket, folderPath := parseS3URL(destURL)
+func s3Output(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, error) {
+	bucket, _ := parseS3URL(destURL)
 
 	output, err := api.S3.Create(model.S3Output{
 		BucketName:  bucket,
@@ -55,14 +55,14 @@ func s3Output(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, st
 		Acl:         []model.AclEntry{{Permission: defaultOutputACL}},
 	})
 	if err != nil {
-		return "", "", errors.Wrap(err, "creating s3 output")
+		return "", errors.Wrap(err, "creating s3 output")
 	}
 
-	return output.Id, folderPath, nil
+	return output.Id, nil
 }
 
-func gcsOutput(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, string, error) {
-	bucket, folderPath := parseGCSURL(destURL)
+func gcsOutput(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, error) {
+	bucket, _ := parseGCSURL(destURL)
 
 	output, err := api.GCS.Create(model.GcsOutput{
 		BucketName:  bucket,
@@ -72,8 +72,8 @@ func gcsOutput(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, s
 		Acl:         []model.AclEntry{{Permission: defaultOutputACL}},
 	})
 	if err != nil {
-		return "", "", errors.Wrap(err, "creating gcs output")
+		return "", errors.Wrap(err, "creating gcs output")
 	}
 
-	return output.Id, folderPath, nil
+	return output.Id, nil
 }

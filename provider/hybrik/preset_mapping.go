@@ -84,7 +84,7 @@ func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string
 
 	payload := hybrik.TranscodePayload{
 		LocationTargetPayload: hybrik.LocationTargetPayload{
-			Location: p.transcodeLocationFrom(cfg.destination, cfg.executionEnvironment),
+			Location: p.transcodeLocationFrom(cfg.destination, cfg.executionEnvironment.OutputAlias),
 			Targets: []hybrik.TranscodeTarget{{
 				FilePattern:   filename,
 				ExistingFiles: "replace",
@@ -210,7 +210,7 @@ func (p *hybrikProvider) transcodeAudioElementFromPreset(target db.AudioPreset, 
 			Name: "Audio Encode",
 		},
 		Payload: hybrik.LocationTargetPayload{
-			Location: p.transcodeLocationFrom(cfg.destination, cfg.executionEnvironment),
+			Location: p.transcodeLocationFrom(cfg.destination, cfg.executionEnvironment.OutputAlias),
 			Targets: []hybrik.TranscodeTarget{{
 				FilePattern:   outputFilename,
 				ExistingFiles: "replace",

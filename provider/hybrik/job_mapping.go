@@ -38,7 +38,7 @@ const (
 )
 
 func (p *hybrikProvider) srcFrom(job *db.Job, src storageLocation) (hybrik.Element, error) {
-	sourceAsset := p.assetPayloadFrom(src.provider, src.path, nil, job.ExecutionEnv)
+	sourceAsset := p.assetPayloadFrom(src.provider, src.path, nil, job.ExecutionEnv.InputAlias)
 
 	if strings.ToLower(filepath.Ext(src.path)) == imfManifestExtension {
 		sourceAsset.Options = map[string]interface{}{
@@ -59,7 +59,7 @@ func (p *hybrikProvider) srcFrom(job *db.Job, src storageLocation) (hybrik.Eleme
 			Payload: hybrik.AssetContentsPayload{
 				Standard: assetContentsStandardDolbyVisionMetadata,
 			},
-		}}, job.ExecutionEnv))
+		}}, job.ExecutionEnv.InputAlias))
 	}
 
 	return hybrik.Element{

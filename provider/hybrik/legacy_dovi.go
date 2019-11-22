@@ -72,12 +72,12 @@ func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybr
 	destStorageLocation := p.transcodeLocationFrom(storageLocation{
 		provider: cfg.destination.provider,
 		path:     cfg.destination.path,
-	}, cfg.executionEnvironment)
+	}, cfg.executionEnvironment.OutputAlias)
 
 	demuxOutputStorageLocation := p.transcodeLocationFrom(storageLocation{
 		provider: cfg.destination.provider,
 		path:     fmt.Sprintf(doViSourceDemuxOutputPathTmpl, cfg.destination.path),
-	}, cfg.executionEnvironment)
+	}, cfg.executionEnvironment.OutputAlias)
 
 	return [][]hybrik.Element{{{
 		UID:  dolbyVisionElementID,
@@ -93,7 +93,7 @@ func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybr
 				Location: p.transcodeLocationFrom(storageLocation{
 					provider: cfg.destination.provider,
 					path:     fmt.Sprintf(doViLegacyMezzQCOutputPathTmpl, cfg.destination.path),
-				}, cfg.executionEnvironment),
+				}, cfg.executionEnvironment.OutputAlias),
 				Task: hybrik.TaskTags{
 					Tags: []string{preprocComputeTag},
 				},
@@ -107,7 +107,7 @@ func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybr
 				Location: p.transcodeLocationFrom(storageLocation{
 					provider: cfg.destination.provider,
 					path:     fmt.Sprintf(doViNBCPreProcOutputPathTmpl, cfg.destination.path),
-				}, cfg.executionEnvironment),
+				}, cfg.executionEnvironment.OutputAlias),
 				SDKVersion:     hybrik.DoViSDKVersionDefault,
 				NumTasks:       doViPreProcNumTasks,
 				IntervalLength: doViPreProcIntervalLength,
@@ -125,7 +125,7 @@ func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybr
 					Location: p.transcodeLocationFrom(storageLocation{
 						provider: cfg.destination.provider,
 						path:     fmt.Sprintf(doViVESMuxOutputPathTmpl, cfg.destination.path),
-					}, cfg.executionEnvironment),
+					}, cfg.executionEnvironment.OutputAlias),
 					FilePattern: doViVESMuxFilenameDefault,
 					SDKVersion:  hybrik.DoViSDKVersionDefault,
 				},
@@ -134,7 +134,7 @@ func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybr
 					Location: p.transcodeLocationFrom(storageLocation{
 						provider: cfg.destination.provider,
 						path:     fmt.Sprintf(doViMetadataPostProcOutputPathTmpl, cfg.destination.path),
-					}, cfg.executionEnvironment),
+					}, cfg.executionEnvironment.OutputAlias),
 					FilePattern: doViMetadataPostProcFilenameDefault,
 					SDKVersion:  hybrik.DoViSDKVersionDefault,
 					QCSettings: hybrik.DoViQCSettings{
@@ -143,7 +143,7 @@ func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybr
 						Location: p.transcodeLocationFrom(storageLocation{
 							provider: cfg.destination.provider,
 							path:     fmt.Sprintf(doViMetadataPostProcQCOutputPathTmpl, cfg.destination.path),
-						}, cfg.executionEnvironment),
+						}, cfg.executionEnvironment.OutputAlias),
 						FilePattern: doViMetadataPostProcQCFilenameDefault,
 					},
 				},
@@ -160,14 +160,14 @@ func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybr
 						Location: p.transcodeLocationFrom(storageLocation{
 							provider: cfg.destination.provider,
 							path:     fmt.Sprintf(doViMP4MuxQCOutputPathTmpl, cfg.destination.path),
-						}, cfg.executionEnvironment),
+						}, cfg.executionEnvironment.OutputAlias),
 						FilePattern: doViMP4MuxQCFilenameDefault,
 					},
 					ElementaryStreams: []hybrik.DoViMP4MuxElementaryStream{{
 						AssetURL: p.assetURLFrom(storageLocation{
 							provider: cfg.sourceLocation.provider,
 							path:     cfg.sourceLocation.path,
-						}, cfg.executionEnvironment),
+						}, cfg.executionEnvironment.OutputAlias),
 						ExtractAudio:    true,
 						ExtractLocation: &demuxOutputStorageLocation,
 						ExtractTask: &hybrik.DoViMP4MuxExtractTask{
