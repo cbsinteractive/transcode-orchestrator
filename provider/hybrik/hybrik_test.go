@@ -367,7 +367,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 					path:     "s3://some_bucket/encodes",
 				},
 				executionEnvironment: db.ExecutionEnvironment{
-					CredentialsAlias: "test_alias",
+					OutputAlias: "test_alias",
 				},
 			},
 			presetModifier: func(p db.Preset) db.Preset {
@@ -389,7 +389,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 				},
 				filename: "output.mp4",
 				executionEnvironment: db.ExecutionEnvironment{
-					CredentialsAlias: "test_alias",
+					OutputAlias: "test_alias",
 				},
 			},
 			presetModifier: func(p db.Preset) db.Preset {
