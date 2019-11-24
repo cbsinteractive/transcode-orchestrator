@@ -150,7 +150,7 @@ func TestNewInput(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			id, path, err := NewInput(tt.srcMedia, tt.api, &tt.cfg)
+			id, err := NewInput(tt.srcMedia, tt.api, &tt.cfg)
 			if shouldReturn := test.AssertWantErr(err, tt.wantErr, "NewInput()", t); shouldReturn {
 				return
 			}
@@ -159,54 +159,8 @@ func TestNewInput(t *testing.T) {
 				t.Errorf("invalid id returned, got %q, expected %q", g, e)
 			}
 
-			if g, e := path, tt.wantPath; g != e {
-				t.Errorf("invalid path returned, got %q, expected %q", g, e)
-			}
-
 			if inputAssertion := tt.assertInputParams; inputAssertion != nil {
 				inputAssertion(t, tt.api)
-			}
-		})
-	}
-}
-
-func TestInputPathParsing(t *testing.T) {
-	tests := []struct {
-		name, src, expectPath string
-	}{
-		{
-			name:       "a http source url without query params returns the correct path",
-			src:        "http://somedomain.com/path/file.mp4",
-			expectPath: "/path/file.mp4",
-		},
-		{
-			name:       "a http source url with query params returns the correct path with params attached",
-			src:        "http://somedomain.com/path/file.mp4?someparam=somevalue",
-			expectPath: "/path/file.mp4?someparam=somevalue",
-		},
-		{
-			name:       "an https source url without query params returns the correct path",
-			src:        "https://somedomain.com/path/file.mp4",
-			expectPath: "/path/file.mp4",
-		},
-		{
-			name:       "an https source url with query params returns the correct path with params attached",
-			src:        "https://somedomain.com/path/file.mp4?someparam=somevalue",
-			expectPath: "/path/file.mp4?someparam=somevalue",
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			_, path, err := NewInput(tt.src, fakeInputAPIReturningInputID("some-http-input-id"), nil)
-			if err != nil {
-				t.Errorf("did not expect NewInput to return an error, got %v\n", err)
-				return
-			}
-
-			if g, e := path, tt.expectPath; g != e {
-				t.Errorf("NewInput() wrong path: got %q, expected %q", g, e)
 			}
 		})
 	}

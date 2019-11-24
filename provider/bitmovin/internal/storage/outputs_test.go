@@ -120,17 +120,13 @@ func TestNewOutput(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			id, path, err := NewOutput(tt.destLoc, tt.api, &tt.cfg)
+			id, err := NewOutput(tt.destLoc, tt.api, &tt.cfg)
 			if shouldReturn := test.AssertWantErr(err, tt.wantErr, "NewOutput()", t); shouldReturn {
 				return
 			}
 
 			if g, e := id, tt.wantID; g != e {
 				t.Errorf("invalid id returned, got %q, expected %q", g, e)
-			}
-
-			if g, e := path, tt.wantPath; g != e {
-				t.Errorf("invalid path returned, got %q, expected %q", g, e)
 			}
 
 			if outputAssertion := tt.assertOutputParams; outputAssertion != nil {
