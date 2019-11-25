@@ -243,9 +243,9 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		}
 	}
 
-	encodingCloudRegion, err := p.encodingCloudRegionFrom(job)
+	infrastructureSettings, encodingCloudRegion, err := p.encodingInfrastructureFrom(job)
 	if err != nil {
-		return nil, errors.Wrap(err, "validating and setting encoding cloud region")
+		return nil, errors.Wrap(err, "validating and setting encoding infrastructure")
 	}
 
 	enc, err := p.api.Encoding.Encodings.Create(model.Encoding{
@@ -253,6 +253,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		CustomData:     &encCustomData,
 		CloudRegion:    encodingCloudRegion,
 		EncoderVersion: p.providerCfg.EncodingVersion,
+		Infrastructure: infrastructureSettings,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "creating encoding")
@@ -400,6 +401,22 @@ func (p *bitmovinProvider) encodingCloudRegionFrom(job *db.Job) (model.CloudRegi
 	}
 
 	return model.CloudRegion(p.providerCfg.EncodingRegion), nil
+}
+
+func (p *bitmovinProvider) encodingInfrastructureFrom(job *db.Job) (*model.InfrastructureSettings, model.CloudRegion, error) {
+	encodingCloudRegion, err := p.encodingCloudRegionFrom(job)
+	if err != nil {
+		return nil, encodingCloudRegion, errors.Wrap(err, "validating and setting encoding cloud region")
+	}
+
+	if tag, found := job.ExecutionEnv.ComputeTags[db.ComputeClassTranscodeDefault]; found {
+		return &model.InfrastructureSettings{
+			InfrastructureId: tag,
+			CloudRegion:      encodingCloudRegion,
+		}, model.CloudRegion_EXTERNAL, nil
+	}
+
+	return nil, encodingCloudRegion, nil
 }
 
 func (p *bitmovinProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {

@@ -45,16 +45,23 @@ func EnrichSourceInfo(api *bitmovin.BitmovinApi, s provider.JobStatus) (provider
 	if err != nil {
 		return s, errors.Wrap(err, "retrieving stream input details from the Bitmovin API")
 	}
-	if len(streamInput.VideoStreams) == 0 {
-		return s, fmt.Errorf("no video stream input found for streamID %s", inStream.Id)
+
+	var (
+		vidCodec      string
+		width, height int64
+	)
+	if len(streamInput.VideoStreams) > 0 {
+		vidStreamInput := streamInput.VideoStreams[0]
+		vidCodec = vidStreamInput.Codec
+		width = int64(int32Value(vidStreamInput.Width))
+		height = int64(int32Value(vidStreamInput.Height))
 	}
 
-	vidStreamInput := streamInput.VideoStreams[0]
 	s.SourceInfo = provider.SourceInfo{
 		Duration:   time.Duration(floatValue(streamInput.Duration) * float64(time.Second)),
-		Width:      int64(int32Value(vidStreamInput.Width)),
-		Height:     int64(int32Value(vidStreamInput.Height)),
-		VideoCodec: vidStreamInput.Codec,
+		Width:      width,
+		Height:     height,
+		VideoCodec: vidCodec,
 	}
 
 	return s, nil
