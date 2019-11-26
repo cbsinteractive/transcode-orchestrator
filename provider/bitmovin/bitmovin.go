@@ -351,23 +351,20 @@ func (p *bitmovinProvider) inputFrom(job *db.Job) (inputID string, srcPath strin
 }
 
 func (p *bitmovinProvider) outputFrom(job *db.Job) (inputID string, destPath string, err error) {
-	destPath, err = storage.PathFrom(job.SourceMedia)
-	if err != nil {
-		return "", "", err
-	}
+	destBasePath := p.destinationForJob(job)
+	destPath = path.Join(destBasePath, job.ID)
 
 	if alias := job.ExecutionEnv.OutputAlias; alias != "" {
 		return alias, destPath, nil
 	}
 
-	outputID, err := storage.NewOutput(p.destinationForJob(job), storage.OutputAPI{
+	outputID, err := storage.NewOutput(destBasePath, storage.OutputAPI{
 		S3:  p.api.Encoding.Outputs.S3,
 		GCS: p.api.Encoding.Outputs.Gcs,
 	}, p.providerCfg)
 	if err != nil {
 		return "", destPath, err
 	}
-	destPath = path.Join(destPath, job.ID)
 
 	return outputID, destPath, nil
 }
