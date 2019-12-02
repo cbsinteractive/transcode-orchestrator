@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/common"
@@ -180,6 +181,7 @@ type bitmovinProvider struct {
 	cfgStores     map[cfgStore]configuration.Store
 	containerSvcs map[mediaContainer]containerSvc
 	repo          db.Repository
+	presetMutex   sync.Mutex
 }
 
 func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
@@ -467,6 +469,13 @@ func (p *bitmovinProvider) CancelJob(id string) error {
 }
 
 func (p *bitmovinProvider) CreatePreset(preset db.Preset) (string, error) {
+	p.presetMutex.Lock()
+	defer p.presetMutex.Unlock()
+
+	if existing, err := p.repo.GetPresetSummary(preset.Name); err == nil {
+		return existing.Name, nil
+	}
+
 	svc, err := p.cfgServiceFrom(preset.Video.Codec, preset.Audio.Codec)
 	if err != nil {
 		return "", err
@@ -517,7 +526,7 @@ func (p *bitmovinProvider) Healthcheck() error {
 }
 
 // Capabilities describes the capabilities of the provider.
-func (bitmovinProvider) Capabilities() provider.Capabilities {
+func (p *bitmovinProvider) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
 		InputFormats:  []string{"prores", "h264"},
 		OutputFormats: []string{containerMP4, containerMOV, containerHLS, containerWebM},
