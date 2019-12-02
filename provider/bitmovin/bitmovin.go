@@ -2,6 +2,7 @@ package bitmovin
 
 import (
 	"fmt"
+	"net/url"
 	"path"
 	"strings"
 	"sync"
@@ -354,7 +355,11 @@ func (p *bitmovinProvider) inputFrom(job *db.Job) (inputID string, srcPath strin
 
 func (p *bitmovinProvider) outputFrom(job *db.Job) (inputID string, destPath string, err error) {
 	destBasePath := p.destinationForJob(job)
-	destPath = path.Join(destBasePath, job.ID)
+	destURL, err := url.Parse(destBasePath)
+	if err != nil {
+		return "", "", err
+	}
+	destPath = path.Join(destURL.Path, job.ID)
 
 	if alias := job.ExecutionEnv.OutputAlias; alias != "" {
 		return alias, destPath, nil
