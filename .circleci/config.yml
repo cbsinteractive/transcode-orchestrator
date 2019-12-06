@@ -21,12 +21,22 @@ jobs:
 
   deploy_dev:
     docker:
-      - image: circleci/golang:1.13
+      - image: circleci/golang:1.13.5
     steps:
       - deploy:
           name: Trigger deploy to dev
           command: |
             curl -u ${CIRCLE_CI_PROJECT_TOKEN}: -d build_parameters[CIRCLE_JOB]=build \
+            https://circleci.com/api/v1.1/project/github/cbsinteractive/video-transcoding-api-deploy/tree/master
+            
+  deploy_prod:
+    docker:
+      - image: circleci/golang:1.13.5
+    steps:
+      - deploy:
+          name: Trigger deploy to prod
+          command: |
+            curl -u ${CIRCLE_CI_PROJECT_TOKEN}: -d build_parameters[CIRCLE_JOB]=build_prod \
             https://circleci.com/api/v1.1/project/github/cbsinteractive/video-transcoding-api-deploy/tree/master
 
 workflows:
@@ -57,3 +67,20 @@ workflows:
               only: master
             tags:
               ignore: /.*/
+
+  build_and_deploy_prod:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v\d+\.\d+\.\d+$/
+      - deploy_prod:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v\d+\.\d+\.\d+$/
