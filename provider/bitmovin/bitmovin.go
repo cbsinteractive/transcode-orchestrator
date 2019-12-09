@@ -289,6 +289,21 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 			}
 
 			vidMuxingStream = model.MuxingStream{StreamId: vidStream.Id}
+
+			deInterlace, err := p.api.Encoding.Filters.Deinterlace.Create(model.DeinterlaceFilter{
+				Name:       "deinterlace",
+				AutoEnable: model.DeinterlaceAutoEnable_META_DATA_AND_CONTENT_BASED,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "creating deinterlace filter")
+			}
+
+			_, err = p.api.Encoding.Encodings.Streams.Filters.Create(enc.Id, vidStream.Id, []model.StreamFilter{
+				{Id: deInterlace.Id, Position: bitmovin.Int32Ptr(0)},
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "adding filter to video stream")
+			}
 		}
 
 		contnrSvcs, err := p.containerServicesFrom(preset.Container, model.CodecConfigType(preset.VideoCodec))
