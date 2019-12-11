@@ -54,6 +54,8 @@ const (
 	cfgStoreH264      cfgStore = "h264"
 	cfgStoreH265      cfgStore = "h265"
 	cfgStoreAAC       cfgStore = "aac"
+
+	filterVideoDeinterlace = iota + 1
 )
 
 func init() {
@@ -215,11 +217,13 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	vidInputStreams := []model.StreamInput{inputStream}
 	audInputStreams := []model.StreamInput{inputStream}
 
-	var generatingHLS bool
+	var generatingHLS, processingVideo bool
 	for _, preset := range presets {
 		if preset.Container == containerHLS {
 			generatingHLS = true
-			break
+		}
+		if preset.VideoConfigID != "" {
+			processingVideo = true
 		}
 	}
 
@@ -262,68 +266,46 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		return nil, errors.Wrap(err, "creating encoding")
 	}
 
-	audMuxingStreams := map[string]model.MuxingStream{}
-	for idx, o := range job.Outputs {
-		preset := presets[idx]
-
-		if audCfgID := preset.AudioConfigID; audCfgID != "" && audMuxingStreams[audCfgID].StreamId == "" {
-			audStream, err := p.api.Encoding.Encodings.Streams.Create(enc.Id, model.Stream{
-				CodecConfigId: audCfgID,
-				InputStreams:  audInputStreams,
-			})
-			if err != nil {
-				return nil, errors.Wrap(err, "adding audio stream to the encoding")
-			}
-
-			audMuxingStreams[audCfgID] = model.MuxingStream{StreamId: audStream.Id}
-		}
-
-		var vidMuxingStream model.MuxingStream
-		if vidCfgID := preset.VideoConfigID; vidCfgID != "" {
-			vidStream, err := p.api.Encoding.Encodings.Streams.Create(enc.Id, model.Stream{
-				CodecConfigId: vidCfgID,
-				InputStreams:  vidInputStreams,
-			})
-			if err != nil {
-				return nil, errors.Wrap(err, "adding video stream to the encoding")
-			}
-
-			vidMuxingStream = model.MuxingStream{StreamId: vidStream.Id}
-
-			deInterlace, err := p.api.Encoding.Filters.Deinterlace.Create(model.DeinterlaceFilter{
-				Name:       "deinterlace",
-				AutoEnable: model.DeinterlaceAutoEnable_META_DATA_AND_CONTENT_BASED,
-			})
-			if err != nil {
-				return nil, errors.Wrap(err, "creating deinterlace filter")
-			}
-
-			_, err = p.api.Encoding.Encodings.Streams.Filters.Create(enc.Id, vidStream.Id, []model.StreamFilter{
-				{Id: deInterlace.Id, Position: bitmovin.Int32Ptr(0)},
-			})
-			if err != nil {
-				return nil, errors.Wrap(err, "adding filter to video stream")
-			}
-		}
-
-		contnrSvcs, err := p.containerServicesFrom(preset.Container, model.CodecConfigType(preset.VideoCodec))
+	videoFilters := map[int]string{}
+	if processingVideo {
+		deInterlace, err := p.api.Encoding.Filters.Deinterlace.Create(model.DeinterlaceFilter{
+			Name:       "deinterlace",
+			AutoEnable: model.DeinterlaceAutoEnable_META_DATA_AND_CONTENT_BASED,
+		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "creating deinterlace filter")
 		}
+		videoFilters[filterVideoDeinterlace] = deInterlace.Id
+	}
 
-		if err = contnrSvcs.assembler.Assemble(container.AssemblerCfg{
-			EncID:              enc.Id,
-			OutputID:           outputID,
-			DestPath:           destPath,
-			OutputFilename:     o.FileName,
-			AudCfgID:           preset.AudioConfigID,
-			VidCfgID:           preset.VideoConfigID,
-			AudMuxingStream:    audMuxingStreams[preset.AudioConfigID],
-			VidMuxingStream:    vidMuxingStream,
-			ManifestID:         manifestID,
-			ManifestMasterPath: manifestMasterPath,
-			SegDuration:        job.StreamingParams.SegmentDuration,
-		}); err != nil {
+	var wg sync.WaitGroup
+	errorc := make(chan error)
+
+	for idx, o := range job.Outputs {
+		wg.Add(1)
+
+		go p.createOutput(outputCfg{
+			preset:             presets[idx],
+			encodingID:         enc.Id,
+			audInputStreams:    audInputStreams,
+			vidInputStreams:    vidInputStreams,
+			videoFilters:       videoFilters,
+			outputID:           outputID,
+			destPath:           destPath,
+			outputFilename:     o.FileName,
+			manifestID:         manifestID,
+			manifestMasterPath: manifestMasterPath,
+			job:                job,
+		}, &wg, errorc)
+	}
+
+	go func() {
+		wg.Wait()
+		close(errorc)
+	}()
+
+	for err := range errorc {
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -343,6 +325,84 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		ProviderJobID: encResp.Id,
 		Status:        provider.StatusQueued,
 	}, nil
+}
+
+type outputCfg struct {
+	preset             db.PresetSummary
+	encodingID         string
+	audInputStreams    []model.StreamInput
+	vidInputStreams    []model.StreamInput
+	videoFilters       map[int]string
+	outputID           string
+	destPath           string
+	outputFilename     string
+	manifestID         string
+	manifestMasterPath string
+	job                *db.Job
+}
+
+func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan error) {
+	defer wg.Done()
+	var audioMuxingStream, videoMuxingStream model.MuxingStream
+
+	if audCfgID := cfg.preset.AudioConfigID; audCfgID != "" {
+		audStream, err := p.api.Encoding.Encodings.Streams.Create(cfg.encodingID, model.Stream{
+			CodecConfigId: audCfgID,
+			InputStreams:  cfg.audInputStreams,
+		})
+		if err != nil {
+			errorc <- errors.Wrap(err, "adding audio stream to the encoding")
+			return
+		}
+
+		audioMuxingStream = model.MuxingStream{StreamId: audStream.Id}
+	}
+
+	if vidCfgID := cfg.preset.VideoConfigID; vidCfgID != "" {
+		vidStream, err := p.api.Encoding.Encodings.Streams.Create(cfg.encodingID, model.Stream{
+			CodecConfigId: vidCfgID,
+			InputStreams:  cfg.vidInputStreams,
+		})
+		if err != nil {
+			errorc <- errors.Wrap(err, "adding video stream to the encoding")
+			return
+		}
+
+		if deinterlaceID, ok := cfg.videoFilters[filterVideoDeinterlace]; ok {
+			_, err = p.api.Encoding.Encodings.Streams.Filters.Create(cfg.encodingID, vidStream.Id, []model.StreamFilter{
+				{Id: deinterlaceID, Position: bitmovin.Int32Ptr(0)},
+			})
+			if err != nil {
+				errorc <- errors.Wrap(err, "adding filter to video stream")
+				return
+			}
+		}
+
+		videoMuxingStream = model.MuxingStream{StreamId: vidStream.Id}
+	}
+
+	contnrSvcs, err := p.containerServicesFrom(cfg.preset.Container, model.CodecConfigType(cfg.preset.VideoCodec))
+	if err != nil {
+		errorc <- err
+		return
+	}
+
+	if err = contnrSvcs.assembler.Assemble(container.AssemblerCfg{
+		EncID:              cfg.encodingID,
+		OutputID:           cfg.outputID,
+		DestPath:           cfg.destPath,
+		OutputFilename:     cfg.outputFilename,
+		AudCfgID:           cfg.preset.AudioConfigID,
+		VidCfgID:           cfg.preset.VideoConfigID,
+		AudMuxingStream:    audioMuxingStream,
+		VidMuxingStream:    videoMuxingStream,
+		ManifestID:         cfg.manifestID,
+		ManifestMasterPath: cfg.manifestMasterPath,
+		SegDuration:        cfg.job.StreamingParams.SegmentDuration,
+	}); err != nil {
+		errorc <- err
+		return
+	}
 }
 
 func (p *bitmovinProvider) inputFrom(job *db.Job) (inputID string, srcPath string, err error) {
