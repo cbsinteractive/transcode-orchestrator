@@ -16,7 +16,7 @@ require (
 	github.com/google/gops v0.3.6
 	github.com/gorilla/handlers v1.4.2
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/kr/pretty v0.1.0
+	github.com/kr/pretty v0.2.0
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.4.2
