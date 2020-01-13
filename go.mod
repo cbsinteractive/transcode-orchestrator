@@ -12,7 +12,7 @@ require (
 	github.com/fsouza/gizmo-stackdriver-logging v1.3.2
 	github.com/getsentry/sentry-go v0.4.0
 	github.com/go-redis/redis v6.15.6+incompatible
-	github.com/google/go-cmp v0.3.1
+	github.com/google/go-cmp v0.4.0
 	github.com/google/gops v0.3.6
 	github.com/gorilla/handlers v1.4.2
 	github.com/kelseyhightower/envconfig v1.4.0
