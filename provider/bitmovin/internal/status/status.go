@@ -22,6 +22,8 @@ func ToProviderStatus(status model.Status) provider.Status {
 		return provider.StatusFinished
 	case model.Status_ERROR:
 		return provider.StatusFailed
+	case model.Status_CANCELED:
+		return provider.StatusCanceled
 	default:
 		return provider.StatusUnknown
 	}
