@@ -138,7 +138,7 @@ func (p *mcProvider) outputGroupsFrom(job *db.Job) ([]mediaconvert.OutputGroup, 
 		}
 		mcOutputGroup.Outputs = mcOutputs
 
-		destination := destinationPathFrom(p.cfg.Destination, job.ID)
+		destination := p.destinationPathFrom(job)
 
 		switch container {
 		case mediaconvert.ContainerTypeCmfc:
@@ -171,7 +171,7 @@ func (p *mcProvider) outputGroupsFrom(job *db.Job) ([]mediaconvert.OutputGroup, 
 			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
 				Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 				FileGroupSettings: &mediaconvert.FileGroupSettings{
-					Destination: aws.String(destination),
+					Destination: aws.String(destination + "m"),
 				},
 			}
 		default:
@@ -184,8 +184,14 @@ func (p *mcProvider) outputGroupsFrom(job *db.Job) ([]mediaconvert.OutputGroup, 
 	return mcOutputGroups, nil
 }
 
-func destinationPathFrom(destBase string, jobID string) string {
-	return fmt.Sprintf("%s/%s/", strings.TrimRight(destBase, "/"), jobID)
+func (p *mcProvider) destinationPathFrom(job *db.Job) string {
+	var basePath string
+	if cfgBasePath := job.DestinationBasePath; cfgBasePath != "" {
+		basePath = cfgBasePath
+	} else {
+		basePath = p.cfg.Destination
+	}
+	return fmt.Sprintf("%s/%s/", strings.TrimRight(basePath, "/"), job.ID)
 }
 
 func (p *mcProvider) CreatePreset(preset db.Preset) (string, error) {
@@ -221,49 +227,117 @@ func (p *mcProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 		return &provider.JobStatus{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
 	}
 
-	return p.jobStatusFrom(job.ProviderJobID, job.ID, jobResp.Job), nil
+	return p.jobStatusFrom(job.ProviderJobID, job, jobResp.Job), nil
 }
 
-func (p *mcProvider) jobStatusFrom(providerJobID string, jobID string, job *mediaconvert.Job) *provider.JobStatus {
+func (p *mcProvider) jobStatusFrom(providerJobID string, job *db.Job, mcJob *mediaconvert.Job) *provider.JobStatus {
 	status := &provider.JobStatus{
 		ProviderJobID: providerJobID,
 		ProviderName:  Name,
-		Status:        providerStatusFrom(job.Status),
-		StatusMessage: statusMsgFrom(job),
+		Status:        providerStatusFrom(mcJob.Status),
+		StatusMessage: statusMsgFrom(mcJob),
 		Output: provider.JobOutput{
-			Destination: destinationPathFrom(p.cfg.Destination, jobID),
+			Destination: p.destinationPathFrom(job),
 		},
 	}
 
 	if status.Status == provider.StatusFinished {
 		status.Progress = 100
-	} else if p := job.JobPercentComplete; p != nil {
+	} else if p := mcJob.JobPercentComplete; p != nil {
 		status.Progress = float64(*p)
 	}
 
 	var files []provider.OutputFile
-	for _, groupDetails := range job.OutputGroupDetails {
-		for _, outputDetails := range groupDetails.OutputDetails {
-			if outputDetails.VideoDetails == nil {
+	if settings := mcJob.Settings; settings != nil {
+		for _, group := range settings.OutputGroups {
+			groupDestination, err := outputGroupDestinationFrom(group)
+			if err != nil {
 				continue
 			}
+			for _, output := range group.Outputs {
+				file := provider.OutputFile{}
 
-			file := provider.OutputFile{}
+				if modifier := output.NameModifier; modifier != nil {
+					if extension, err := fileExtensionFromContainer(output.ContainerSettings); err == nil {
+						file.Path = groupDestination + *modifier + extension
+					} else {
+						continue
+					}
+				} else {
+					continue
+				}
 
-			if height := outputDetails.VideoDetails.HeightInPx; height != nil {
-				file.Height = *height
+				if video := output.VideoDescription; video != nil {
+					if height := video.Height; height != nil {
+						file.Height = *height
+					}
+
+					if width := video.Width; width != nil {
+						file.Width = *width
+					}
+				}
+
+				if container, err := containerIdentifierFrom(output.ContainerSettings); err == nil {
+					file.Container = container
+				}
+
+				files = append(files, file)
 			}
-
-			if width := outputDetails.VideoDetails.WidthInPx; width != nil {
-				file.Width = *width
-			}
-
-			files = append(files, file)
 		}
 	}
+
 	status.Output.Files = files
 
 	return status
+}
+
+func outputGroupDestinationFrom(group mediaconvert.OutputGroup) (string, error) {
+	if group.OutputGroupSettings == nil {
+		return "", errors.New("output group contained no settings")
+	}
+
+	switch group.OutputGroupSettings.Type {
+	case mediaconvert.OutputGroupTypeFileGroupSettings:
+		fsSettings := group.OutputGroupSettings.FileGroupSettings
+		if fsSettings == nil {
+			return "", errors.New("file group settings were nil")
+		}
+
+		if fsSettings.Destination == nil {
+			return "", errors.New("file group destination was nil")
+		}
+
+		return *fsSettings.Destination, nil
+	default:
+		return "", fmt.Errorf("output enumeration not supported for output group %q",
+			group.OutputGroupSettings.Type)
+	}
+}
+
+func fileExtensionFromContainer(settings *mediaconvert.ContainerSettings) (string, error) {
+	if settings == nil {
+		return "", errors.New("container settings were nil")
+	}
+
+	switch settings.Container {
+	case mediaconvert.ContainerTypeMp4:
+		return ".mp4", nil
+	default:
+		return "", fmt.Errorf("could not determine extension from output container %q", settings.Container)
+	}
+}
+
+func containerIdentifierFrom(settings *mediaconvert.ContainerSettings) (string, error) {
+	if settings == nil {
+		return "", errors.New("container settings were nil")
+	}
+
+	switch settings.Container {
+	case mediaconvert.ContainerTypeMp4:
+		return "mp4", nil
+	default:
+		return "", fmt.Errorf("could not determine container identifier from output container %q", settings.Container)
+	}
 }
 
 func statusMsgFrom(job *mediaconvert.Job) string {

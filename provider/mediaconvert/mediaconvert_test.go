@@ -384,7 +384,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/"),
+									Destination: aws.String("s3://some/destination/jobID/m"),
 								},
 							},
 							Outputs: []mediaconvert.Output{
@@ -468,7 +468,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/"),
+									Destination: aws.String("s3://some/destination/jobID/m"),
 								},
 							},
 							Outputs: []mediaconvert.Output{
@@ -616,22 +616,47 @@ func Test_mcProvider_JobStatus(t *testing.T) {
 			destination: "s3://some/destination",
 			mcJob: mediaconvert.Job{
 				Status: mediaconvert.JobStatusComplete,
-				OutputGroupDetails: []mediaconvert.OutputGroupDetail{{
-					OutputDetails: []mediaconvert.OutputDetail{
+				Settings: &mediaconvert.JobSettings{
+					OutputGroups: []mediaconvert.OutputGroup{
 						{
-							VideoDetails: &mediaconvert.VideoDetail{
-								HeightInPx: aws.Int64(2160),
-								WidthInPx:  aws.Int64(3840),
+							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+								FileGroupSettings: &mediaconvert.FileGroupSettings{
+									Destination: aws.String("s3://some/destination/jobID/m"),
+								},
 							},
-						},
-						{
-							VideoDetails: &mediaconvert.VideoDetail{
-								HeightInPx: aws.Int64(1080),
-								WidthInPx:  aws.Int64(1920),
+							Outputs: []mediaconvert.Output{
+								{
+									NameModifier: aws.String("_modifier"),
+									VideoDescription: &mediaconvert.VideoDescription{
+										Height: aws.Int64(102),
+										Width:  aws.Int64(324),
+									},
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeMp4,
+									},
+								},
+								{
+									NameModifier: aws.String("_another_modifier"),
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeMp4,
+									},
+								},
+								{
+									NameModifier: aws.String("_123"),
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeM2ts,
+									},
+								},
+								{
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeM2ts,
+									},
+								},
 							},
 						},
 					},
-				}},
+				},
 			},
 			wantStatus: provider.JobStatus{
 				Status:       provider.StatusFinished,
@@ -640,8 +665,16 @@ func Test_mcProvider_JobStatus(t *testing.T) {
 				Output: provider.JobOutput{
 					Destination: "s3://some/destination/jobID/",
 					Files: []provider.OutputFile{
-						{Height: 2160, Width: 3840},
-						{Height: 1080, Width: 1920},
+						{
+							Path:      "s3://some/destination/jobID/m_modifier.mp4",
+							Container: "mp4",
+							Height:    102,
+							Width:     324,
+						},
+						{
+							Path:      "s3://some/destination/jobID/m_another_modifier.mp4",
+							Container: "mp4",
+						},
 					},
 				},
 			},
