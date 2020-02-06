@@ -98,6 +98,11 @@ func h264ConfigFrom(preset db.Preset) (model.H264VideoConfiguration, error) {
 		cfg.SceneCutThreshold = int32ToPtr(int32(0))
 	}
 
+	cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
+	if preset.TwoPass {
+		cfg.EncodingMode = model.EncodingMode_TWO_PASS
+	}
+
 	return cfg, nil
 }
 

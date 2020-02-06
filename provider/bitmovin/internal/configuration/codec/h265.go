@@ -103,6 +103,11 @@ func h265ConfigFrom(preset db.Preset) (model.H265VideoConfiguration, error) {
 		}
 	}
 
+	cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
+	if preset.TwoPass {
+		cfg.EncodingMode = model.EncodingMode_TWO_PASS
+	}
+
 	return cfg, nil
 }
 

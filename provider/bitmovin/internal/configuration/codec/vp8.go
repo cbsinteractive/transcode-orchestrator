@@ -53,5 +53,10 @@ func vp8ConfigFrom(preset db.Preset) (model.Vp8VideoConfiguration, error) {
 	}
 	cfg.Bitrate = bitrate
 
+	cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
+	if preset.TwoPass {
+		cfg.EncodingMode = model.EncodingMode_TWO_PASS
+	}
+
 	return cfg, nil
 }
