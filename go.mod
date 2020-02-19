@@ -11,7 +11,7 @@ require (
 	github.com/fsouza/ctxlogger v1.5.9
 	github.com/fsouza/gizmo-stackdriver-logging v1.3.2
 	github.com/getsentry/sentry-go v0.5.1
-	github.com/go-redis/redis v6.15.6+incompatible
+	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/google/go-cmp v0.4.0
 	github.com/google/gops v0.3.7
 	github.com/gorilla/handlers v1.4.2
