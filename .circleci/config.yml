@@ -17,7 +17,7 @@ jobs:
           command: make coverage
       - run:
           name: Upload coverage results
-          command: bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN
+          command: bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN -X s3
 
   deploy_dev:
     docker:
