@@ -1,6 +1,7 @@
 package hybrik
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -867,7 +868,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 				repository: fakeDB,
 			}
 
-			got, err := p.createJobReqFrom(tt.job)
+			got, err := p.createJobReqFrom(context.Background(), tt.job)
 			if err != nil {
 				if tt.wantErr != err.Error() {
 					t.Errorf("hybrikProvider.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErr)
@@ -1163,7 +1164,7 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			}
 
 			modifiedJob := tt.jobModifier(defaultJob)
-			got, err := p.createJobReqFrom(&modifiedJob)
+			got, err := p.createJobReqFrom(context.Background(), &modifiedJob)
 			if err != nil && tt.wantErrMsg != err.Error() {
 				t.Errorf("hybrikProvider.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErrMsg)
 				return

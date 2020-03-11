@@ -42,7 +42,7 @@ func (s *TranscodingService) deletePreset(r *http.Request) swagger.GizmoJSONResp
 				output.Results[p] = deletePresetOutput{PresetID: "", Error: "initializing provider: " + ierr.Error()}
 				continue
 			}
-			ierr = providerObj.DeletePreset(presetID)
+			ierr = providerObj.DeletePreset(r.Context(), presetID)
 			if ierr != nil {
 				output.Results[p] = deletePresetOutput{PresetID: "", Error: "deleting preset: " + ierr.Error()}
 				continue
@@ -128,7 +128,7 @@ func (s *TranscodingService) newPreset(r *http.Request) swagger.GizmoJSONRespons
 			output.Results[p] = newPresetOutput{PresetID: "", Error: "initializing provider: " + ierr.Error()}
 			continue
 		}
-		presetID, ierr := providerObj.CreatePreset(input.Preset)
+		presetID, ierr := providerObj.CreatePreset(r.Context(), input.Preset)
 		if ierr != nil {
 			output.Results[p] = newPresetOutput{PresetID: "", Error: "creating preset: " + ierr.Error()}
 			continue

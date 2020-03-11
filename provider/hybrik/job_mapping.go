@@ -1,6 +1,7 @@
 package hybrik
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -72,12 +73,12 @@ func (p *hybrikProvider) srcFrom(job *db.Job, src storageLocation) (hybrik.Eleme
 	}, nil
 }
 
-func (p *hybrikProvider) outputCfgsFrom(job *db.Job) (map[string]outputCfg, error) {
+func (p *hybrikProvider) outputCfgsFrom(ctx context.Context, job *db.Job) (map[string]outputCfg, error) {
 	presets := map[string]outputCfg{}
 
 	for _, output := range job.Outputs {
 		presetName := output.Preset.Name
-		presetResponse, err := p.GetPreset(presetName)
+		presetResponse, err := p.GetPreset(ctx, presetName)
 		if err != nil {
 			return nil, err
 		}

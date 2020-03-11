@@ -5,6 +5,8 @@ import (
 	"log"
 
 	"github.com/NYTimes/gizmo/server"
+	_ "github.com/aws/aws-xray-sdk-go/plugins/ecs"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	_ "github.com/cbsinteractive/video-transcoding-api/provider/bitmovin"
 	_ "github.com/cbsinteractive/video-transcoding-api/provider/hybrik"
@@ -23,6 +25,11 @@ func main() {
 	logger, err := cfg.Log.Logger()
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	err = xray.Configure(xray.Config{})
+	if err != nil {
+		logger.Fatalf("configuring xray: %v", err)
 	}
 
 	service, err := service.NewTranscodingService(cfg, logger)

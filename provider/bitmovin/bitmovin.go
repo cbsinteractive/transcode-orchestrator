@@ -1,12 +1,14 @@
 package bitmovin
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"path"
 	"strings"
 	"sync"
 
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/common"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
@@ -187,7 +189,7 @@ type bitmovinProvider struct {
 	presetMutex   sync.Mutex
 }
 
-func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
+func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
 	presets := make([]db.PresetSummary, len(job.Outputs))
 	for idx, output := range job.Outputs {
 		summary, err := p.repo.GetPresetSummary(output.Preset.Name)
@@ -198,12 +200,12 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		presets[idx] = summary
 	}
 
-	inputID, mediaPath, err := p.inputFrom(job)
+	inputID, mediaPath, err := p.inputFrom(ctx, job)
 	if err != nil {
 		return nil, err
 	}
 
-	outputID, destPath, err := p.outputFrom(job)
+	outputID, destPath, err := p.outputFrom(ctx, job)
 	if err != nil {
 		return nil, err
 	}
@@ -232,13 +234,16 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		manifestMasterPath = path.Dir(path.Join(destPath, job.StreamingParams.PlaylistFileName))
 		manifestMasterFilename = path.Base(job.StreamingParams.PlaylistFileName)
 
+		_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-hls-manifest")
 		hlsManifest, err := p.api.Encoding.Manifests.Hls.Create(model.HlsManifest{
 			ManifestName: manifestMasterFilename,
 			Outputs:      []model.EncodingOutput{storage.EncodingOutputFrom(outputID, manifestMasterPath)},
 		})
 		if err != nil {
+			subSeg.Close(err)
 			return nil, errors.Wrap(err, "creating master manifest")
 		}
+		subSeg.Close(nil)
 
 		manifestID = hlsManifest.Id
 	}
@@ -260,6 +265,7 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		jobName = name
 	}
 
+	_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-encoding")
 	enc, err := p.api.Encoding.Encodings.Create(model.Encoding{
 		Name:           jobName,
 		CustomData:     &encCustomData,
@@ -268,24 +274,30 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		Infrastructure: infrastructureSettings,
 	})
 	if err != nil {
+		subSeg.Close(err)
 		return nil, errors.Wrap(err, "creating encoding")
 	}
+	subSeg.Close(nil)
 
 	videoFilters := map[int]string{}
 	if processingVideo {
+		_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-deinterlace-filter")
 		deInterlace, err := p.api.Encoding.Filters.Deinterlace.Create(model.DeinterlaceFilter{
 			Name:       "deinterlace",
 			AutoEnable: model.DeinterlaceAutoEnable_META_DATA_AND_CONTENT_BASED,
 		})
 		if err != nil {
+			subSeg.Close(err)
 			return nil, errors.Wrap(err, "creating deinterlace filter")
 		}
+		subSeg.Close(nil)
 		videoFilters[filterVideoDeinterlace] = deInterlace.Id
 	}
 
 	var wg sync.WaitGroup
 	errorc := make(chan error)
 
+	_, subSeg = xray.BeginSubsegment(ctx, "bitmovin-create-outputs")
 	for idx, o := range job.Outputs {
 		wg.Add(1)
 
@@ -310,20 +322,25 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}()
 
 	for err := range errorc {
+		subSeg.Close(err)
 		if err != nil {
 			return nil, err
 		}
 	}
+	subSeg.Close(nil)
 
 	var vodHLSManifests []model.ManifestResource
 	if generatingHLS && manifestID != "" {
 		vodHLSManifests = []model.ManifestResource{{ManifestId: manifestID}}
 	}
 
+	_, subSeg = xray.BeginSubsegment(ctx, "bitmovin-start-encoding")
 	encResp, err := p.api.Encoding.Encodings.Start(enc.Id, model.StartEncodingRequest{VodHlsManifests: vodHLSManifests})
 	if err != nil {
+		subSeg.Close(err)
 		return nil, errors.Wrap(err, "starting encoding job")
 	}
+	subSeg.Close(nil)
 
 	return &provider.JobStatus{
 		ProviderName:  Name,
@@ -410,7 +427,7 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 	}
 }
 
-func (p *bitmovinProvider) inputFrom(job *db.Job) (inputID string, srcPath string, err error) {
+func (p *bitmovinProvider) inputFrom(ctx context.Context, job *db.Job) (inputID string, srcPath string, err error) {
 	srcPath, err = storage.PathFrom(job.SourceMedia)
 	if err != nil {
 		return "", "", err
@@ -420,6 +437,8 @@ func (p *bitmovinProvider) inputFrom(job *db.Job) (inputID string, srcPath strin
 		return alias, srcPath, nil
 	}
 
+	_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-input")
+
 	inputID, err = storage.NewInput(job.SourceMedia, storage.InputAPI{
 		S3:    p.api.Encoding.Inputs.S3,
 		GCS:   p.api.Encoding.Inputs.Gcs,
@@ -427,13 +446,15 @@ func (p *bitmovinProvider) inputFrom(job *db.Job) (inputID string, srcPath strin
 		HTTPS: p.api.Encoding.Inputs.Https,
 	}, p.providerCfg)
 	if err != nil {
+		subSeg.Close(err)
 		return "", srcPath, err
 	}
+	subSeg.Close(nil)
 
 	return inputID, srcPath, nil
 }
 
-func (p *bitmovinProvider) outputFrom(job *db.Job) (inputID string, destPath string, err error) {
+func (p *bitmovinProvider) outputFrom(ctx context.Context, job *db.Job) (inputID string, destPath string, err error) {
 	destBasePath := p.destinationForJob(job)
 	destURL, err := url.Parse(destBasePath)
 	if err != nil {
@@ -444,6 +465,9 @@ func (p *bitmovinProvider) outputFrom(job *db.Job) (inputID string, destPath str
 	if alias := job.ExecutionEnv.OutputAlias; alias != "" {
 		return alias, destPath, nil
 	}
+
+	_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-output")
+	defer subSeg.Close(nil)
 
 	outputID, err := storage.NewOutput(destBasePath, storage.OutputAPI{
 		S3:  p.api.Encoding.Outputs.S3,
@@ -503,11 +527,15 @@ func (p *bitmovinProvider) encodingInfrastructureFrom(job *db.Job) (*model.Infra
 	return nil, encodingCloudRegion, nil
 }
 
-func (p *bitmovinProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
+func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
+	_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-get-encoding-status")
+	subSeg.AddAnnotation("jobID", job.ProviderJobID)
 	task, err := p.api.Encoding.Encodings.Status(job.ProviderJobID)
 	if err != nil {
+		subSeg.Close(err)
 		return nil, errors.Wrap(err, "retrieving encoding status")
 	}
+	subSeg.Close(nil)
 
 	var progress float64
 	if task.Progress != nil {
@@ -529,8 +557,10 @@ func (p *bitmovinProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 	}
 
 	if s.Status == provider.StatusFinished {
+		_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-get-output-info")
 		s, err = status.EnrichSourceInfo(p.api, s)
 		if err != nil {
+			subSeg.Close(err)
 			return nil, errors.Wrap(err, "enriching status with source info")
 		}
 
@@ -539,21 +569,26 @@ func (p *bitmovinProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 		for _, svcs := range p.containerSvcs {
 			s, err = svcs.statusEnricher.Enrich(s)
 			if err != nil {
+				subSeg.Close(err)
 				return nil, err
 			}
 		}
+		subSeg.Close(nil)
 	}
 
 	return &s, nil
 }
 
-func (p *bitmovinProvider) CancelJob(id string) error {
+func (p *bitmovinProvider) CancelJob(ctx context.Context, id string) error {
+	_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-delete-job")
+	subSeg.AddAnnotation("jobID", id)
 	_, err := p.api.Encoding.Encodings.Stop(id)
+	subSeg.Close(err)
 
 	return err
 }
 
-func (p *bitmovinProvider) CreatePreset(preset db.Preset) (string, error) {
+func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (string, error) {
 	p.presetMutex.Lock()
 	defer p.presetMutex.Unlock()
 
@@ -570,7 +605,7 @@ func (p *bitmovinProvider) CreatePreset(preset db.Preset) (string, error) {
 }
 
 // DeletePreset loops over registered cfg services and attempts to delete them
-func (p *bitmovinProvider) DeletePreset(presetName string) error {
+func (p *bitmovinProvider) DeletePreset(_ context.Context, presetName string) error {
 	summary, err := p.repo.GetPresetSummary(presetName)
 	if err != nil {
 		return err
@@ -585,7 +620,7 @@ func (p *bitmovinProvider) DeletePreset(presetName string) error {
 }
 
 // GetPreset searches for a preset from the registered cfg services
-func (p *bitmovinProvider) GetPreset(presetName string) (interface{}, error) {
+func (p *bitmovinProvider) GetPreset(_ context.Context, presetName string) (interface{}, error) {
 	return p.repo.GetPresetSummary(presetName)
 }
 

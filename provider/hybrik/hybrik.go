@@ -1,6 +1,7 @@
 package hybrik
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -88,8 +89,8 @@ func hybrikTranscoderFactory(cfg *config.Config) (provider.TranscodingProvider, 
 	}, nil
 }
 
-func (p *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
-	cj, err := p.createJobReqBodyFrom(job)
+func (p *hybrikProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
+	cj, err := p.createJobReqBodyFrom(ctx, job)
 	if err != nil {
 		return &provider.JobStatus{}, err
 	}
@@ -106,8 +107,8 @@ func (p *hybrikProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func (p *hybrikProvider) createJobReqBodyFrom(job *db.Job) (string, error) {
-	cj, err := p.createJobReqFrom(job)
+func (p *hybrikProvider) createJobReqBodyFrom(ctx context.Context, job *db.Job) (string, error) {
+	cj, err := p.createJobReqFrom(ctx, job)
 	if err != nil {
 		return "", errors.Wrap(err, "generating create job request from db.Job")
 	}
@@ -120,7 +121,7 @@ func (p *hybrikProvider) createJobReqBodyFrom(job *db.Job) (string, error) {
 	return string(resp), nil
 }
 
-func (p *hybrikProvider) createJobReqFrom(job *db.Job) (hwrapper.CreateJob, error) {
+func (p *hybrikProvider) createJobReqFrom(ctx context.Context, job *db.Job) (hwrapper.CreateJob, error) {
 	srcStorageProvider, err := storageProviderFrom(job.SourceMedia)
 	if err != nil {
 		return hwrapper.CreateJob{}, errors.Wrap(err, "parsing source storage provider")
@@ -165,7 +166,7 @@ func (p *hybrikProvider) createJobReqFrom(job *db.Job) (hwrapper.CreateJob, erro
 		cfg.computeTags = map[db.ComputeClass]string{}
 	}
 
-	outputCfgs, err := p.outputCfgsFrom(job)
+	outputCfgs, err := p.outputCfgsFrom(ctx, job)
 	if err != nil {
 		return hwrapper.CreateJob{}, err
 	}
@@ -233,7 +234,7 @@ func (p *hybrikProvider) destinationForJob(job *db.Job) string {
 	return p.config.Destination
 }
 
-func (p *hybrikProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
+func (p *hybrikProvider) JobStatus(_ context.Context, job *db.Job) (*provider.JobStatus, error) {
 	ji, err := p.c.GetJobInfo(job.ProviderJobID)
 	if err != nil {
 		return &provider.JobStatus{}, err
@@ -317,11 +318,11 @@ func executionFeaturesFrom(job *db.Job, storageProvider storageProvider) (execut
 	return features, nil
 }
 
-func (p *hybrikProvider) CancelJob(id string) error {
+func (p *hybrikProvider) CancelJob(_ context.Context, id string) error {
 	return p.c.StopJob(id)
 }
 
-func (p *hybrikProvider) CreatePreset(preset db.Preset) (string, error) {
+func (p *hybrikProvider) CreatePreset(_ context.Context, preset db.Preset) (string, error) {
 	err := p.repository.CreateLocalPreset(&db.LocalPreset{
 		Name:   preset.Name,
 		Preset: preset,
@@ -424,8 +425,8 @@ func audioTargetFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
 	}, nil
 }
 
-func (p *hybrikProvider) DeletePreset(presetID string) error {
-	preset, err := p.GetPreset(presetID)
+func (p *hybrikProvider) DeletePreset(ctx context.Context, presetID string) error {
+	preset, err := p.GetPreset(ctx, presetID)
 	if err != nil {
 		return err
 	}
@@ -433,7 +434,7 @@ func (p *hybrikProvider) DeletePreset(presetID string) error {
 	return p.repository.DeleteLocalPreset(preset.(*db.LocalPreset))
 }
 
-func (p *hybrikProvider) GetPreset(presetID string) (interface{}, error) {
+func (p *hybrikProvider) GetPreset(_ context.Context, presetID string) (interface{}, error) {
 	return p.repository.GetLocalPreset(presetID)
 }
 

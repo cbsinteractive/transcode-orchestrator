@@ -1,6 +1,7 @@
 package mediaconvert
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"testing"
@@ -88,13 +89,13 @@ var (
 func Test_mcProvider_CreatePreset(t *testing.T) {
 	client := &testMediaConvertClient{t: t}
 	p := &mcProvider{client: client, repository: dbtest.NewFakeRepository(false)}
-	presetName, err := p.CreatePreset(defaultPreset)
+	presetName, err := p.CreatePreset(context.Background(), defaultPreset)
 	if err != nil {
 		t.Errorf("mcProvider.CreatePreset() did not expect an error, got %+v", err)
 		return
 	}
 
-	preset, err := p.GetPreset(presetName)
+	preset, err := p.GetPreset(context.Background(), presetName)
 	if err != nil {
 		t.Errorf("didn't expect GetPreset to return an error, got %+v", err)
 		return
@@ -283,7 +284,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 
 			p := &mcProvider{client: client, repository: repo, cfg: &config.MediaConvert{Destination: "s3://some_dest"}}
 
-			_, err = p.Transcode(&db.Job{
+			_, err = p.Transcode(context.Background(), &db.Job{
 				ID: "jobID", ProviderName: Name, SourceMedia: "s3://some/path.mp4",
 				Outputs: []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
 			})
@@ -310,7 +311,7 @@ func Test_mcProvider_GetPreset(t *testing.T) {
 
 	p := &mcProvider{client: client, repository: fakeDB}
 
-	_, err = p.GetPreset(defaultPreset.Name)
+	_, err = p.GetPreset(context.Background(), defaultPreset.Name)
 	if err != nil {
 		t.Fatalf("expected GetPreset() not to return an error, got: %v", err)
 	}
@@ -327,17 +328,17 @@ func Test_mcProvider_DeletePreset(t *testing.T) {
 
 	p := &mcProvider{client: client, repository: fakeDB}
 
-	_, err = p.GetPreset(defaultPreset.Name)
+	_, err = p.GetPreset(context.Background(), defaultPreset.Name)
 	if err != nil {
 		t.Fatalf("did not expect GetPreset() to return an error, got %+v", err)
 	}
 
-	err = p.DeletePreset(defaultPreset.Name)
+	err = p.DeletePreset(context.Background(), defaultPreset.Name)
 	if err != nil {
 		t.Fatalf("expected DeletePreset() not to return an error, got: %v", err)
 	}
 
-	_, err = p.GetPreset(defaultPreset.Name)
+	_, err = p.GetPreset(context.Background(), defaultPreset.Name)
 	if err == nil || err.Error() != "local preset not found" {
 		t.Fatal("expected GetPreset() to return an error, not nil")
 	}
@@ -531,7 +532,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 				cfg:        &config.MediaConvert{Destination: tt.destination},
 				repository: repo,
 			}
-			_, err = p.Transcode(tt.job)
+			_, err = p.Transcode(context.Background(), tt.job)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("mcProvider.Transcode() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -549,7 +550,7 @@ func Test_mcProvider_CancelJob(t *testing.T) {
 	jobID := "some_job_id"
 	client := &testMediaConvertClient{t: t}
 	p := &mcProvider{client: client}
-	err := p.CancelJob(jobID)
+	err := p.CancelJob(context.Background(), jobID)
 	if err != nil {
 		t.Fatalf("expected CancelJob() not to return an error, got: %v", err)
 	}
@@ -693,7 +694,7 @@ func Test_mcProvider_JobStatus(t *testing.T) {
 				Destination: tt.destination,
 			}}
 
-			status, err := p.JobStatus(&defaultJob)
+			status, err := p.JobStatus(context.Background(), &defaultJob)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("mcProvider.JobStatus() error = %v, wantErr %v", err, tt.wantErr)
 				return

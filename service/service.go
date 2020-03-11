@@ -6,6 +6,7 @@ import (
 
 	"github.com/NYTimes/gizmo/server"
 	"github.com/NYTimes/gziphandler"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/cbsinteractive/video-transcoding-api/db/redis"
@@ -62,7 +63,10 @@ func (s *TranscodingService) Middleware(h http.Handler) http.Handler {
 	if s.config.Server.HTTPAccessLog == nil {
 		h = handlers.LoggingHandler(s.logger.Writer(), h)
 	}
-	return gziphandler.GzipHandler(server.CORSHandler(h, ""))
+	return xray.Handler(
+		xray.NewFixedSegmentNamer("video-transcoding-api"),
+		gziphandler.GzipHandler(server.CORSHandler(h, "")),
+	)
 }
 
 // JSONMiddleware provides a JSONEndpoint hook wrapped around all requests.

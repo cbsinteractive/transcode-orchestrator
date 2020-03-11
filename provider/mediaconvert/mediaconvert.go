@@ -51,8 +51,8 @@ type outputCfg struct {
 	filename string
 }
 
-func (p *mcProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
-	outputGroups, err := p.outputGroupsFrom(job)
+func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
+	outputGroups, err := p.outputGroupsFrom(ctx, job)
 	if err != nil {
 		return nil, errors.Wrap(err, "generating Mediaconvert output groups")
 	}
@@ -87,11 +87,11 @@ func (p *mcProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func (p *mcProvider) outputGroupsFrom(job *db.Job) ([]mediaconvert.OutputGroup, error) {
+func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]mediaconvert.OutputGroup, error) {
 	outputGroups := map[mediaconvert.ContainerType][]outputCfg{}
 	for _, output := range job.Outputs {
 		presetName := output.Preset.Name
-		presetResponse, err := p.GetPreset(presetName)
+		presetResponse, err := p.GetPreset(ctx, presetName)
 		if err != nil {
 			return nil, err
 		}
@@ -194,7 +194,7 @@ func (p *mcProvider) destinationPathFrom(job *db.Job) string {
 	return fmt.Sprintf("%s/%s/", strings.TrimRight(basePath, "/"), job.ID)
 }
 
-func (p *mcProvider) CreatePreset(preset db.Preset) (string, error) {
+func (p *mcProvider) CreatePreset(_ context.Context, preset db.Preset) (string, error) {
 	err := p.repository.CreateLocalPreset(&db.LocalPreset{
 		Name:   preset.Name,
 		Preset: preset,
@@ -206,12 +206,12 @@ func (p *mcProvider) CreatePreset(preset db.Preset) (string, error) {
 	return preset.Name, nil
 }
 
-func (p *mcProvider) GetPreset(presetID string) (interface{}, error) {
+func (p *mcProvider) GetPreset(_ context.Context, presetID string) (interface{}, error) {
 	return p.repository.GetLocalPreset(presetID)
 }
 
-func (p *mcProvider) DeletePreset(presetID string) error {
-	preset, err := p.GetPreset(presetID)
+func (p *mcProvider) DeletePreset(ctx context.Context, presetID string) error {
+	preset, err := p.GetPreset(ctx, presetID)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (p *mcProvider) DeletePreset(presetID string) error {
 	return p.repository.DeleteLocalPreset(preset.(*db.LocalPreset))
 }
 
-func (p *mcProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
+func (p *mcProvider) JobStatus(_ context.Context, job *db.Job) (*provider.JobStatus, error) {
 	jobResp, err := p.client.GetJobRequest(&mediaconvert.GetJobInput{
 		Id: aws.String(job.ProviderJobID),
 	}).Send(context.Background())
@@ -348,7 +348,7 @@ func statusMsgFrom(job *mediaconvert.Job) string {
 	return string(job.CurrentPhase)
 }
 
-func (p *mcProvider) CancelJob(id string) error {
+func (p *mcProvider) CancelJob(_ context.Context, id string) error {
 	_, err := p.client.CancelJobRequest(&mediaconvert.CancelJobInput{
 		Id: aws.String(id),
 	}).Send(context.Background())

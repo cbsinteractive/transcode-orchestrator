@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -75,7 +76,7 @@ func (s *TranscodingService) newTranscodeJob(r *http.Request) swagger.GizmoJSONR
 			job.StreamingParams.SegmentDuration = s.config.DefaultSegmentDuration
 		}
 	}
-	jobStatus, err := providerObj.Transcode(&job)
+	jobStatus, err := providerObj.Transcode(r.Context(), &job)
 	if err == provider.ErrPresetMapNotFound {
 		return newInvalidJobResponse(err)
 	}
@@ -129,7 +130,7 @@ func (s *TranscodingService) defaultFileName(source string, preset *db.PresetMap
 func (s *TranscodingService) getTranscodeJob(r *http.Request) swagger.GizmoJSONResponse {
 	var params getTranscodeJobInput
 	params.loadParams(server.Vars(r))
-	return s.getJobStatusResponse(s.getTranscodeJobByID(params.JobID))
+	return s.getJobStatusResponse(s.getTranscodeJobByID(r.Context(), params.JobID))
 }
 
 func (s *TranscodingService) getJobStatusResponse(job *db.Job, status *provider.JobStatus, p provider.TranscodingProvider, err error) swagger.GizmoJSONResponse {
@@ -149,7 +150,7 @@ func (s *TranscodingService) getJobStatusResponse(job *db.Job, status *provider.
 	return newJobStatusResponse(status)
 }
 
-func (s *TranscodingService) getTranscodeJobByID(jobID string) (*db.Job, *provider.JobStatus, provider.TranscodingProvider, error) {
+func (s *TranscodingService) getTranscodeJobByID(ctx context.Context, jobID string) (*db.Job, *provider.JobStatus, provider.TranscodingProvider, error) {
 	job, err := s.db.GetJob(jobID)
 	if err != nil {
 		if err == db.ErrJobNotFound {
@@ -165,7 +166,7 @@ func (s *TranscodingService) getTranscodeJobByID(jobID string) (*db.Job, *provid
 	if err != nil {
 		return job, nil, nil, fmt.Errorf("error initializing provider %q on job id %q: %s %s", job.ProviderName, jobID, providerObj, err)
 	}
-	jobStatus, err := providerObj.JobStatus(job)
+	jobStatus, err := providerObj.JobStatus(ctx, job)
 	if err != nil {
 		return job, nil, providerObj, err
 	}
@@ -185,7 +186,7 @@ func (s *TranscodingService) getTranscodeJobByID(jobID string) (*db.Job, *provid
 func (s *TranscodingService) cancelTranscodeJob(r *http.Request) swagger.GizmoJSONResponse {
 	var params cancelTranscodeJobInput
 	params.loadParams(server.Vars(r))
-	job, _, prov, err := s.getTranscodeJobByID(params.JobID)
+	job, _, prov, err := s.getTranscodeJobByID(r.Context(), params.JobID)
 	if err != nil {
 		if err == db.ErrJobNotFound {
 			return newJobNotFoundResponse(err)
@@ -195,11 +196,11 @@ func (s *TranscodingService) cancelTranscodeJob(r *http.Request) swagger.GizmoJS
 		}
 		return swagger.NewErrorResponse(err)
 	}
-	err = prov.CancelJob(job.ProviderJobID)
+	err = prov.CancelJob(r.Context(), job.ProviderJobID)
 	if err != nil {
 		return swagger.NewErrorResponse(err)
 	}
-	status, err := prov.JobStatus(job)
+	status, err := prov.JobStatus(r.Context(), job)
 	if err != nil {
 		return swagger.NewErrorResponse(err)
 	}

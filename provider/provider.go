@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -30,12 +31,12 @@ var (
 // Job. The underlying provider should handle the profileSpec as desired (it
 // might be a JSON, or an XML, or anything else.
 type TranscodingProvider interface {
-	Transcode(*db.Job) (*JobStatus, error)
-	JobStatus(*db.Job) (*JobStatus, error)
-	CancelJob(id string) error
-	CreatePreset(db.Preset) (string, error)
-	DeletePreset(presetID string) error
-	GetPreset(presetID string) (interface{}, error)
+	Transcode(context.Context, *db.Job) (*JobStatus, error)
+	JobStatus(context.Context, *db.Job) (*JobStatus, error)
+	CancelJob(ctx context.Context, id string) error
+	CreatePreset(context.Context, db.Preset) (string, error)
+	DeletePreset(ctx context.Context, presetID string) error
+	GetPreset(ctx context.Context, presetID string) (interface{}, error)
 
 	// Healthcheck should return nil if the provider is currently available
 	// for transcoding videos, otherwise it should return an error

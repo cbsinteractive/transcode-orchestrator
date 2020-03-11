@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/cbsinteractive/video-transcoding-api/provider"
@@ -18,7 +20,7 @@ type fakeProvider struct {
 
 var fprovider fakeProvider
 
-func (p *fakeProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
+func (p *fakeProvider) Transcode(_ context.Context, job *db.Job) (*provider.JobStatus, error) {
 	for _, output := range job.Outputs {
 		if _, ok := output.Preset.ProviderMapping["fake"]; !ok {
 			return nil, provider.ErrPresetMapNotFound
@@ -36,19 +38,19 @@ func (p *fakeProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 	}, nil
 }
 
-func (*fakeProvider) CreatePreset(preset db.Preset) (string, error) {
+func (*fakeProvider) CreatePreset(_ context.Context, preset db.Preset) (string, error) {
 	return "presetID_here", nil
 }
 
-func (*fakeProvider) GetPreset(presetID string) (interface{}, error) {
+func (*fakeProvider) GetPreset(_ context.Context, presetID string) (interface{}, error) {
 	return struct{ presetID string }{"presetID_here"}, nil
 }
 
-func (*fakeProvider) DeletePreset(presetID string) error {
+func (*fakeProvider) DeletePreset(_ context.Context, presetID string) error {
 	return nil
 }
 
-func (p *fakeProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
+func (p *fakeProvider) JobStatus(_ context.Context, job *db.Job) (*provider.JobStatus, error) {
 	id := job.ProviderJobID
 	if id == "provider-job-123" {
 		status := provider.StatusFinished
@@ -78,7 +80,7 @@ func (p *fakeProvider) JobStatus(job *db.Job) (*provider.JobStatus, error) {
 	return nil, provider.JobNotFoundError{ID: id}
 }
 
-func (p *fakeProvider) CancelJob(id string) error {
+func (p *fakeProvider) CancelJob(_ context.Context, id string) error {
 	if id == "provider-job-123" {
 		p.canceledJobs = append(p.canceledJobs, id)
 		return nil

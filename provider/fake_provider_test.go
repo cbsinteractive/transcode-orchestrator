@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"context"
+
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/cbsinteractive/video-transcoding-api/db"
 )
@@ -10,27 +12,27 @@ type fakeProvider struct {
 	healthErr error
 }
 
-func (*fakeProvider) Transcode(*db.Job) (*JobStatus, error) {
+func (*fakeProvider) Transcode(context.Context, *db.Job) (*JobStatus, error) {
 	return nil, nil
 }
 
-func (*fakeProvider) JobStatus(*db.Job) (*JobStatus, error) {
+func (*fakeProvider) JobStatus(context.Context, *db.Job) (*JobStatus, error) {
 	return nil, nil
 }
 
-func (*fakeProvider) CreatePreset(db.Preset) (string, error) {
+func (*fakeProvider) CreatePreset(context.Context, db.Preset) (string, error) {
 	return "", nil
 }
 
-func (*fakeProvider) GetPreset(string) (interface{}, error) {
+func (*fakeProvider) GetPreset(context.Context, string) (interface{}, error) {
 	return "", nil
 }
 
-func (*fakeProvider) DeletePreset(string) error {
+func (*fakeProvider) DeletePreset(context.Context, string) error {
 	return nil
 }
 
-func (*fakeProvider) CancelJob(string) error {
+func (*fakeProvider) CancelJob(context.Context, string) error {
 	return nil
 }
 
