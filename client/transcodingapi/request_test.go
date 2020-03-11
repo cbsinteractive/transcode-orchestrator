@@ -1,6 +1,7 @@
 package transcodingapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -114,9 +115,10 @@ func Test_reqWithMethodAndPayload(t *testing.T) {
 			}
 
 			client := DefaultClient{BaseURL: backendURL}
+			client.ensure()
 
 			respObj := testResp{}
-			err = client.reqWithMethodAndPayload(tt.method, tt.path, &respObj, tt.reqBody)
+			err = client.reqWithMethodAndPayload(context.Background(), tt.method, tt.path, &respObj, tt.reqBody)
 			if err != nil {
 				t.Error(err)
 			}

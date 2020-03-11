@@ -1,6 +1,7 @@
 package transcodingapi
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"time"
@@ -10,17 +11,17 @@ import (
 // methods for interacting with the transcoding service
 type Client interface {
 	// Jobs
-	CreateJob(job CreateJobRequest) (CreateJobResponse, error)
-	DescribeJob(jobID JobID) (JobStatusResponse, error)
-	CancelJob(jobID JobID) (CancelJobResponse, error)
+	CreateJob(ctx context.Context, job CreateJobRequest) (CreateJobResponse, error)
+	DescribeJob(ctx context.Context, jobID JobID) (JobStatusResponse, error)
+	CancelJob(ctx context.Context, jobID JobID) (CancelJobResponse, error)
 
 	// Presets
-	CreatePreset(preset CreatePresetRequest) (CreatePresetResponse, error)
-	DeletePreset(name PresetName) (DeletePresetResponse, error)
+	CreatePreset(ctx context.Context, preset CreatePresetRequest) (CreatePresetResponse, error)
+	DeletePreset(ctx context.Context, name PresetName) (DeletePresetResponse, error)
 
 	// Providers
-	AllProviders() (ProviderNames, error)
-	GetProvider(name ProviderName) (ProviderDescription, error)
+	AllProviders(ctx context.Context) (ProviderNames, error)
+	GetProvider(ctx context.Context, name ProviderName) (ProviderDescription, error)
 }
 
 const (
@@ -34,11 +35,11 @@ type DefaultClient struct {
 }
 
 // CreateJob creates a new transcode job based on the request definition
-func (c *DefaultClient) CreateJob(job CreateJobRequest) (CreateJobResponse, error) {
+func (c *DefaultClient) CreateJob(ctx context.Context, job CreateJobRequest) (CreateJobResponse, error) {
 	c.ensure()
 
 	var jobResponse CreateJobResponse
-	err := c.postResource(job, &jobResponse, "/jobs")
+	err := c.postResource(ctx, job, &jobResponse, "/jobs")
 	if err != nil {
 		return CreateJobResponse{}, err
 	}
@@ -47,11 +48,11 @@ func (c *DefaultClient) CreateJob(job CreateJobRequest) (CreateJobResponse, erro
 }
 
 // CancelJob will stop the execution of work in given provider
-func (c *DefaultClient) CancelJob(jobID JobID) (CancelJobResponse, error) {
+func (c *DefaultClient) CancelJob(ctx context.Context, jobID JobID) (CancelJobResponse, error) {
 	c.ensure()
 
 	var cancelResp CancelJobResponse
-	err := c.postResource(nil, &cancelResp, "/jobs/"+string(jobID)+"/cancel")
+	err := c.postResource(ctx, nil, &cancelResp, "/jobs/"+string(jobID)+"/cancel")
 	if err != nil {
 		return CancelJobResponse{}, err
 	}
@@ -60,11 +61,11 @@ func (c *DefaultClient) CancelJob(jobID JobID) (CancelJobResponse, error) {
 }
 
 // DescribeJob returns details about a single job
-func (c *DefaultClient) DescribeJob(jobID JobID) (JobStatusResponse, error) {
+func (c *DefaultClient) DescribeJob(ctx context.Context, jobID JobID) (JobStatusResponse, error) {
 	c.ensure()
 
 	var describeResp JobStatusResponse
-	err := c.getResource(&describeResp, "/jobs/"+string(jobID))
+	err := c.getResource(ctx, &describeResp, "/jobs/"+string(jobID))
 	if err != nil {
 		return JobStatusResponse{}, err
 	}
@@ -73,11 +74,11 @@ func (c *DefaultClient) DescribeJob(jobID JobID) (JobStatusResponse, error) {
 }
 
 // CreatePreset attempts to create a new preset based on the request definition
-func (c *DefaultClient) CreatePreset(preset CreatePresetRequest) (CreatePresetResponse, error) {
+func (c *DefaultClient) CreatePreset(ctx context.Context, preset CreatePresetRequest) (CreatePresetResponse, error) {
 	c.ensure()
 
 	var presetResponse CreatePresetResponse
-	err := c.postResource(preset, &presetResponse, "/presets")
+	err := c.postResource(ctx, preset, &presetResponse, "/presets")
 	if err != nil {
 		return CreatePresetResponse{}, err
 	}
@@ -86,11 +87,11 @@ func (c *DefaultClient) CreatePreset(preset CreatePresetRequest) (CreatePresetRe
 }
 
 // DeletePreset removes the preset from all providers
-func (c *DefaultClient) DeletePreset(name PresetName) (DeletePresetResponse, error) {
+func (c *DefaultClient) DeletePreset(ctx context.Context, name PresetName) (DeletePresetResponse, error) {
 	c.ensure()
 
 	var deleteResponse DeletePresetResponse
-	err := c.removeResource(&deleteResponse, "/presets/"+string(name))
+	err := c.removeResource(ctx, &deleteResponse, "/presets/"+string(name))
 	if err != nil {
 		return DeletePresetResponse{}, err
 	}
@@ -99,11 +100,11 @@ func (c *DefaultClient) DeletePreset(name PresetName) (DeletePresetResponse, err
 }
 
 // AllProviders returns all configured providers
-func (c *DefaultClient) AllProviders() (ProviderNames, error) {
+func (c *DefaultClient) AllProviders(ctx context.Context) (ProviderNames, error) {
 	c.ensure()
 
 	providerNames := ProviderNames{}
-	err := c.getResource(&providerNames, "/providers")
+	err := c.getResource(ctx, &providerNames, "/providers")
 	if err != nil {
 		return providerNames, err
 	}
@@ -112,11 +113,11 @@ func (c *DefaultClient) AllProviders() (ProviderNames, error) {
 }
 
 // GetProvider returns information on a specific provider
-func (c *DefaultClient) GetProvider(name ProviderName) (ProviderDescription, error) {
+func (c *DefaultClient) GetProvider(ctx context.Context, name ProviderName) (ProviderDescription, error) {
 	c.ensure()
 
 	var resp ProviderDescription
-	err := c.getResource(&resp, "/providers/"+string(name))
+	err := c.getResource(ctx, &resp, "/providers/"+string(name))
 	if err != nil {
 		return ProviderDescription{}, err
 	}

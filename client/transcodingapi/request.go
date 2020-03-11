@@ -2,25 +2,26 @@ package transcodingapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 )
 
-func (c *DefaultClient) getResource(result interface{}, path string) error {
-	return c.reqWithMethodAndPayload(http.MethodGet, path, result, nil)
+func (c *DefaultClient) getResource(ctx context.Context, result interface{}, path string) error {
+	return c.reqWithMethodAndPayload(ctx, http.MethodGet, path, result, nil)
 }
 
-func (c *DefaultClient) postResource(resource interface{}, result interface{}, path string) error {
-	return c.reqWithMethodAndPayload(http.MethodPost, path, result, resource)
+func (c *DefaultClient) postResource(ctx context.Context, resource interface{}, result interface{}, path string) error {
+	return c.reqWithMethodAndPayload(ctx, http.MethodPost, path, result, resource)
 }
 
-func (c *DefaultClient) removeResource(result interface{}, path string) error {
-	return c.reqWithMethodAndPayload(http.MethodDelete, path, result, nil)
+func (c *DefaultClient) removeResource(ctx context.Context, result interface{}, path string) error {
+	return c.reqWithMethodAndPayload(ctx, http.MethodDelete, path, result, nil)
 }
 
-func (c *DefaultClient) reqWithMethodAndPayload(method string, path string, result interface{}, reqBody interface{}) error {
+func (c *DefaultClient) reqWithMethodAndPayload(ctx context.Context, method string, path string, result interface{}, reqBody interface{}) error {
 	var req *http.Request
 	var err error
 
@@ -30,9 +31,9 @@ func (c *DefaultClient) reqWithMethodAndPayload(method string, path string, resu
 		if err != nil {
 			return err
 		}
-		req, err = http.NewRequest(method, c.BaseURL.String()+path, body)
+		req, err = http.NewRequestWithContext(ctx, method, c.BaseURL.String()+path, body)
 	} else {
-		req, err = http.NewRequest(method, c.BaseURL.String()+path, nil)
+		req, err = http.NewRequestWithContext(ctx, method, c.BaseURL.String()+path, nil)
 	}
 
 	if err != nil {
