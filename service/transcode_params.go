@@ -24,6 +24,9 @@ type NewTranscodeJobInputPayload struct {
 	// provider to use in this job
 	Provider string `json:"provider"`
 
+	// Name is an optional client-supplied name for the job
+	Name string `json:"name,omitempty"`
+
 	// ExecutionFeatures holds custom provider-specific execution features configuration
 	ExecutionFeatures db.ExecutionFeatures `json:"executionFeatures,omitempty"`
 

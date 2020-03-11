@@ -255,8 +255,13 @@ func (p *bitmovinProvider) Transcode(job *db.Job) (*provider.JobStatus, error) {
 		return nil, errors.Wrap(err, "validating and setting encoding infrastructure")
 	}
 
+	jobName := job.ID
+	if name := job.Name; name != "" {
+		jobName = name
+	}
+
 	enc, err := p.api.Encoding.Encodings.Create(model.Encoding{
-		Name:           job.ID,
+		Name:           jobName,
 		CustomData:     &encCustomData,
 		CloudRegion:    encodingCloudRegion,
 		EncoderVersion: p.providerCfg.EncodingVersion,

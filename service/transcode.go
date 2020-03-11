@@ -38,6 +38,7 @@ func (s *TranscodingService) newTranscodeJob(r *http.Request) swagger.GizmoJSONR
 		return swagger.NewErrorResponse(formattedErr)
 	}
 	job := db.Job{
+		Name:                input.Payload.Name,
 		SourceMedia:         input.Payload.Source,
 		DestinationBasePath: input.Payload.DestinationBasePath,
 		ExecutionEnv:        input.Payload.ExecutionEnv,

@@ -16,6 +16,14 @@ type Job struct {
 	// unique: true
 	ID string `redis-hash:"jobID" json:"jobId"`
 
+	// Name is an optional client-provided name for the job, when supplied, provider code
+	// is encouraged to set this value as a searchable attribute within the provider
+	// if this feature is supported
+	//
+	// required: false
+	// unique: false
+	Name string `redis-hash:"name,omitempty" json:"name,omitempty"`
+
 	// name of the provider
 	//
 	// required: true
