@@ -15,6 +15,8 @@ type Config struct {
 	DefaultSegmentDuration uint   `envconfig:"DEFAULT_SEGMENT_DURATION" default:"5"`
 	SentryDSN              string `envconfig:"SENTRY_DSN"`
 	Env                    string `envconfig:"ENV" default:"dev"`
+	EnableXray             bool   `envconfig:"ENABLE_XRAY"`
+	EnableXrayAWSPlugins   bool   `envconfig:"ENABLE_XRAYAWSPLUGINS"`
 	Redis                  *storage.Config
 	EncodingCom            *EncodingCom
 	ElasticTranscoder      *ElasticTranscoder

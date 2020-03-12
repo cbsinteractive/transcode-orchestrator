@@ -3,8 +3,11 @@ package main
 import (
 	"io/ioutil"
 	"log"
+	"net"
 
 	"github.com/NYTimes/gizmo/server"
+	"github.com/aws/aws-xray-sdk-go/awsplugins/ec2"
+	"github.com/aws/aws-xray-sdk-go/awsplugins/ecs"
 	_ "github.com/aws/aws-xray-sdk-go/plugins/ecs"
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/cbsinteractive/video-transcoding-api/config"
@@ -27,7 +30,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = xray.Configure(xray.Config{})
+	var emitter xray.Emitter
+	if cfg.EnableXray {
+		emitter, err = xray.NewDefaultEmitter(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 2000})
+		if err != nil {
+			logger.Fatalf("creating xray emitter: %v", err)
+		}
+
+		if cfg.EnableXrayAWSPlugins {
+			ec2.Init()
+			ecs.Init()
+		}
+	} else {
+		emitter = &NoopEmitter{}
+	}
+
+	err = xray.Configure(xray.Config{
+		ContextMissingStrategy: ctxMissingStrategy{},
+		Emitter:                emitter,
+	})
 	if err != nil {
 		logger.Fatalf("configuring xray: %v", err)
 	}
@@ -45,3 +66,12 @@ func main() {
 		logger.Fatal("server encountered a fatal error: ", err)
 	}
 }
+
+type NoopEmitter struct{}
+
+func (te *NoopEmitter) Emit(*xray.Segment)                     {}
+func (te *NoopEmitter) RefreshEmitterWithAddress(*net.UDPAddr) {}
+
+type ctxMissingStrategy struct{}
+
+func (s ctxMissingStrategy) ContextMissing(interface{}) {}
