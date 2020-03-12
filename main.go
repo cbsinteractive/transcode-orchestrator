@@ -8,7 +8,6 @@ import (
 	"github.com/NYTimes/gizmo/server"
 	"github.com/aws/aws-xray-sdk-go/awsplugins/ec2"
 	"github.com/aws/aws-xray-sdk-go/awsplugins/ecs"
-	_ "github.com/aws/aws-xray-sdk-go/plugins/ecs"
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	_ "github.com/cbsinteractive/video-transcoding-api/provider/bitmovin"
