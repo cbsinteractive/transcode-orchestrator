@@ -36,7 +36,7 @@ gotest: testdeps
 
 test: lint gotest
 
-coverage: lint
+coverage:
 	go test -coverprofile=coverage.txt -covermode=atomic ./...
 
 build:

@@ -6,7 +6,6 @@ import (
 
 	"github.com/NYTimes/gizmo/server"
 	"github.com/NYTimes/gziphandler"
-	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/cbsinteractive/video-transcoding-api/db/redis"
@@ -15,6 +14,7 @@ import (
 	"github.com/fsouza/ctxlogger"
 	"github.com/gorilla/handlers"
 	"github.com/sirupsen/logrus"
+	"github.com/zsiec/pkg/tracing"
 )
 
 // TranscodingService will implement server.JSONService and handle all requests
@@ -24,6 +24,7 @@ type TranscodingService struct {
 	db          db.Repository
 	logger      *logrus.Logger
 	errReporter exceptions.Reporter
+	tracer      tracing.Tracer
 }
 
 // NewTranscodingService will instantiate a JSONService
@@ -45,7 +46,18 @@ func NewTranscodingService(cfg *config.Config, logger *logrus.Logger) (*Transcod
 		logger.Info("no sentry config detected, disabling sentry integration")
 	}
 
-	return &TranscodingService{config: cfg, db: dbRepo, logger: logger, errReporter: errReporter}, nil
+	tracer := cfg.Tracer
+	if tracer == nil {
+		tracer = tracing.NoopTracer{}
+	}
+
+	return &TranscodingService{
+		config:      cfg,
+		db:          dbRepo,
+		logger:      logger,
+		errReporter: errReporter,
+		tracer:      tracer,
+	}, nil
 }
 
 // Prefix returns the string prefix used for all endpoints within
@@ -63,8 +75,8 @@ func (s *TranscodingService) Middleware(h http.Handler) http.Handler {
 	if s.config.Server.HTTPAccessLog == nil {
 		h = handlers.LoggingHandler(s.logger.Writer(), h)
 	}
-	return xray.Handler(
-		xray.NewFixedSegmentNamer("video-transcoding-api"),
+	return s.tracer.Handle(
+		tracing.FixedNamer("video-transcoding-api"),
 		gziphandler.GzipHandler(server.CORSHandler(h, "")),
 	)
 }

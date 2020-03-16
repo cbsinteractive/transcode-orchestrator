@@ -3,18 +3,16 @@ package main
 import (
 	"io/ioutil"
 	"log"
-	"net"
 
 	"github.com/NYTimes/gizmo/server"
-	"github.com/aws/aws-xray-sdk-go/awsplugins/ec2"
-	"github.com/aws/aws-xray-sdk-go/awsplugins/ecs"
-	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	_ "github.com/cbsinteractive/video-transcoding-api/provider/bitmovin"
 	_ "github.com/cbsinteractive/video-transcoding-api/provider/hybrik"
 	_ "github.com/cbsinteractive/video-transcoding-api/provider/mediaconvert"
 	"github.com/cbsinteractive/video-transcoding-api/service"
 	"github.com/google/gops/agent"
+	"github.com/zsiec/pkg/tracing"
+	"github.com/zsiec/pkg/xrayutil"
 )
 
 func main() {
@@ -29,27 +27,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var emitter xray.Emitter
 	if cfg.EnableXray {
-		emitter, err = xray.NewDefaultEmitter(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 2000})
-		if err != nil {
-			logger.Fatalf("creating xray emitter: %v", err)
-		}
-
-		if cfg.EnableXrayAWSPlugins {
-			ec2.Init()
-			ecs.Init()
+		cfg.Tracer = xrayutil.XrayTracer{
+			EnableAWSPlugins: cfg.EnableXrayAWSPlugins,
+			InfoLogFn:        logger.Infof,
 		}
 	} else {
-		emitter = &NoopEmitter{}
+		cfg.Tracer = tracing.NoopTracer{}
 	}
 
-	err = xray.Configure(xray.Config{
-		ContextMissingStrategy: ctxMissingStrategy{},
-		Emitter:                emitter,
-	})
+	err = cfg.Tracer.Init()
 	if err != nil {
-		logger.Fatalf("configuring xray: %v", err)
+		logger.Fatalf("initializing tracer: %v", err)
 	}
 
 	service, err := service.NewTranscodingService(cfg, logger)
@@ -65,12 +54,3 @@ func main() {
 		logger.Fatal("server encountered a fatal error: ", err)
 	}
 }
-
-type NoopEmitter struct{}
-
-func (te *NoopEmitter) Emit(*xray.Segment)                     {}
-func (te *NoopEmitter) RefreshEmitterWithAddress(*net.UDPAddr) {}
-
-type ctxMissingStrategy struct{}
-
-func (s ctxMissingStrategy) ContextMissing(interface{}) {}

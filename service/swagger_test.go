@@ -9,6 +9,7 @@ import (
 	"github.com/NYTimes/gizmo/server"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/sirupsen/logrus"
+	"github.com/zsiec/pkg/tracing"
 )
 
 func TestSwaggerManifest(t *testing.T) {
@@ -24,6 +25,7 @@ func TestSwaggerManifest(t *testing.T) {
 			SwaggerManifest: "testdata/swagger.json",
 			Server:          &server.Config{},
 		},
+		tracer: tracing.NoopTracer{},
 		logger: logrus.New(),
 	})
 	r, _ := http.NewRequest("GET", "/swagger.json", nil)

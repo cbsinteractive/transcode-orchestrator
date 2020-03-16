@@ -3,8 +3,11 @@ jobs:
 
   build:
     docker:
-      - image: zsiec/go-1-13-redis:latest
+      - image: circleci/golang:1.14
     steps:
+      - run:
+          name: Install redis-server executable
+          command: sudo apt-get install redis-server
       - run:
           name: Start redis server
           command: sudo service redis-server start

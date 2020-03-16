@@ -5,6 +5,7 @@ import (
 	"github.com/cbsinteractive/video-transcoding-api/db/redis/storage"
 	logging "github.com/fsouza/gizmo-stackdriver-logging"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/zsiec/pkg/tracing"
 )
 
 // Config is a struct to contain all the needed configuration for the
@@ -26,6 +27,7 @@ type Config struct {
 	Bitmovin               *Bitmovin
 	MediaConvert           *MediaConvert
 	Log                    *logging.Config
+	Tracer                 tracing.Tracer `ignored:"true"`
 }
 
 // EncodingCom represents the set of configurations for the Encoding.com

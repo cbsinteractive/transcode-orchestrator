@@ -37,7 +37,7 @@ func Test_storageProviderFrom(t *testing.T) {
 		{
 			name:    "bad paths return a useful error",
 			path:    "%fsdf://some-bucket/some-path",
-			wantErr: `parse %fsdf://some-bucket/some-path: first path segment in URL cannot contain colon`,
+			wantErr: `parse "%fsdf://some-bucket/some-path": first path segment in URL cannot contain colon`,
 		},
 	}
 

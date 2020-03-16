@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/common"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
@@ -22,6 +21,7 @@ import (
 	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/status"
 	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/storage"
 	"github.com/pkg/errors"
+	"github.com/zsiec/pkg/tracing"
 )
 
 type containerSvc struct {
@@ -135,10 +135,16 @@ func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 		return nil, fmt.Errorf("error initializing bitmovin wrapper: %s", err)
 	}
 
+	tracer := cfg.Tracer
+	if tracer == nil {
+		tracer = tracing.NoopTracer{}
+	}
+
 	return &bitmovinProvider{
 		api:         api,
 		repo:        dbRepo,
 		providerCfg: cfg.Bitmovin,
+		tracer:      tracer,
 		cfgStores: map[cfgStore]configuration.Store{
 			cfgStoreH264:      configuration.NewH264(api, dbRepo),
 			cfgStoreH265:      configuration.NewH265(api, dbRepo),
@@ -186,6 +192,7 @@ type bitmovinProvider struct {
 	cfgStores     map[cfgStore]configuration.Store
 	containerSvcs map[mediaContainer]containerSvc
 	repo          db.Repository
+	tracer        tracing.Tracer
 	presetMutex   sync.Mutex
 }
 
@@ -234,7 +241,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		manifestMasterPath = path.Dir(path.Join(destPath, job.StreamingParams.PlaylistFileName))
 		manifestMasterFilename = path.Base(job.StreamingParams.PlaylistFileName)
 
-		_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-hls-manifest")
+		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-hls-manifest")
 		hlsManifest, err := p.api.Encoding.Manifests.Hls.Create(model.HlsManifest{
 			ManifestName: manifestMasterFilename,
 			Outputs:      []model.EncodingOutput{storage.EncodingOutputFrom(outputID, manifestMasterPath)},
@@ -265,7 +272,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		jobName = name
 	}
 
-	_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-encoding")
+	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-encoding")
 	enc, err := p.api.Encoding.Encodings.Create(model.Encoding{
 		Name:           jobName,
 		CustomData:     &encCustomData,
@@ -281,7 +288,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 
 	videoFilters := map[int]string{}
 	if processingVideo {
-		_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-deinterlace-filter")
+		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-deinterlace-filter")
 		deInterlace, err := p.api.Encoding.Filters.Deinterlace.Create(model.DeinterlaceFilter{
 			Name:       "deinterlace",
 			AutoEnable: model.DeinterlaceAutoEnable_META_DATA_AND_CONTENT_BASED,
@@ -297,7 +304,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	var wg sync.WaitGroup
 	errorc := make(chan error)
 
-	_, subSeg = xray.BeginSubsegment(ctx, "bitmovin-create-outputs")
+	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-outputs")
 	for idx, o := range job.Outputs {
 		wg.Add(1)
 
@@ -334,7 +341,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		vodHLSManifests = []model.ManifestResource{{ManifestId: manifestID}}
 	}
 
-	_, subSeg = xray.BeginSubsegment(ctx, "bitmovin-start-encoding")
+	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-start-encoding")
 	encResp, err := p.api.Encoding.Encodings.Start(enc.Id, model.StartEncodingRequest{VodHlsManifests: vodHLSManifests})
 	if err != nil {
 		subSeg.Close(err)
@@ -437,7 +444,7 @@ func (p *bitmovinProvider) inputFrom(ctx context.Context, job *db.Job) (inputID 
 		return alias, srcPath, nil
 	}
 
-	_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-input")
+	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-input")
 
 	inputID, err = storage.NewInput(job.SourceMedia, storage.InputAPI{
 		S3:    p.api.Encoding.Inputs.S3,
@@ -466,7 +473,7 @@ func (p *bitmovinProvider) outputFrom(ctx context.Context, job *db.Job) (inputID
 		return alias, destPath, nil
 	}
 
-	_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-output")
+	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-output")
 	defer subSeg.Close(nil)
 
 	outputID, err := storage.NewOutput(destBasePath, storage.OutputAPI{
@@ -528,8 +535,7 @@ func (p *bitmovinProvider) encodingInfrastructureFrom(job *db.Job) (*model.Infra
 }
 
 func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
-	_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-create-get-encoding-status")
-	subSeg.AddAnnotation("jobID", job.ProviderJobID)
+	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-get-encoding-status")
 	task, err := p.api.Encoding.Encodings.Status(job.ProviderJobID)
 	if err != nil {
 		subSeg.Close(err)
@@ -557,7 +563,7 @@ func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provide
 	}
 
 	if s.Status == provider.StatusFinished {
-		_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-get-output-info")
+		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-get-output-info")
 		s, err = status.EnrichSourceInfo(p.api, s)
 		if err != nil {
 			subSeg.Close(err)
@@ -580,8 +586,7 @@ func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provide
 }
 
 func (p *bitmovinProvider) CancelJob(ctx context.Context, id string) error {
-	_, subSeg := xray.BeginSubsegment(ctx, "bitmovin-delete-job")
-	subSeg.AddAnnotation("jobID", id)
+	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-delete-job")
 	_, err := p.api.Encoding.Encodings.Stop(id)
 	subSeg.Close(err)
 

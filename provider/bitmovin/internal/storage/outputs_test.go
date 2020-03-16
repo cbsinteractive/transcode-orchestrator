@@ -113,7 +113,7 @@ func TestNewOutput(t *testing.T) {
 			destLoc: "s3://%%some-bucket/some/path/file.mp4",
 			api:     fakeOutputAPIReturningOutputID("some-output-id"),
 			wantErr: `could not parse destination media location "s3://%%some-bucket/some/path/file.mp4": ` +
-				`parse s3://%%some-bucket/some/path/file.mp4: invalid URL escape "%%s"`,
+				`parse "s3://%%some-bucket/some/path/file.mp4": invalid URL escape "%%s"`,
 		},
 	}
 
