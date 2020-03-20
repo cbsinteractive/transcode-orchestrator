@@ -11,7 +11,7 @@ import (
 
 const defaultAACSampleRate = 48000
 
-// NewAAC creates a AAC codec configuration and returns its ID
+// NewAAC creates an AAC codec configuration and returns its ID
 func NewAAC(api *bitmovin.BitmovinApi, bitrate string) (string, error) {
 	createCfg, err := aacConfigFrom(bitrate)
 	if err != nil {
