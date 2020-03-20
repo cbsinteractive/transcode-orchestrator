@@ -71,10 +71,8 @@ func av1ConfigFrom(preset db.Preset) (model.Av1VideoConfiguration, error) {
 		}
 	}
 
-	cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
-	if preset.TwoPass {
-		cfg.EncodingMode = model.EncodingMode_TWO_PASS
-	}
+	// Single-pass encoding throws an error
+	cfg.EncodingMode = model.EncodingMode_TWO_PASS
 
 	return cfg, nil
 }
