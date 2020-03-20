@@ -676,6 +676,8 @@ func (p *bitmovinProvider) cfgServiceFrom(vcodec, acodec string) (configuration.
 		return p.cfgStores[cfgStoreH264], nil
 	case codecH265:
 		return p.cfgStores[cfgStoreH265], nil
+	case codecAV1:
+		return p.cfgStores[cfgStoreAV1], nil
 	case codecAAC:
 		return p.cfgStores[cfgStoreAAC], nil
 	}
