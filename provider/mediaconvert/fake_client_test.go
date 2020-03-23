@@ -28,7 +28,7 @@ type testMediaConvertClient struct {
 func (c *testMediaConvertClient) CreatePresetRequest(input *mediaconvert.CreatePresetInput) mediaconvert.CreatePresetRequest {
 	c.createPresetCalledWith = input
 	return mediaconvert.CreatePresetRequest{
-		Request: &aws.Request{HTTPRequest: &http.Request{}, Data: &mediaconvert.CreatePresetOutput{
+		Request: &aws.Request{HTTPRequest: &http.Request{}, Retryer: aws.NoOpRetryer{}, Data: &mediaconvert.CreatePresetOutput{
 			Preset: &mediaconvert.Preset{
 				Name: input.Name,
 				Settings: &mediaconvert.PresetSettings{
@@ -44,6 +44,7 @@ func (c *testMediaConvertClient) CreatePresetRequest(input *mediaconvert.CreateP
 func (c *testMediaConvertClient) GetJobRequest(*mediaconvert.GetJobInput) mediaconvert.GetJobRequest {
 	return mediaconvert.GetJobRequest{Request: &aws.Request{
 		HTTPRequest: &http.Request{},
+		Retryer:     aws.NoOpRetryer{},
 		Data: &mediaconvert.GetJobOutput{
 			Job: &c.jobReturnedByGetJob,
 		},
@@ -54,6 +55,7 @@ func (c *testMediaConvertClient) ListJobsRequest(*mediaconvert.ListJobsInput) me
 	c.listJobsCalled = true
 	return mediaconvert.ListJobsRequest{Request: &aws.Request{
 		HTTPRequest: &http.Request{},
+		Retryer:     aws.NoOpRetryer{},
 		Data:        &mediaconvert.ListJobsOutput{},
 	}}
 }
@@ -61,7 +63,7 @@ func (c *testMediaConvertClient) ListJobsRequest(*mediaconvert.ListJobsInput) me
 func (c *testMediaConvertClient) CreateJobRequest(input *mediaconvert.CreateJobInput) mediaconvert.CreateJobRequest {
 	c.createJobCalledWith = *input
 	return mediaconvert.CreateJobRequest{
-		Request: &aws.Request{HTTPRequest: &http.Request{}, Data: &mediaconvert.CreateJobOutput{
+		Request: &aws.Request{HTTPRequest: &http.Request{}, Retryer: aws.NoOpRetryer{}, Data: &mediaconvert.CreateJobOutput{
 			Job: &mediaconvert.Job{
 				Id: aws.String(c.jobIDReturnedByCreateJob),
 			},
@@ -73,6 +75,7 @@ func (c *testMediaConvertClient) CancelJobRequest(input *mediaconvert.CancelJobI
 	c.cancelJobCalledWith = *input.Id
 	return mediaconvert.CancelJobRequest{Request: &aws.Request{
 		HTTPRequest: &http.Request{},
+		Retryer:     aws.NoOpRetryer{},
 		Data:        &mediaconvert.CancelJobOutput{},
 	}}
 }
@@ -80,7 +83,7 @@ func (c *testMediaConvertClient) CancelJobRequest(input *mediaconvert.CancelJobI
 func (c *testMediaConvertClient) GetPresetRequest(input *mediaconvert.GetPresetInput) mediaconvert.GetPresetRequest {
 	c.getPresetCalledWith = *input.Name
 	return mediaconvert.GetPresetRequest{
-		Request: &aws.Request{HTTPRequest: &http.Request{}, Data: &mediaconvert.GetPresetOutput{
+		Request: &aws.Request{HTTPRequest: &http.Request{}, Retryer: aws.NoOpRetryer{}, Data: &mediaconvert.GetPresetOutput{
 			Preset: &mediaconvert.Preset{
 				Name: input.Name,
 				Settings: &mediaconvert.PresetSettings{
@@ -97,6 +100,7 @@ func (c *testMediaConvertClient) DeletePresetRequest(input *mediaconvert.DeleteP
 	c.deletePresetCalledWith = *input.Name
 	return mediaconvert.DeletePresetRequest{Request: &aws.Request{
 		HTTPRequest: &http.Request{},
+		Retryer:     aws.NoOpRetryer{},
 		Data:        &mediaconvert.DeletePresetOutput{},
 	}}
 }
