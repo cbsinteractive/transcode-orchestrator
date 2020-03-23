@@ -20,7 +20,7 @@ require (
 	github.com/kr/pretty v0.2.0
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.5.0
 	github.com/zsiec/pkg/tracing v0.0.0-20200316013157-874eb6019248
 	github.com/zsiec/pkg/xrayutil v0.0.0-20200316013157-874eb6019248
 )
