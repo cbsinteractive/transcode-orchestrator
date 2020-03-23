@@ -57,12 +57,13 @@ func Test_mediaconvertFactory(t *testing.T) {
 			wantRegion: "us-cfg-region-1",
 		},
 		{
-			name: "when a config does not specify aws credentials or region, credentials and region are loaded " +
+			name: "when a config does not specify aws credentials, region, or profile, credentials and region are loaded " +
 				"from the environment",
 			envVars: map[string]string{
 				"AWS_ACCESS_KEY_ID":     "env_access_key_id",
 				"AWS_SECRET_ACCESS_KEY": "env_secret_access_key",
 				"AWS_DEFAULT_REGION":    "us-north-1",
+				"AWS_PROFILE":           "",
 			},
 			cfg: cfgWithoutCredsAndRegion,
 			wantCreds: aws.Credentials{
