@@ -40,6 +40,7 @@ const (
 
 	codecVorbis = "vorbis"
 	codecAAC    = "aac"
+	codecOpus   = "opus"
 	codecVP8    = "vp8"
 	codecH264   = "h264"
 	codecH265   = "h265"
@@ -58,6 +59,7 @@ const (
 	cfgStoreH265      cfgStore = "h265"
 	cfgStoreAV1       cfgStore = "av1"
 	cfgStoreAAC       cfgStore = "aac"
+	cfgStoreOpus      cfgStore = "opus"
 
 	filterVideoDeinterlace = iota + 1
 )
@@ -155,6 +157,7 @@ func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 			cfgStoreH265AAC:   configuration.NewH265AAC(api, dbRepo),
 			cfgStoreVP8Vorbis: configuration.NewVP8Vorbis(api, dbRepo),
 			cfgStoreAAC:       configuration.NewAAC(api, dbRepo),
+			cfgStoreOpus:      configuration.NewOpus(api, dbRepo),
 		},
 		containerSvcs: map[mediaContainer]containerSvc{
 			containerHLS: {
@@ -680,6 +683,8 @@ func (p *bitmovinProvider) cfgServiceFrom(vcodec, acodec string) (configuration.
 		return p.cfgStores[cfgStoreAV1], nil
 	case codecAAC:
 		return p.cfgStores[cfgStoreAAC], nil
+	case codecOpus:
+		return p.cfgStores[cfgStoreOpus], nil
 	}
 
 	return nil, fmt.Errorf("the pair of vcodec: %q and acodec: %q is not yet supported", vcodec, acodec)
