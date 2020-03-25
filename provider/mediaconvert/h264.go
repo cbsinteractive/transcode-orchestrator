@@ -19,7 +19,7 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 
 	gopSize, err := strconv.ParseFloat(preset.Video.GopSize, 64)
 	if err != nil {
-		return nil, errors.Wrapf(err, "parsing gop size %q to int64", preset.Video.GopSize)
+		return nil, errors.Wrapf(err, "parsing gop size %q to float64", preset.Video.GopSize)
 	}
 
 	gopUnit, err := h264GopUnitFrom(preset.Video.GopUnit)

@@ -56,6 +56,22 @@ var (
 		},
 	}
 
+	av1Preset = db.Preset{
+		Name:        "yet_another_preset_name",
+		Description: "test_desc",
+		Container:   "mp4",
+		TwoPass:     false,
+		Video: db.VideoPreset{
+			Width:         "300",
+			Height:        "400",
+			Codec:         "av1",
+			Bitrate:       "400000",
+			GopSize:       "120",
+			GopUnit:       "frames",
+			InterlaceMode: "progressive",
+		},
+	}
+
 	defaultJob = db.Job{
 		ID:           "jobID",
 		ProviderName: Name,
@@ -236,7 +252,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 				p.Video.GopSize = "gop"
 				return p
 			},
-			wantErrMsg: `generating video preset: building h264 codec settings: parsing gop size "gop" to int64: strconv.ParseFloat: parsing "gop": invalid syntax`,
+			wantErrMsg: `generating video preset: building h264 codec settings: parsing gop size "gop" to float64: strconv.ParseFloat: parsing "gop": invalid syntax`,
 		},
 		{
 			name: "unrecognized rate control mode returns an error",
@@ -504,6 +520,75 @@ func Test_mcProvider_Transcode(t *testing.T) {
 												SceneChangeDetect:              mediaconvert.H265SceneChangeDetectEnabled,
 												UnregisteredSeiTimecode:        mediaconvert.H265UnregisteredSeiTimecodeDisabled,
 												SampleAdaptiveOffsetFilterMode: mediaconvert.H265SampleAdaptiveOffsetFilterModeAdaptive,
+											},
+										},
+									},
+									Extension: aws.String("mp4"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "a valid av1 video-only mp4 transcode job is mapped correctly to a mediaconvert job input",
+			job: &db.Job{
+				ID:           "jobID",
+				ProviderName: Name,
+				SourceMedia:  "s3://some/path.mp4",
+				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: av1Preset.Name}, FileName: "file1.mp4"}},
+			},
+			preset:      av1Preset,
+			destination: "s3://some/destination",
+			wantJobReq: mediaconvert.CreateJobInput{
+				Role:  aws.String(""),
+				Queue: aws.String(""),
+				Settings: &mediaconvert.JobSettings{
+					Inputs: []mediaconvert.Input{
+						{
+							AudioSelectors: map[string]mediaconvert.AudioSelector{
+								"Audio Selector 1": {
+									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+								},
+							},
+							FileInput: aws.String("s3://some/path.mp4"),
+							VideoSelector: &mediaconvert.VideoSelector{
+								ColorSpace: mediaconvert.ColorSpaceFollow,
+							},
+						},
+					},
+					OutputGroups: []mediaconvert.OutputGroup{
+						{
+							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+								FileGroupSettings: &mediaconvert.FileGroupSettings{
+									Destination: aws.String("s3://some/destination/jobID/m"),
+								},
+							},
+							Outputs: []mediaconvert.Output{
+								{
+									NameModifier: aws.String("file1"),
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeMp4,
+									},
+									VideoDescription: &mediaconvert.VideoDescription{
+										Height:            aws.Int64(400),
+										Width:             aws.Int64(300),
+										RespondToAfd:      mediaconvert.RespondToAfdNone,
+										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+										AntiAlias:         mediaconvert.AntiAliasEnabled,
+										CodecSettings: &mediaconvert.VideoCodecSettings{
+											Codec: mediaconvert.VideoCodecAv1,
+											Av1Settings: &mediaconvert.Av1Settings{
+												MaxBitrate: aws.Int64(400000),
+												GopSize:    aws.Float64(120),
+												QvbrSettings: &mediaconvert.Av1QvbrSettings{
+													QvbrQualityLevel:         aws.Int64(7),
+													QvbrQualityLevelFineTune: aws.Float64(0),
+												},
+												RateControlMode: mediaconvert.Av1RateControlModeQvbr,
 											},
 										},
 									},

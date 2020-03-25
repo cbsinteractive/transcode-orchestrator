@@ -152,6 +152,13 @@ func videoPresetFrom(preset db.Preset) (*mediaconvert.VideoDescription, error) {
 		}
 
 		videoPreset.CodecSettings = settings
+	case "av1":
+		settings, err := av1CodecSettingsFrom(preset)
+		if err != nil {
+			return nil, errors.Wrap(err, "building av1 codec settings")
+		}
+
+		videoPreset.CodecSettings = settings
 	default:
 		return nil, fmt.Errorf("video codec %q is not yet supported with mediaconvert", codec)
 	}
