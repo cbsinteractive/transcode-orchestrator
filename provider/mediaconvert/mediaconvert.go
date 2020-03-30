@@ -58,9 +58,6 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 	}
 
 	createJobInput := mediaconvert.CreateJobInput{
-		AccelerationSettings: &mediaconvert.AccelerationSettings{
-			Mode: mediaconvert.AccelerationModePreferred,
-		},
 		Queue: aws.String(p.cfg.Queue),
 		Role:  aws.String(p.cfg.Role),
 		Settings: &mediaconvert.JobSettings{
@@ -73,13 +70,9 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 					VideoSelector: &mediaconvert.VideoSelector{
 						ColorSpace: mediaconvert.ColorSpaceFollow,
 					},
-					TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
 				},
 			},
 			OutputGroups: outputGroups,
-			TimecodeConfig: &mediaconvert.TimecodeConfig{
-				Source: mediaconvert.TimecodeSourceZerobased,
-			},
 		},
 	}
 
