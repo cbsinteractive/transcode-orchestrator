@@ -163,6 +163,16 @@ func videoPresetFrom(preset db.Preset) (*mediaconvert.VideoDescription, error) {
 		return nil, fmt.Errorf("video codec %q is not yet supported with mediaconvert", codec)
 	}
 
+	if videoPreset.VideoPreprocessors == nil {
+		videoPreset.VideoPreprocessors = &mediaconvert.VideoPreprocessor{}
+	}
+
+	videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
+		Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+		Control:   mediaconvert.DeinterlacerControlNormal,
+		Mode:      mediaconvert.DeinterlacerModeAdaptive,
+	}
+
 	return &videoPreset, nil
 }
 

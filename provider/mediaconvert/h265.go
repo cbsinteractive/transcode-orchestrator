@@ -42,11 +42,6 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		return nil, err
 	}
 
-	interlaceMode, err := h265InterlaceModeFrom(preset.Video.InterlaceMode)
-	if err != nil {
-		return nil, err
-	}
-
 	tuning := mediaconvert.H265QualityTuningLevelSinglePassHq
 	if preset.TwoPass {
 		tuning = mediaconvert.H265QualityTuningLevelMultiPassHq
@@ -61,7 +56,7 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 			RateControlMode:                rateControl,
 			CodecProfile:                   profile,
 			CodecLevel:                     level,
-			InterlaceMode:                  interlaceMode,
+			InterlaceMode:                  mediaconvert.H265InterlaceModeProgressive,
 			QualityTuningLevel:             tuning,
 			WriteMp4PackagingType:          mediaconvert.H265WriteMp4PackagingTypeHvc1,
 			AlternateTransferFunctionSei:   mediaconvert.H265AlternateTransferFunctionSeiDisabled,
@@ -133,15 +128,5 @@ func h265CodecLevelFrom(level string) (mediaconvert.H265CodecLevel, error) {
 		return mediaconvert.H265CodecLevelLevel62, nil
 	default:
 		return "", fmt.Errorf("h265 level %q is not supported with mediaconvert", level)
-	}
-}
-
-func h265InterlaceModeFrom(mode string) (mediaconvert.H265InterlaceMode, error) {
-	mode = strings.ToLower(mode)
-	switch mode {
-	case "", "progressive":
-		return mediaconvert.H265InterlaceModeProgressive, nil
-	default:
-		return "", fmt.Errorf("h265 interlace mode %q is not supported with mediaconvert", mode)
 	}
 }

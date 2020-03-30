@@ -37,11 +37,6 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		return nil, err
 	}
 
-	interlaceMode, err := h264InterlaceModeFrom(preset.Video.InterlaceMode)
-	if err != nil {
-		return nil, err
-	}
-
 	tuning := mediaconvert.H264QualityTuningLevelSinglePassHq
 	if preset.TwoPass {
 		tuning = mediaconvert.H264QualityTuningLevelMultiPassHq
@@ -56,7 +51,7 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 			RateControlMode:    rateControl,
 			CodecProfile:       profile,
 			CodecLevel:         mediaconvert.H264CodecLevelAuto,
-			InterlaceMode:      interlaceMode,
+			InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
 			QualityTuningLevel: tuning,
 		},
 	}, nil
@@ -99,15 +94,5 @@ func h264CodecProfileFrom(profile string) (mediaconvert.H264CodecProfile, error)
 		return mediaconvert.H264CodecProfileHigh, nil
 	default:
 		return "", fmt.Errorf("h264 profile %q is not supported with mediaconvert", profile)
-	}
-}
-
-func h264InterlaceModeFrom(mode string) (mediaconvert.H264InterlaceMode, error) {
-	mode = strings.ToLower(mode)
-	switch mode {
-	case "", "progressive":
-		return mediaconvert.H264InterlaceModeProgressive, nil
-	default:
-		return "", fmt.Errorf("h264 interlace mode %q is not supported with mediaconvert", mode)
 	}
 }

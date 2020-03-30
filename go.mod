@@ -5,6 +5,7 @@ replace github.com/bitmovin/bitmovin-api-sdk-go => github.com/zsiec/bitmovin-api
 require (
 	github.com/NYTimes/gizmo v1.3.5
 	github.com/NYTimes/gziphandler v1.1.1
+	github.com/aws/aws-sdk-go v1.29.24
 	github.com/aws/aws-sdk-go-v2 v0.20.0
 	github.com/aws/aws-xray-sdk-go v1.0.0-rc.15
 	github.com/bitmovin/bitmovin-api-sdk-go v1.36.0-alpha.0

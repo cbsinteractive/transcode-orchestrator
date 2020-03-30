@@ -417,6 +417,13 @@ func Test_mcProvider_Transcode(t *testing.T) {
 										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
 										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
 										AntiAlias:         mediaconvert.AntiAliasEnabled,
+										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+											Deinterlacer: &mediaconvert.Deinterlacer{
+												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+												Control:   mediaconvert.DeinterlacerControlNormal,
+												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+											},
+										},
 										CodecSettings: &mediaconvert.VideoCodecSettings{
 											Codec: mediaconvert.VideoCodecH264,
 											H264Settings: &mediaconvert.H264Settings{
@@ -501,6 +508,13 @@ func Test_mcProvider_Transcode(t *testing.T) {
 										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
 										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
 										AntiAlias:         mediaconvert.AntiAliasEnabled,
+										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+											Deinterlacer: &mediaconvert.Deinterlacer{
+												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+												Control:   mediaconvert.DeinterlacerControlNormal,
+												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+											},
+										},
 										CodecSettings: &mediaconvert.VideoCodecSettings{
 											Codec: mediaconvert.VideoCodecH265,
 											H265Settings: &mediaconvert.H265Settings{
@@ -579,6 +593,13 @@ func Test_mcProvider_Transcode(t *testing.T) {
 										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
 										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
 										AntiAlias:         mediaconvert.AntiAliasEnabled,
+										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+											Deinterlacer: &mediaconvert.Deinterlacer{
+												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+												Control:   mediaconvert.DeinterlacerControlNormal,
+												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+											},
+										},
 										CodecSettings: &mediaconvert.VideoCodecSettings{
 											Codec: mediaconvert.VideoCodecAv1,
 											Av1Settings: &mediaconvert.Av1Settings{
