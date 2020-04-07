@@ -11,6 +11,7 @@ providers:
 - [Bitmovin](http://bitmovin.com)
 - [Hybrik](https://www.hybrik.com)
 - [MediaConvert](https://aws.amazon.com/mediaconvert)
+- [Flock](https://github.com/cbsinteractive/flock)
 
 ## Setting Up
 
@@ -62,6 +63,13 @@ export MEDIACONVERT_ENDPOINT=your.mediaconvert.endpoint
 export MEDIACONVERT_QUEUE_ARN=your.queue.arn
 export MEDIACONVERT_ROLE_ARN=your.iam.role.arn
 export MEDIACONVERT_DESTINATION=s3://your-s3-bucket
+```
+
+#### For [Flock](https://github.com/cbsinteractive/flock)
+
+```
+export FLOCK_ENDPOINT=you.flock.endpoint
+export FLOCK_CREDENTIAL=you.flock.auth.secret
 ```
 
 ### Database configuration

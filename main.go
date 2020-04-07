@@ -7,6 +7,7 @@ import (
 	"github.com/NYTimes/gizmo/server"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	_ "github.com/cbsinteractive/video-transcoding-api/provider/bitmovin"
+	_ "github.com/cbsinteractive/video-transcoding-api/provider/flock"
 	_ "github.com/cbsinteractive/video-transcoding-api/provider/hybrik"
 	_ "github.com/cbsinteractive/video-transcoding-api/provider/mediaconvert"
 	"github.com/cbsinteractive/video-transcoding-api/service"

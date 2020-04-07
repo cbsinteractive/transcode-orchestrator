@@ -26,6 +26,7 @@ type Config struct {
 	Zencoder               *Zencoder
 	Bitmovin               *Bitmovin
 	MediaConvert           *MediaConvert
+	Flock                  *Flock
 	Log                    *logging.Config
 	Tracer                 tracing.Tracer `ignored:"true"`
 }
@@ -109,6 +110,13 @@ type MediaConvert struct {
 	Queue           string `envconfig:"MEDIACONVERT_QUEUE_ARN"`
 	Role            string `envconfig:"MEDIACONVERT_ROLE_ARN"`
 	Destination     string `envconfig:"MEDIACONVERT_DESTINATION"`
+}
+
+// Flock represents the set of configurations for the Flock
+// provider.
+type Flock struct {
+	Endpoint   string `envconfig:"FLOCK_ENDPOINT"`
+	Credential string `envconfig:"FLOCK_CREDENTIAL"`
 }
 
 // LoadConfig loads the configuration of the API using environment variables.

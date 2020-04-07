@@ -55,6 +55,8 @@ func TestLoadConfigFromEnv(t *testing.T) {
 		"MEDIACONVERT_QUEUE_ARN":                   "arn:aws:mediaconvert:us-east-1:some-queue:queues/Default",
 		"MEDIACONVERT_ROLE_ARN":                    "arn:aws:iam::some-account:role/some-role",
 		"MEDIACONVERT_DESTINATION":                 "s3://mc-destination/",
+		"FLOCK_ENDPOINT":                           "https://flock.domain",
+		"FLOCK_CREDENTIAL":                         "secret-token",
 		"SWAGGER_MANIFEST_PATH":                    "/opt/video-transcoding-api-swagger.json",
 		"HTTP_ACCESS_LOG":                          accessLog,
 		"HTTP_PORT":                                "8080",
@@ -121,6 +123,10 @@ func TestLoadConfigFromEnv(t *testing.T) {
 			Queue:           "arn:aws:mediaconvert:us-east-1:some-queue:queues/Default",
 			Role:            "arn:aws:iam::some-account:role/some-role",
 			Destination:     "s3://mc-destination/",
+		},
+		Flock: &Flock{
+			Endpoint:   "https://flock.domain",
+			Credential: "secret-token",
 		},
 		Server: &server.Config{
 			HTTPPort:      8080,
@@ -224,6 +230,7 @@ func TestLoadConfigFromEnvWithDefaults(t *testing.T) {
 			EncodingVersion:  "STABLE",
 		},
 		MediaConvert: &MediaConvert{},
+		Flock:        &Flock{},
 		Server: &server.Config{
 			HTTPPort:      8080,
 			HTTPAccessLog: &accessLog,
