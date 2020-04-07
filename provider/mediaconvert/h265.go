@@ -87,9 +87,9 @@ func h265RateControlModeFrom(rateControl string) (mediaconvert.H265RateControlMo
 	switch rateControl {
 	case "vbr":
 		return mediaconvert.H265RateControlModeVbr, nil
-	case "", "cbr":
+	case "cbr":
 		return mediaconvert.H265RateControlModeCbr, nil
-	case "qvbr":
+	case "", "qvbr":
 		return mediaconvert.H265RateControlModeQvbr, nil
 	default:
 		return "", fmt.Errorf("rate control mode %q is not supported with mediaconvert", rateControl)
