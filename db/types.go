@@ -193,11 +193,11 @@ type Preset struct {
 type VideoPreset struct {
 	Profile             string              `json:"profile,omitempty" redis-hash:"profile,omitempty"`
 	ProfileLevel        string              `json:"profileLevel,omitempty" redis-hash:"profilelevel,omitempty"`
-	Width               string              `json:"width,omitempty" redis-hash:"width,omitempty"`
-	Height              string              `json:"height,omitempty" redis-hash:"height,omitempty"`
+	Width               int                 `json:"width,omitempty,string" redis-hash:"width,omitempty"`
+	Height              int                 `json:"height,omitempty,string" redis-hash:"height,omitempty"`
 	Codec               string              `json:"codec,omitempty" redis-hash:"codec,omitempty"`
-	Bitrate             string              `json:"bitrate,omitempty" redis-hash:"bitrate,omitempty"`
-	GopSize             string              `json:"gopSize,omitempty" redis-hash:"gopsize,omitempty"`
+	Bitrate             int                 `json:"bitrate,omitempty,string" redis-hash:"bitrate,omitempty"`
+	GopSize             int                 `json:"gopSize,omitempty,string" redis-hash:"gopsize,omitempty"`
 	GopUnit             string              `json:"gopUnit,omitempty" redis-hash:"gopunit,omitempty"`
 	GopMode             string              `json:"gopMode,omitempty" redis-hash:"gopmode,omitempty"`
 	InterlaceMode       string              `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
