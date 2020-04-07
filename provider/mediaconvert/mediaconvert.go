@@ -76,7 +76,7 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 		},
 	}
 
-	resp, err := p.client.CreateJobRequest(&createJobInput).Send(context.Background())
+	resp, err := p.client.CreateJobRequest(&createJobInput).Send(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -219,10 +219,10 @@ func (p *mcProvider) DeletePreset(ctx context.Context, presetID string) error {
 	return p.repository.DeleteLocalPreset(preset.(*db.LocalPreset))
 }
 
-func (p *mcProvider) JobStatus(_ context.Context, job *db.Job) (*provider.JobStatus, error) {
+func (p *mcProvider) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
 	jobResp, err := p.client.GetJobRequest(&mediaconvert.GetJobInput{
 		Id: aws.String(job.ProviderJobID),
-	}).Send(context.Background())
+	}).Send(ctx)
 	if err != nil {
 		return &provider.JobStatus{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
 	}
@@ -348,16 +348,16 @@ func statusMsgFrom(job *mediaconvert.Job) string {
 	return string(job.CurrentPhase)
 }
 
-func (p *mcProvider) CancelJob(_ context.Context, id string) error {
+func (p *mcProvider) CancelJob(ctx context.Context, id string) error {
 	_, err := p.client.CancelJobRequest(&mediaconvert.CancelJobInput{
 		Id: aws.String(id),
-	}).Send(context.Background())
+	}).Send(ctx)
 
 	return err
 }
 
 func (p *mcProvider) Healthcheck() error {
-	_, err := p.client.ListJobsRequest(nil).Send(context.Background())
+	_, err := p.client.ListJobsRequest(nil).Send(context.Background()) // TODO(as): plump context
 	if err != nil {
 		return errors.Wrap(err, "listing jobs")
 	}
