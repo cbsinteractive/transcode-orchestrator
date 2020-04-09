@@ -54,10 +54,10 @@ type outputCfg struct {
 func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
 	outputGroups, err := p.outputGroupsFrom(ctx, job)
 	if err != nil {
-		return nil, errors.Wrap(err, "generating Mediaconvert output groups")
+		return nil, fmt.Errorf("mediaconvert: output group generator: %w", err)
 	}
 
-	createJobInput := mediaconvert.CreateJobInput{
+	resp, err := p.client.CreateJobRequest(&mediaconvert.CreateJobInput{
 		Queue: aws.String(p.cfg.Queue),
 		Role:  aws.String(p.cfg.Role),
 		Settings: &mediaconvert.JobSettings{
@@ -74,12 +74,11 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 			},
 			OutputGroups: outputGroups,
 		},
-	}
-
-	resp, err := p.client.CreateJobRequest(&createJobInput).Send(ctx)
+	}).Send(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	return &provider.JobStatus{
 		ProviderName:  Name,
 		ProviderJobID: aws.StringValue(resp.Job.Id),
