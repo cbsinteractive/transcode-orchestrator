@@ -13,6 +13,7 @@ import (
 	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/cbsinteractive/video-transcoding-api/db/redis"
 	"github.com/cbsinteractive/video-transcoding-api/provider"
+	timecode "github.com/cbsinteractive/pkg/time"
 	"github.com/pkg/errors"
 )
 
@@ -51,6 +52,24 @@ type outputCfg struct {
 	filename string
 }
 
+func splice2clippings(s timecode.Splice) (ic []mediaconvert.InputClipping) {
+	// NOTE(as): While this could be a helper function in the time/timecode package
+	// we probably don't want the uglyness of importing the AWS API in that package
+	// and having to recognize mediaconvert.InputClippings
+
+	// NOTE(as): We need to take into account embedded timecodes. Maybe it would
+	// be better to have this be a method on a timecode object or have it passed in as
+	// a reference argument (object could also provide fps info)
+
+	for _, r := range s{
+		ic = append(ic, mediaconvert.InputClipping{
+			StartTimecode: r[0].Timecode(0),	// TODO(as): These methods need to be fixed (because they don't operate on the start and end times)
+			EndTimecode: r[1].Timecode(0),
+		})
+	}
+	return ic
+}
+
 func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
 	outputGroups, err := p.outputGroupsFrom(ctx, job)
 	if err != nil {
@@ -63,7 +82,8 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 		Settings: &mediaconvert.JobSettings{
 			Inputs: []mediaconvert.Input{
 				{
-					FileInput: aws.String(job.SourceMedia),
+					InputClippings: splice2clippings(job.SourceSplice),
+					FileInput:      aws.String(job.SourceMedia),
 					AudioSelectors: map[string]mediaconvert.AudioSelector{
 						"Audio Selector 1": {DefaultSelection: mediaconvert.AudioDefaultSelectionDefault},
 					},
