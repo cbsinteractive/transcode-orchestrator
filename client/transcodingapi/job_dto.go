@@ -8,6 +8,7 @@ type JobID string
 // CreateJobRequest contains the parameters needed to create a new transcode job
 type CreateJobRequest struct {
 	Source              string                      `json:"source"`
+	SourceInfo          CreateJobSourceInfo         `json:"sourceInfo,omitempty"`
 	Name                string                      `json:"name,omitempty"`
 	DestinationBasePath string                      `json:"destinationBasePath,omitempty"`
 	Outputs             []JobOutput                 `json:"outputs"`
@@ -16,6 +17,28 @@ type CreateJobRequest struct {
 	SidecarAssets       map[SidecarAssetKind]string `json:"sidecarAssets,omitempty"`
 	ExecutionFeatures   ExecutionFeatures           `json:"executionFeatures,omitempty"`
 	ExecutionEnv        ExecutionEnvironment        `json:"executionEnv,omitempty"`
+}
+
+// ScanType is a string that represents the scan type of the content.
+type ScanType string
+
+const (
+	// ScanTypeProgressive represents a progressive scan type
+	ScanTypeProgressive ScanType = "progressive"
+
+	// ScanTypeInterlaced represents a interlaced scan type
+	ScanTypeInterlaced ScanType = "interlaced"
+
+	// ScanTypeUnknown represents an unknown scan type
+	ScanTypeUnknown ScanType = "unknown"
+)
+
+// CreateJobSourceInfo represents basic information about the source when creating a job that may be of aid to providers
+type CreateJobSourceInfo struct {
+	Width     uint     `json:"width,omitempty"`
+	Height    uint     `json:"height,omitempty"`
+	FrameRate float64  `json:"frameRate,omitempty"`
+	ScanType  ScanType `json:"scanType,omitempty"`
 }
 
 // ComputeClass represents a group of resources with similar capability

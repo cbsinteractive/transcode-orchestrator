@@ -65,6 +65,11 @@ type Job struct {
 	// required: true
 	SourceMedia string `redis-hash:"source" json:"source"`
 
+	// Source information
+	//
+	// required: false
+	SourceInfo SourceInfo `redis-hash:"sourceinfo,omitempty" json:"sourceInfo,omitempty"`
+
 	// Base Destination of the job
 	//
 	// required: false
@@ -142,6 +147,31 @@ type StreamingParams struct {
 	// the playlist file name
 	// required: true
 	PlaylistFileName string `redis-hash:"playlistFileName" json:"playlistFileName,omitempty"`
+}
+
+// ScanType is a string that represents the scan type of the content.
+type ScanType string
+
+const (
+	// ScanTypeProgressive represents a progressive scan type
+	ScanTypeProgressive ScanType = "progressive"
+
+	// ScanTypeInterlaced represents a interlaced scan type
+	ScanTypeInterlaced ScanType = "interlaced"
+
+	// ScanTypeUnknown represents an unknown scan type
+	ScanTypeUnknown ScanType = "unknown"
+)
+
+// SourceInfo represents basic information about the source that may be of aid to providers
+//
+// swagger:model
+type SourceInfo struct {
+	Width  uint `redis-hash:"width,omitempty" json:"width,omitempty"`
+	Height uint `redis-hash:"height,omitempty" json:"height,omitempty"`
+	// FIXME: FrameRate?  Framerate?
+	FrameRate float64  `redis-hash:"framerate,omitempty" json:"frameRate,omitempty"`
+	ScanType  ScanType `redis-hash:"scantype,omitempty" json:"scanType,omitempty"`
 }
 
 // ExecutionFeatures is a map whose key is a custom feature name and value is a json string

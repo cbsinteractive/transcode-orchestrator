@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func outputFrom(preset db.Preset) (mediaconvert.Output, error) {
+func outputFrom(preset db.Preset, sourceInfo db.SourceInfo) (mediaconvert.Output, error) {
 	container, err := containerFrom(preset.Container)
 	if err != nil {
 		return mediaconvert.Output{}, errors.Wrap(err, "mapping preset container to MediaConvert container")
@@ -20,7 +20,7 @@ func outputFrom(preset db.Preset) (mediaconvert.Output, error) {
 
 	var videoPreset *mediaconvert.VideoDescription
 	if preset.Video != (db.VideoPreset{}) {
-		videoPreset, err = videoPresetFrom(preset)
+		videoPreset, err = videoPresetFrom(preset, sourceInfo)
 		if err != nil {
 			return mediaconvert.Output{}, errors.Wrap(err, "generating video preset")
 		}
@@ -77,7 +77,7 @@ func containerFrom(container string) (mediaconvert.ContainerType, error) {
 	}
 }
 
-func videoPresetFrom(preset db.Preset) (*mediaconvert.VideoDescription, error) {
+func videoPresetFrom(preset db.Preset, sourceInfo db.SourceInfo) (*mediaconvert.VideoDescription, error) {
 	videoPreset := mediaconvert.VideoDescription{
 		ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
 		TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
@@ -167,10 +167,20 @@ func videoPresetFrom(preset db.Preset) (*mediaconvert.VideoDescription, error) {
 		videoPreset.VideoPreprocessors = &mediaconvert.VideoPreprocessor{}
 	}
 
-	videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
-		Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-		Control:   mediaconvert.DeinterlacerControlNormal,
-		Mode:      mediaconvert.DeinterlacerModeAdaptive,
+	switch sourceInfo.ScanType {
+	case db.ScanTypeProgressive:
+	case db.ScanTypeInterlaced:
+		videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
+			Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+			Control:   mediaconvert.DeinterlacerControlNormal,
+			Mode:      mediaconvert.DeinterlacerModeDeinterlace,
+		}
+	default:
+		videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
+			Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+			Control:   mediaconvert.DeinterlacerControlNormal,
+			Mode:      mediaconvert.DeinterlacerModeAdaptive,
+		}
 	}
 
 	return &videoPreset, nil

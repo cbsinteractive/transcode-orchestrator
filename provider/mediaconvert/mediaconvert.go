@@ -108,7 +108,7 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 			return nil, fmt.Errorf("could not convert preset response into a db.LocalPreset")
 		}
 
-		mcOutput, err := outputFrom(localPreset.Preset)
+		mcOutput, err := outputFrom(localPreset.Preset, job.SourceInfo)
 		if err != nil {
 			return nil, fmt.Errorf("could not determine output settings from db.Preset %v: %w",
 				localPreset.Preset, err)

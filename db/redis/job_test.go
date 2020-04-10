@@ -63,6 +63,7 @@ func TestCreateJob(t *testing.T) {
 	}
 	expected := map[string]string{
 		"source":                                   "http://nyt.net/source_here.mp4",
+		"sourceinfo":                               "{0 0 0 }",
 		"jobID":                                    "job1",
 		"providerName":                             "encoding.com",
 		"providerJobID":                            "",

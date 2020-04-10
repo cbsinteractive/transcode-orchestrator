@@ -15,6 +15,9 @@ type NewTranscodeJobInputPayload struct {
 	// source media for the transcoding job.
 	Source string `json:"source"`
 
+	// SourceInfo is an optional param allowing users to add helpful information about the source content
+	SourceInfo db.SourceInfo `json:"sourceInfo,omitempty"`
+
 	// list of outputs in this job
 	Outputs []struct {
 		FileName string `json:"fileName"`

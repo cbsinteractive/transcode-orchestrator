@@ -76,6 +76,9 @@ var (
 		ID:           "jobID",
 		ProviderName: Name,
 		SourceMedia:  "s3://some/path.mp4",
+		SourceInfo: db.SourceInfo{
+			ScanType: db.ScanTypeUnknown,
+		},
 		Outputs: []db.TranscodeOutput{
 			{
 				Preset: db.PresetMap{
@@ -428,6 +431,202 @@ func Test_mcProvider_Transcode(t *testing.T) {
 												Mode:      mediaconvert.DeinterlacerModeAdaptive,
 											},
 										},
+										CodecSettings: &mediaconvert.VideoCodecSettings{
+											Codec: mediaconvert.VideoCodecH264,
+											H264Settings: &mediaconvert.H264Settings{
+												Bitrate:            aws.Int64(400000),
+												CodecLevel:         mediaconvert.H264CodecLevelAuto,
+												CodecProfile:       mediaconvert.H264CodecProfileHigh,
+												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+												RateControlMode:    mediaconvert.H264RateControlModeVbr,
+												GopSize:            aws.Float64(120),
+												GopSizeUnits:       "FRAMES",
+											},
+										},
+									},
+									AudioDescriptions: []mediaconvert.AudioDescription{
+										{
+											CodecSettings: &mediaconvert.AudioCodecSettings{
+												Codec: mediaconvert.AudioCodecAac,
+												AacSettings: &mediaconvert.AacSettings{
+													Bitrate:         aws.Int64(20000),
+													CodecProfile:    mediaconvert.AacCodecProfileLc,
+													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+													RateControlMode: mediaconvert.AacRateControlModeCbr,
+													SampleRate:      aws.Int64(defaultAudioSampleRate),
+												},
+											},
+										},
+									},
+									Extension: aws.String("mp4"),
+								},
+							},
+						},
+					},
+					TimecodeConfig: &mediaconvert.TimecodeConfig{
+						Source: mediaconvert.TimecodeSourceZerobased,
+					},
+				},
+			},
+		},
+		{
+			name: "a valid h264/aac mp4 transcode job with interlaced input is mapped correctly to a mediaconvert job input",
+			job: &db.Job{
+				ID:           "jobID",
+				ProviderName: Name,
+				SourceMedia:  "s3://some/path.mp4",
+				SourceInfo: db.SourceInfo{
+					ScanType: db.ScanTypeInterlaced,
+				},
+				Outputs: []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+			},
+			preset:      defaultPreset,
+			destination: "s3://some/destination",
+			wantJobReq: mediaconvert.CreateJobInput{
+				AccelerationSettings: &mediaconvert.AccelerationSettings{
+					Mode: mediaconvert.AccelerationModePreferred,
+				},
+				Role:  aws.String(""),
+				Queue: aws.String(""),
+				Settings: &mediaconvert.JobSettings{
+					Inputs: []mediaconvert.Input{
+						{
+							AudioSelectors: map[string]mediaconvert.AudioSelector{
+								"Audio Selector 1": {
+									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+								},
+							},
+							FileInput: aws.String("s3://some/path.mp4"),
+							VideoSelector: &mediaconvert.VideoSelector{
+								ColorSpace: mediaconvert.ColorSpaceFollow,
+							},
+							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+						},
+					},
+					OutputGroups: []mediaconvert.OutputGroup{
+						{
+							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+								FileGroupSettings: &mediaconvert.FileGroupSettings{
+									Destination: aws.String("s3://some/destination/jobID/m"),
+								},
+							},
+							Outputs: []mediaconvert.Output{
+								{
+									NameModifier: aws.String("file1"),
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeMp4,
+									},
+									VideoDescription: &mediaconvert.VideoDescription{
+										Height:            aws.Int64(400),
+										Width:             aws.Int64(300),
+										RespondToAfd:      mediaconvert.RespondToAfdNone,
+										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+										AntiAlias:         mediaconvert.AntiAliasEnabled,
+										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+											Deinterlacer: &mediaconvert.Deinterlacer{
+												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+												Control:   mediaconvert.DeinterlacerControlNormal,
+												Mode:      mediaconvert.DeinterlacerModeDeinterlace,
+											},
+										},
+										CodecSettings: &mediaconvert.VideoCodecSettings{
+											Codec: mediaconvert.VideoCodecH264,
+											H264Settings: &mediaconvert.H264Settings{
+												Bitrate:            aws.Int64(400000),
+												CodecLevel:         mediaconvert.H264CodecLevelAuto,
+												CodecProfile:       mediaconvert.H264CodecProfileHigh,
+												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+												RateControlMode:    mediaconvert.H264RateControlModeVbr,
+												GopSize:            aws.Float64(120),
+												GopSizeUnits:       "FRAMES",
+											},
+										},
+									},
+									AudioDescriptions: []mediaconvert.AudioDescription{
+										{
+											CodecSettings: &mediaconvert.AudioCodecSettings{
+												Codec: mediaconvert.AudioCodecAac,
+												AacSettings: &mediaconvert.AacSettings{
+													Bitrate:         aws.Int64(20000),
+													CodecProfile:    mediaconvert.AacCodecProfileLc,
+													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+													RateControlMode: mediaconvert.AacRateControlModeCbr,
+													SampleRate:      aws.Int64(defaultAudioSampleRate),
+												},
+											},
+										},
+									},
+									Extension: aws.String("mp4"),
+								},
+							},
+						},
+					},
+					TimecodeConfig: &mediaconvert.TimecodeConfig{
+						Source: mediaconvert.TimecodeSourceZerobased,
+					},
+				},
+			},
+		},
+		{
+			name: "a valid h264/aac mp4 transcode job with progressive input is mapped correctly to a mediaconvert job input",
+			job: &db.Job{
+				ID:           "jobID",
+				ProviderName: Name,
+				SourceMedia:  "s3://some/path.mp4",
+				SourceInfo: db.SourceInfo{
+					ScanType: db.ScanTypeProgressive,
+				},
+				Outputs: []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+			},
+			preset:      defaultPreset,
+			destination: "s3://some/destination",
+			wantJobReq: mediaconvert.CreateJobInput{
+				AccelerationSettings: &mediaconvert.AccelerationSettings{
+					Mode: mediaconvert.AccelerationModePreferred,
+				},
+				Role:  aws.String(""),
+				Queue: aws.String(""),
+				Settings: &mediaconvert.JobSettings{
+					Inputs: []mediaconvert.Input{
+						{
+							AudioSelectors: map[string]mediaconvert.AudioSelector{
+								"Audio Selector 1": {
+									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+								},
+							},
+							FileInput: aws.String("s3://some/path.mp4"),
+							VideoSelector: &mediaconvert.VideoSelector{
+								ColorSpace: mediaconvert.ColorSpaceFollow,
+							},
+							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+						},
+					},
+					OutputGroups: []mediaconvert.OutputGroup{
+						{
+							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+								FileGroupSettings: &mediaconvert.FileGroupSettings{
+									Destination: aws.String("s3://some/destination/jobID/m"),
+								},
+							},
+							Outputs: []mediaconvert.Output{
+								{
+									NameModifier: aws.String("file1"),
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeMp4,
+									},
+									VideoDescription: &mediaconvert.VideoDescription{
+										Height:             aws.Int64(400),
+										Width:              aws.Int64(300),
+										RespondToAfd:       mediaconvert.RespondToAfdNone,
+										ScalingBehavior:    mediaconvert.ScalingBehaviorDefault,
+										TimecodeInsertion:  mediaconvert.VideoTimecodeInsertionDisabled,
+										AntiAlias:          mediaconvert.AntiAliasEnabled,
+										VideoPreprocessors: &mediaconvert.VideoPreprocessor{},
 										CodecSettings: &mediaconvert.VideoCodecSettings{
 											Codec: mediaconvert.VideoCodecH264,
 											H264Settings: &mediaconvert.H264Settings{
