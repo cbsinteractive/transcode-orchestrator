@@ -380,6 +380,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
+				AccelerationSettings: &mediaconvert.AccelerationSettings{
+					Mode: mediaconvert.AccelerationModePreferred,
+				},
 				Role:  aws.String(""),
 				Queue: aws.String(""),
 				Settings: &mediaconvert.JobSettings{
@@ -394,6 +397,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							VideoSelector: &mediaconvert.VideoSelector{
 								ColorSpace: mediaconvert.ColorSpaceFollow,
 							},
+							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
 						},
 					},
 					OutputGroups: []mediaconvert.OutputGroup{
@@ -457,6 +461,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							},
 						},
 					},
+					TimecodeConfig: &mediaconvert.TimecodeConfig{
+						Source: mediaconvert.TimecodeSourceZerobased,
+					},
 				},
 			},
 		},
@@ -471,6 +478,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      h265Preset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
+				AccelerationSettings: &mediaconvert.AccelerationSettings{
+					Mode: mediaconvert.AccelerationModePreferred,
+				},
 				Role:  aws.String(""),
 				Queue: aws.String(""),
 				Settings: &mediaconvert.JobSettings{
@@ -485,6 +495,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							VideoSelector: &mediaconvert.VideoSelector{
 								ColorSpace: mediaconvert.ColorSpaceFollow,
 							},
+							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
 						},
 					},
 					OutputGroups: []mediaconvert.OutputGroup{
@@ -542,6 +553,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							},
 						},
 					},
+					TimecodeConfig: &mediaconvert.TimecodeConfig{
+						Source: mediaconvert.TimecodeSourceZerobased,
+					},
 				},
 			},
 		},
@@ -556,6 +570,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      av1Preset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
+				AccelerationSettings: &mediaconvert.AccelerationSettings{
+					Mode: mediaconvert.AccelerationModePreferred,
+				},
 				Role:  aws.String(""),
 				Queue: aws.String(""),
 				Settings: &mediaconvert.JobSettings{
@@ -570,6 +587,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							VideoSelector: &mediaconvert.VideoSelector{
 								ColorSpace: mediaconvert.ColorSpaceFollow,
 							},
+							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
 						},
 					},
 					OutputGroups: []mediaconvert.OutputGroup{
@@ -617,6 +635,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 								},
 							},
 						},
+					},
+					TimecodeConfig: &mediaconvert.TimecodeConfig{
+						Source: mediaconvert.TimecodeSourceZerobased,
 					},
 				},
 			},
