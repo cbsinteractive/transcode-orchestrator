@@ -107,7 +107,7 @@ const (
 	// ComputeClassDolbyVisionPreprocess runs Dolby Vision pre-processing
 	ComputeClassDolbyVisionPreprocess ComputeClass = "doViPreprocess"
 
-	// ComputeClassDolbyVisionPreprocess runs Dolby Vision pre-processing
+	// ComputeClassDolbyVisionMezzQC runs QC check on the mezzanine
 	ComputeClassDolbyVisionMezzQC ComputeClass = "doViMezzQC"
 )
 
