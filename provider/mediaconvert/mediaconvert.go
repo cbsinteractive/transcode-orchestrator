@@ -21,7 +21,8 @@ const (
 	// Name identifies the MediaConvert provider by name
 	Name = "mediaconvert"
 
-	defaultAudioSampleRate = 48000
+	defaultAudioSampleRate     = 48000
+	defaultQueueHopTimeoutMins = 10
 )
 
 func init() {
@@ -77,12 +78,23 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 		return nil, fmt.Errorf("mediaconvert: output group generator: %w", err)
 	}
 
+	queue := aws.String(p.cfg.DefaultQueueARN)
+
+	var hopDestinations []*mediaconvert.HopDestination
+	if preferred := p.cfg.PreferredQueueARN; preferred != "" {
+		queue = aws.String(preferred)
+		hopDestinations = append(hopDestinations, &mediaconvert.HopDestination{
+			WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins),
+		})
+	}
+
 	resp, err := p.client.CreateJobRequest(&mediaconvert.CreateJobInput{
 		AccelerationSettings: &mediaconvert.AccelerationSettings{
 			Mode: mediaconvert.AccelerationModePreferred,
 		},
-		Queue: aws.String(p.cfg.Queue),
-		Role:  aws.String(p.cfg.Role),
+		Queue:           queue,
+		HopDestinations: hopDestinations,
+		Role:            aws.String(p.cfg.Role),
 		Settings: &mediaconvert.JobSettings{
 			Inputs: []mediaconvert.Input{
 				{
@@ -400,7 +412,7 @@ func (p *mcProvider) Capabilities() provider.Capabilities {
 }
 
 func mediaconvertFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
-	if cfg.MediaConvert.Endpoint == "" || cfg.MediaConvert.Queue == "" || cfg.MediaConvert.Role == "" {
+	if cfg.MediaConvert.Endpoint == "" || cfg.MediaConvert.DefaultQueueARN == "" || cfg.MediaConvert.Role == "" {
 		return nil, errors.New("incomplete MediaConvert config")
 	}
 
