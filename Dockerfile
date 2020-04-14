@@ -1,38 +1,17 @@
-FROM golang:1.14.2-alpine AS build_base
-
-RUN apk add bash ca-certificates git
-
+FROM golang:1.14.2-alpine AS builder
 WORKDIR /vta
-
-ENV GO111MODULE=on
-
-COPY go.mod .
-COPY go.sum .
-
-RUN go mod download
-
-FROM build_base AS builder
-
+RUN apk add ca-certificates
 COPY . .
-
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-w -extldflags "-static"' -o vta
+RUN CGO_ENABLED=0 go build -ldflags '-w -extldflags "-static"' -o vta
 
 FROM alpine:latest
-
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-WORKDIR /app/
-
-RUN apk add --no-cache tzdata
-
-COPY --from=builder vta .
-
+WORKDIR /app
 RUN adduser -D vta
+RUN apk add --no-cache tzdata
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder vta .
 USER vta
-
 ENV HTTP_PORT=8080
 ENV LOG_LEVEL=debug
-
 EXPOSE 8080
-
 ENTRYPOINT ["./vta"]
