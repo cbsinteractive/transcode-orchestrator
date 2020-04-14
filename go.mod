@@ -26,4 +26,4 @@ require (
 	github.com/zsiec/pkg/xrayutil v0.0.0-20200316013157-874eb6019248
 )
 
-go 1.13
+go 1.14
