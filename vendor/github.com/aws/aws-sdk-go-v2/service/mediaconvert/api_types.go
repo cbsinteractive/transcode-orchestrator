@@ -7690,6 +7690,9 @@ type Job struct {
 	// template.
 	JobTemplate *string `locationName:"jobTemplate" type:"string"`
 
+	// Optional list of hop destinations.
+	HopDestinations []*HopDestination `locationName:"hopDestinations" type:"list"`
+
 	// Provides messages from the service about jobs that you have already successfully
 	// submitted.
 	Messages *JobMessages `locationName:"messages" type:"structure"`
@@ -13306,6 +13309,73 @@ func (s WavSettings) MarshalFields(e protocol.FieldEncoder) error {
 
 		metadata := protocol.Metadata{}
 		e.SetValue(protocol.BodyTarget, "sampleRate", protocol.Int64Value(v), metadata)
+	}
+	return nil
+}
+
+type HopDestination struct {
+	_ struct{} `type:"structure"`
+
+	// Optional. When you set up a job to use queue hopping, you can specify a different
+	// relative priority for the job in the destination queue. If you don't specify,
+	// the relative priority will remain the same as in the previous queue.
+	Priority *int64 `locationName:"priority" type:"integer"`
+
+	// Optional unless the job is submitted on the default queue. When you set up
+	// a job to use queue hopping, you can specify a destination queue. This queue
+	// cannot be the original queue to which the job is submitted. If the original
+	// queue isn't the default queue and you don't specify the destination queue,
+	// the job will move to the default queue.
+	Queue *string `locationName:"queue" type:"string"`
+
+	// Required for setting up a job to use queue hopping. Minimum wait time in
+	// minutes until the job can hop to the destination queue. Valid range is 1
+	// to 1440 minutes, inclusive.
+	WaitMinutes *int64 `locationName:"waitMinutes" type:"integer"`
+}
+
+// String returns the string representation
+func (s HopDestination) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s HopDestination) GoString() string {
+	return s.String()
+}
+
+// Validate inspects the fields of the type to determine if they are valid.
+func (s HopDestination) Validate() error {
+	invalidParams := aws.ErrInvalidParams{Context: "HopDestination"}
+	if s.Priority != nil && *s.Priority < -50 {
+		invalidParams.Add(aws.NewErrParamMinValue("Priority", -50))
+	}
+
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	}
+	return nil
+}
+
+// MarshalFields encodes the AWS API shape using the passed in protocol encoder.
+func (s HopDestination) MarshalFields(e protocol.FieldEncoder) error {
+	if s.Priority != nil {
+		v := *s.Priority
+
+		metadata := protocol.Metadata{}
+		e.SetValue(protocol.BodyTarget, "priority", protocol.Int64Value(v), metadata)
+	}
+	if s.WaitMinutes != nil {
+		v := *s.WaitMinutes
+
+		metadata := protocol.Metadata{}
+		e.SetValue(protocol.BodyTarget, "waitMinutes", protocol.Int64Value(v), metadata)
+	}
+	if s.Queue != nil {
+		v := *s.Queue
+
+		metadata := protocol.Metadata{}
+		e.SetValue(protocol.BodyTarget, "queue", protocol.QuotedValue{ValueMarshaler: protocol.StringValue(v)}, metadata)
 	}
 	return nil
 }
