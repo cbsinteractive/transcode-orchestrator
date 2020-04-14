@@ -1,7 +1,7 @@
 module github.com/cbsinteractive/video-transcoding-api
 
 replace (
-	github.com/aws/aws-sdk-go-v2 => github.com/zsiec/aws-sdk-go-v2 v0.20.1-0.20200413215227-2366c203784a
+	github.com/aws/aws-sdk-go-v2 => github.com/zsiec/aws-sdk-go-v2 v0.20.1-0.20200414144658-8a86d9e7fcb8
 	github.com/bitmovin/bitmovin-api-sdk-go => github.com/zsiec/bitmovin-api-sdk-go v1.30.0-alpha.0.0.20191206023358-8ff55f235fcf
 )
 
@@ -10,7 +10,6 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/aws/aws-sdk-go v1.30.7
 	github.com/aws/aws-sdk-go-v2 v0.20.0
-	github.com/aws/aws-xray-sdk-go v1.0.0-rc.15
 	github.com/bitmovin/bitmovin-api-sdk-go v1.37.0-alpha.0
 	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20191031180025-00f04ed90532
 	github.com/fsouza/ctxlogger v1.5.9

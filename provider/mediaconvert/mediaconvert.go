@@ -60,10 +60,10 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 
 	queue := aws.String(p.cfg.DefaultQueueARN)
 
-	var hopDestinations []*mediaconvert.HopDestination
+	var hopDestinations []mediaconvert.HopDestination
 	if preferred := p.cfg.PreferredQueueARN; preferred != "" {
 		queue = aws.String(preferred)
-		hopDestinations = append(hopDestinations, &mediaconvert.HopDestination{
+		hopDestinations = append(hopDestinations, mediaconvert.HopDestination{
 			WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins),
 		})
 	}

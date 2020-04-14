@@ -828,7 +828,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			wantJobReq: mediaconvert.CreateJobInput{
 				Role:            aws.String(""),
 				Queue:           aws.String("some:preferred:queue:arn"),
-				HopDestinations: []*mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
+				HopDestinations: []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
 						{
