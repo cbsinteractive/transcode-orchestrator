@@ -103,14 +103,13 @@ type Hybrik struct {
 // MediaConvert represents the set of configurations for the MediaConvert
 // provider.
 type MediaConvert struct {
-	AccessKeyID       string `envconfig:"MEDIACONVERT_AWS_ACCESS_KEY_ID"`
-	SecretAccessKey   string `envconfig:"MEDIACONVERT_AWS_SECRET_ACCESS_KEY"`
-	Region            string `envconfig:"MEDIACONVERT_AWS_REGION"`
-	Endpoint          string `envconfig:"MEDIACONVERT_ENDPOINT"`
-	DefaultQueueARN   string `envconfig:"MEDIACONVERT_QUEUE_ARN"`
-	PreferredQueueARN string `envconfig:"MEDIACONVERT_PREFERRED_QUEUE_ARN"`
-	Role              string `envconfig:"MEDIACONVERT_ROLE_ARN"`
-	Destination       string `envconfig:"MEDIACONVERT_DESTINATION"`
+	AccessKeyID     string `envconfig:"MEDIACONVERT_AWS_ACCESS_KEY_ID"`
+	SecretAccessKey string `envconfig:"MEDIACONVERT_AWS_SECRET_ACCESS_KEY"`
+	Region          string `envconfig:"MEDIACONVERT_AWS_REGION"`
+	Endpoint        string `envconfig:"MEDIACONVERT_ENDPOINT"`
+	Queue           string `envconfig:"MEDIACONVERT_QUEUE_ARN"`
+	Role            string `envconfig:"MEDIACONVERT_ROLE_ARN"`
+	Destination     string `envconfig:"MEDIACONVERT_DESTINATION"`
 }
 
 // Flock represents the set of configurations for the Flock

@@ -61,7 +61,6 @@ export MEDIACONVERT_AWS_SECRET_ACCESS_KEY=your.secret.access.key
 export MEDIACONVERT_AWS_REGION="us-east-1"
 export MEDIACONVERT_ENDPOINT=your.mediaconvert.endpoint
 export MEDIACONVERT_QUEUE_ARN=your.queue.arn
-export MEDIACONVERT_PREFERRED_QUEUE_ARN=your.preferred.queue.arn
 export MEDIACONVERT_ROLE_ARN=your.iam.role.arn
 export MEDIACONVERT_DESTINATION=s3://your-s3-bucket
 ```

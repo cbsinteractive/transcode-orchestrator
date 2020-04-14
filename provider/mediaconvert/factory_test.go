@@ -15,21 +15,20 @@ import (
 
 var cfgWithoutCredsAndRegion = config.Config{
 	MediaConvert: &config.MediaConvert{
-		Endpoint:        "http://some/endpoint",
-		DefaultQueueARN: "arn:some:queue",
-		Role:            "arn:some:role",
+		Endpoint: "http://some/endpoint",
+		Queue:    "arn:some:queue",
+		Role:     "arn:some:role",
 	},
 }
 
 var cfgWithCredsAndRegion = config.Config{
 	MediaConvert: &config.MediaConvert{
-		AccessKeyID:       "cfg_access_key_id",
-		SecretAccessKey:   "cfg_secret_access_key",
-		Endpoint:          "http://some/endpoint",
-		DefaultQueueARN:   "arn:some:queue",
-		PreferredQueueARN: "arn:some:preferred:queue",
-		Role:              "arn:some:role",
-		Region:            "us-cfg-region-1",
+		AccessKeyID:     "cfg_access_key_id",
+		SecretAccessKey: "cfg_secret_access_key",
+		Endpoint:        "http://some/endpoint",
+		Queue:           "arn:some:queue",
+		Role:            "arn:some:role",
+		Region:          "us-cfg-region-1",
 	},
 }
 
