@@ -1,6 +1,9 @@
 module github.com/cbsinteractive/video-transcoding-api
 
-replace github.com/bitmovin/bitmovin-api-sdk-go => github.com/zsiec/bitmovin-api-sdk-go v1.30.0-alpha.0.0.20191206023358-8ff55f235fcf
+replace (
+	github.com/aws/aws-sdk-go-v2 => github.com/zsiec/aws-sdk-go-v2 v0.20.1-0.20200414144658-8a86d9e7fcb8
+	github.com/bitmovin/bitmovin-api-sdk-go => github.com/zsiec/bitmovin-api-sdk-go v1.30.0-alpha.0.0.20191206023358-8ff55f235fcf
+)
 
 require (
 	github.com/NYTimes/gizmo v1.3.5

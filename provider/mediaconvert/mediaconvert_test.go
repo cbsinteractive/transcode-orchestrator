@@ -365,6 +365,7 @@ func Test_mcProvider_DeletePreset(t *testing.T) {
 
 func Test_mcProvider_Transcode(t *testing.T) {
 	tests := []struct {
+		cfg         *config.MediaConvert
 		name        string
 		job         *db.Job
 		preset      db.Preset
@@ -374,6 +375,10 @@ func Test_mcProvider_Transcode(t *testing.T) {
 	}{
 		{
 			name: "a valid h264/aac mp4 transcode job is mapped correctly to a mediaconvert job input",
+			cfg: &config.MediaConvert{
+				Role:            "some-role",
+				DefaultQueueARN: "some:default:queue:arn",
+			},
 			job: &db.Job{
 				ID:           "jobID",
 				ProviderName: Name,
@@ -383,11 +388,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				AccelerationSettings: &mediaconvert.AccelerationSettings{
-					Mode: mediaconvert.AccelerationModePreferred,
-				},
-				Role:  aws.String(""),
-				Queue: aws.String(""),
+				Role:  aws.String("some-role"),
+				Queue: aws.String("some:default:queue:arn"),
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
 						{
@@ -400,7 +402,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							VideoSelector: &mediaconvert.VideoSelector{
 								ColorSpace: mediaconvert.ColorSpaceFollow,
 							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
 						},
 					},
 					OutputGroups: []mediaconvert.OutputGroup{
@@ -438,6 +439,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 												CodecLevel:         mediaconvert.H264CodecLevelAuto,
 												CodecProfile:       mediaconvert.H264CodecProfileHigh,
 												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+												ParControl:         mediaconvert.H264ParControlSpecified,
+												ParNumerator:       aws.Int64(1),
+												ParDenominator:     aws.Int64(1),
 												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
 												RateControlMode:    mediaconvert.H264RateControlModeVbr,
 												GopSize:            aws.Float64(120),
@@ -464,9 +468,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							},
 						},
 					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
 				},
 			},
 		},
@@ -484,9 +485,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				AccelerationSettings: &mediaconvert.AccelerationSettings{
-					Mode: mediaconvert.AccelerationModePreferred,
-				},
 				Role:  aws.String(""),
 				Queue: aws.String(""),
 				Settings: &mediaconvert.JobSettings{
@@ -501,7 +499,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							VideoSelector: &mediaconvert.VideoSelector{
 								ColorSpace: mediaconvert.ColorSpaceFollow,
 							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
 						},
 					},
 					OutputGroups: []mediaconvert.OutputGroup{
@@ -539,6 +536,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 												CodecLevel:         mediaconvert.H264CodecLevelAuto,
 												CodecProfile:       mediaconvert.H264CodecProfileHigh,
 												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+												ParControl:         mediaconvert.H264ParControlSpecified,
+												ParNumerator:       aws.Int64(1),
+												ParDenominator:     aws.Int64(1),
 												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
 												RateControlMode:    mediaconvert.H264RateControlModeVbr,
 												GopSize:            aws.Float64(120),
@@ -565,9 +565,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							},
 						},
 					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
 				},
 			},
 		},
@@ -585,9 +582,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				AccelerationSettings: &mediaconvert.AccelerationSettings{
-					Mode: mediaconvert.AccelerationModePreferred,
-				},
 				Role:  aws.String(""),
 				Queue: aws.String(""),
 				Settings: &mediaconvert.JobSettings{
@@ -602,7 +596,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							VideoSelector: &mediaconvert.VideoSelector{
 								ColorSpace: mediaconvert.ColorSpaceFollow,
 							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
 						},
 					},
 					OutputGroups: []mediaconvert.OutputGroup{
@@ -634,6 +627,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 												CodecLevel:         mediaconvert.H264CodecLevelAuto,
 												CodecProfile:       mediaconvert.H264CodecProfileHigh,
 												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+												ParControl:         mediaconvert.H264ParControlSpecified,
+												ParNumerator:       aws.Int64(1),
+												ParDenominator:     aws.Int64(1),
 												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
 												RateControlMode:    mediaconvert.H264RateControlModeVbr,
 												GopSize:            aws.Float64(120),
@@ -660,9 +656,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							},
 						},
 					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
 				},
 			},
 		},
@@ -677,9 +670,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      h265Preset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				AccelerationSettings: &mediaconvert.AccelerationSettings{
-					Mode: mediaconvert.AccelerationModePreferred,
-				},
 				Role:  aws.String(""),
 				Queue: aws.String(""),
 				Settings: &mediaconvert.JobSettings{
@@ -694,7 +684,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							VideoSelector: &mediaconvert.VideoSelector{
 								ColorSpace: mediaconvert.ColorSpaceFollow,
 							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
 						},
 					},
 					OutputGroups: []mediaconvert.OutputGroup{
@@ -734,6 +723,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 												CodecLevel:                     mediaconvert.H265CodecLevelAuto,
 												CodecProfile:                   mediaconvert.H265CodecProfileMainMain,
 												InterlaceMode:                  mediaconvert.H265InterlaceModeProgressive,
+												ParControl:                     mediaconvert.H265ParControlSpecified,
+												ParNumerator:                   aws.Int64(1),
+												ParDenominator:                 aws.Int64(1),
 												QualityTuningLevel:             mediaconvert.H265QualityTuningLevelSinglePassHq,
 												RateControlMode:                mediaconvert.H265RateControlModeCbr,
 												WriteMp4PackagingType:          mediaconvert.H265WriteMp4PackagingTypeHvc1,
@@ -752,9 +744,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							},
 						},
 					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
 				},
 			},
 		},
@@ -769,9 +758,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      av1Preset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				AccelerationSettings: &mediaconvert.AccelerationSettings{
-					Mode: mediaconvert.AccelerationModePreferred,
-				},
 				Role:  aws.String(""),
 				Queue: aws.String(""),
 				Settings: &mediaconvert.JobSettings{
@@ -786,7 +772,6 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							VideoSelector: &mediaconvert.VideoSelector{
 								ColorSpace: mediaconvert.ColorSpaceFollow,
 							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
 						},
 					},
 					OutputGroups: []mediaconvert.OutputGroup{
@@ -835,8 +820,104 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							},
 						},
 					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
+				},
+			},
+		},
+		{
+			name: "a job is mapped correctly to a mediaconvert job input when a preferred queue is defined",
+			cfg: &config.MediaConvert{
+				DefaultQueueARN:   "some:default:queue:arn",
+				PreferredQueueARN: "some:preferred:queue:arn",
+			},
+			job: &db.Job{
+				ID:           "jobID",
+				ProviderName: Name,
+				SourceMedia:  "s3://some/path.mp4",
+				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+			},
+			preset:      defaultPreset,
+			destination: "s3://some/destination",
+			wantJobReq: mediaconvert.CreateJobInput{
+				Role:            aws.String(""),
+				Queue:           aws.String("some:preferred:queue:arn"),
+				HopDestinations: []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
+				Settings: &mediaconvert.JobSettings{
+					Inputs: []mediaconvert.Input{
+						{
+							AudioSelectors: map[string]mediaconvert.AudioSelector{
+								"Audio Selector 1": {
+									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+								},
+							},
+							FileInput: aws.String("s3://some/path.mp4"),
+							VideoSelector: &mediaconvert.VideoSelector{
+								ColorSpace: mediaconvert.ColorSpaceFollow,
+							},
+						},
+					},
+					OutputGroups: []mediaconvert.OutputGroup{
+						{
+							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+								FileGroupSettings: &mediaconvert.FileGroupSettings{
+									Destination: aws.String("s3://some/destination/jobID/m"),
+								},
+							},
+							Outputs: []mediaconvert.Output{
+								{
+									NameModifier: aws.String("file1"),
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeMp4,
+									},
+									VideoDescription: &mediaconvert.VideoDescription{
+										Height:            aws.Int64(400),
+										Width:             aws.Int64(300),
+										RespondToAfd:      mediaconvert.RespondToAfdNone,
+										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+										AntiAlias:         mediaconvert.AntiAliasEnabled,
+										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+											Deinterlacer: &mediaconvert.Deinterlacer{
+												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+												Control:   mediaconvert.DeinterlacerControlNormal,
+												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+											},
+										},
+										CodecSettings: &mediaconvert.VideoCodecSettings{
+											Codec: mediaconvert.VideoCodecH264,
+											H264Settings: &mediaconvert.H264Settings{
+												Bitrate:            aws.Int64(400000),
+												CodecLevel:         mediaconvert.H264CodecLevelAuto,
+												CodecProfile:       mediaconvert.H264CodecProfileHigh,
+												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+												RateControlMode:    mediaconvert.H264RateControlModeVbr,
+												GopSize:            aws.Float64(120),
+												GopSizeUnits:       mediaconvert.H264GopSizeUnitsFrames,
+												ParControl:         mediaconvert.H264ParControlSpecified,
+												ParNumerator:       aws.Int64(1),
+												ParDenominator:     aws.Int64(1),
+											},
+										},
+									},
+									AudioDescriptions: []mediaconvert.AudioDescription{
+										{
+											CodecSettings: &mediaconvert.AudioCodecSettings{
+												Codec: mediaconvert.AudioCodecAac,
+												AacSettings: &mediaconvert.AacSettings{
+													Bitrate:         aws.Int64(20000),
+													CodecProfile:    mediaconvert.AacCodecProfileLc,
+													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+													RateControlMode: mediaconvert.AacRateControlModeCbr,
+													SampleRate:      aws.Int64(defaultAudioSampleRate),
+												},
+											},
+										},
+									},
+									Extension: aws.String("mp4"),
+								},
+							},
+						},
 					},
 				},
 			},
@@ -852,10 +933,16 @@ func Test_mcProvider_Transcode(t *testing.T) {
 				return
 			}
 
+			if tt.cfg == nil {
+				tt.cfg = &config.MediaConvert{Destination: tt.destination}
+			} else {
+				tt.cfg.Destination = tt.destination
+			}
+
 			client := &testMediaConvertClient{t: t}
 			p := &mcProvider{
 				client:     client,
-				cfg:        &config.MediaConvert{Destination: tt.destination},
+				cfg:        tt.cfg,
 				repository: repo,
 			}
 			_, err = p.Transcode(context.Background(), tt.job)
