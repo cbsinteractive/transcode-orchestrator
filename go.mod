@@ -10,6 +10,7 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/aws/aws-sdk-go v1.30.7
 	github.com/aws/aws-sdk-go-v2 v0.20.0
+	github.com/aws/aws-xray-sdk-go v1.0.0-rc.15 // indirect
 	github.com/bitmovin/bitmovin-api-sdk-go v1.37.0-alpha.0
 	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20191031180025-00f04ed90532
 	github.com/fsouza/ctxlogger v1.5.9
@@ -28,4 +29,4 @@ require (
 	github.com/zsiec/pkg/xrayutil v0.0.0-20200316013157-874eb6019248
 )
 
-go 1.13
+go 1.14

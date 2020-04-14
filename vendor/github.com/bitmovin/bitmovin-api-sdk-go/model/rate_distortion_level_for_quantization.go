@@ -1,0 +1,9 @@
+package model
+type RateDistortionLevelForQuantization string
+
+// List of RateDistortionLevelForQuantization
+const (
+	RateDistortionLevelForQuantization_DISABLED RateDistortionLevelForQuantization = "DISABLED"
+	RateDistortionLevelForQuantization_LEVELS RateDistortionLevelForQuantization = "LEVELS"
+	RateDistortionLevelForQuantization_LEVELS_AND_CODING_GROUPS RateDistortionLevelForQuantization = "LEVELS_AND_CODING_GROUPS"
+)
