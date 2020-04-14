@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
-	"github.com/cbsinteractive/pkg/timecode"
 	"github.com/cbsinteractive/video-transcoding-api/config"
 	"github.com/cbsinteractive/video-transcoding-api/db"
 	"github.com/cbsinteractive/video-transcoding-api/db/redis"
@@ -53,29 +52,10 @@ type outputCfg struct {
 	filename string
 }
 
-func splice2clippings(s timecode.Splice, fps float64) (ic []mediaconvert.InputClipping) {
-	// NOTE(as): While this could be a helper function in the time/timecode package
-	// we probably don't want the uglyness of importing the AWS API in that package
-	// and having to recognize mediaconvert.InputClippings
-
-	// NOTE(as): We need to take into account embedded timecodes. Maybe it would
-	// be better to have this be a method on a timecode object or have it passed in as
-	// a reference argument (object could also provide fps info)
-
-	for _, r := range s {
-		s, e := r.Timecodes(fps)
-		ic = append(ic, mediaconvert.InputClipping{
-			StartTimecode: &s,
-			EndTimecode:   &e,
-		})
-	}
-	return ic
-}
-
 func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
 	outputGroups, err := p.outputGroupsFrom(ctx, job)
 	if err != nil {
-		return nil, fmt.Errorf("mediaconvert: output group generator: %w", err)
+		return nil, errors.Wrap(err, "generating Mediaconvert output groups")
 	}
 
 	queue := aws.String(p.cfg.DefaultQueueARN)
@@ -88,7 +68,7 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 		})
 	}
 
-	resp, err := p.client.CreateJobRequest(&mediaconvert.CreateJobInput{
+	createJobInput := mediaconvert.CreateJobInput{
 		AccelerationSettings: &mediaconvert.AccelerationSettings{
 			Mode: mediaconvert.AccelerationModePreferred,
 		},
@@ -98,8 +78,7 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 		Settings: &mediaconvert.JobSettings{
 			Inputs: []mediaconvert.Input{
 				{
-					InputClippings: splice2clippings(job.SourceSplice, 0), // TODO(as): Find FPS in job
-					FileInput:      aws.String(job.SourceMedia),
+					FileInput: aws.String(job.SourceMedia),
 					AudioSelectors: map[string]mediaconvert.AudioSelector{
 						"Audio Selector 1": {DefaultSelection: mediaconvert.AudioDefaultSelectionDefault},
 					},
@@ -114,11 +93,12 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 				Source: mediaconvert.TimecodeSourceZerobased,
 			},
 		},
-	}).Send(ctx)
+	}
+
+	resp, err := p.client.CreateJobRequest(&createJobInput).Send(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	return &provider.JobStatus{
 		ProviderName:  Name,
 		ProviderJobID: aws.StringValue(resp.Job.Id),
