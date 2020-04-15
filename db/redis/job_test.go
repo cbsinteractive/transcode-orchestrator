@@ -28,8 +28,15 @@ func TestCreateJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	job := db.Job{
-		ID:              "job1",
-		SourceMedia:     "http://nyt.net/source_here.mp4",
+		ID:          "job1",
+		SourceMedia: "http://nyt.net/source_here.mp4",
+		SourceInfo: db.SourceInfo{
+			Width:     20,
+			Height:    30,
+			FrameRate: 3.4,
+			FileSize:  2_222_222_222,
+			ScanType:  db.ScanTypeInterlaced,
+		},
 		ProviderName:    "encoding.com",
 		StreamingParams: db.StreamingParams{SegmentDuration: 10, Protocol: "hls", PlaylistFileName: "hls/playlist.m3u8"},
 		Outputs: []db.TranscodeOutput{
@@ -63,7 +70,7 @@ func TestCreateJob(t *testing.T) {
 	}
 	expected := map[string]string{
 		"source":                                   "http://nyt.net/source_here.mp4",
-		"sourceinfo":                               "{0 0 0 }",
+		"sourceinfo":                               "{20 30 3.4 2222222222 interlaced}",
 		"jobID":                                    "job1",
 		"providerName":                             "encoding.com",
 		"providerJobID":                            "",

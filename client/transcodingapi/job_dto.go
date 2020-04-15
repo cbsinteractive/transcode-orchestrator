@@ -38,6 +38,7 @@ type CreateJobSourceInfo struct {
 	Width     uint     `json:"width,omitempty"`
 	Height    uint     `json:"height,omitempty"`
 	FrameRate float64  `json:"frameRate,omitempty"`
+	FileSize  int64    `json:"fileSize,omitempty"`
 	ScanType  ScanType `json:"scanType,omitempty"`
 }
 

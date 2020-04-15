@@ -61,17 +61,25 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 	queue := aws.String(p.cfg.DefaultQueueARN)
 
 	var hopDestinations []mediaconvert.HopDestination
-	if preferred := p.cfg.PreferredQueueARN; preferred != "" {
+	if preferred := p.cfg.PreferredQueueARN; p.canUsePreferredQueue(job.SourceInfo) && preferred != "" {
 		queue = aws.String(preferred)
 		hopDestinations = append(hopDestinations, mediaconvert.HopDestination{
 			WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins),
 		})
 	}
 
+	var accelerationSettings *mediaconvert.AccelerationSettings
+	if p.requiresAcceleration(job.SourceInfo) {
+		accelerationSettings = &mediaconvert.AccelerationSettings{
+			Mode: mediaconvert.AccelerationModePreferred,
+		}
+	}
+
 	createJobInput := mediaconvert.CreateJobInput{
-		Queue:           queue,
-		HopDestinations: hopDestinations,
-		Role:            aws.String(p.cfg.Role),
+		AccelerationSettings: accelerationSettings,
+		Queue:                queue,
+		HopDestinations:      hopDestinations,
+		Role:                 aws.String(p.cfg.Role),
 		Settings: &mediaconvert.JobSettings{
 			Inputs: []mediaconvert.Input{
 				{
@@ -82,9 +90,13 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 					VideoSelector: &mediaconvert.VideoSelector{
 						ColorSpace: mediaconvert.ColorSpaceFollow,
 					},
+					TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
 				},
 			},
 			OutputGroups: outputGroups,
+			TimecodeConfig: &mediaconvert.TimecodeConfig{
+				Source: mediaconvert.TimecodeSourceZerobased,
+			},
 		},
 	}
 

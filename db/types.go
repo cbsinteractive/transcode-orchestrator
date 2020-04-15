@@ -167,10 +167,10 @@ const (
 //
 // swagger:model
 type SourceInfo struct {
-	Width  uint `redis-hash:"width,omitempty" json:"width,omitempty"`
-	Height uint `redis-hash:"height,omitempty" json:"height,omitempty"`
-	// FIXME: FrameRate?  Framerate?
+	Width     uint     `redis-hash:"width,omitempty" json:"width,omitempty"`
+	Height    uint     `redis-hash:"height,omitempty" json:"height,omitempty"`
 	FrameRate float64  `redis-hash:"framerate,omitempty" json:"frameRate,omitempty"`
+	FileSize  int64    `redis-hash:"filesize,omitempty" json:"fileSize,omitempty"`
 	ScanType  ScanType `redis-hash:"scantype,omitempty" json:"scanType,omitempty"`
 }
 
