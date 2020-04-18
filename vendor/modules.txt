@@ -123,6 +123,9 @@ github.com/bitmovin/bitmovin-api-sdk-go/serialization
 # github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20191031180025-00f04ed90532
 ## explicit
 github.com/cbsinteractive/hybrik-sdk-go
+# github.com/cbsinteractive/pkg/timecode v0.0.0-20200409233703-f2037b1185c6
+## explicit
+github.com/cbsinteractive/pkg/timecode
 # github.com/facebookgo/stack v0.0.0-20160209184415-751773369052
 github.com/facebookgo/stack
 # github.com/fluent/fluent-logger-golang v1.4.0

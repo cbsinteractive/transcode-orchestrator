@@ -13,6 +13,7 @@ require (
 	github.com/aws/aws-xray-sdk-go v1.0.0-rc.15 // indirect
 	github.com/bitmovin/bitmovin-api-sdk-go v1.37.0-alpha.0
 	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20191031180025-00f04ed90532
+	github.com/cbsinteractive/pkg/timecode v0.0.0-20200409233703-f2037b1185c6
 	github.com/fsouza/ctxlogger v1.5.9
 	github.com/fsouza/gizmo-stackdriver-logging v1.3.2
 	github.com/getsentry/sentry-go v0.5.1

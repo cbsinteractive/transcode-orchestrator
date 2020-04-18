@@ -6,35 +6,8 @@ CI_TAG ?= $(shell git describe --tags $(shell git rev-list --tags --max-count=1)
 
 all: test
 
-testdeps:
-	GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-	go mod download
-
-lint: testdeps
-	golangci-lint run \
-		--enable-all \
-		-D errcheck \
-		-D lll \
-		-D gochecknoglobals \
-		-D goconst \
-		-D godox \
-		-D dupl \
-		-D gocyclo \
-		-D dupl \
-		-D funlen \
-		-D gocritic \
-		-D wsl \
-		-D gosec \
-		-D gocognit \
-		-D gochecknoinits \
-		-D unparam \
-		-D gomnd \
-		--deadline 5m ./...
-
-gotest: testdeps
-	go test ./...
-
-test: lint gotest
+test:
+	go test -count=1 -race ./...
 
 coverage:
 	go test -coverprofile=coverage.txt -covermode=atomic ./...
