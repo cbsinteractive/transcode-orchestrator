@@ -16,7 +16,7 @@ require (
 	github.com/cbsinteractive/pkg/timecode v0.0.0-20200409233703-f2037b1185c6
 	github.com/fsouza/ctxlogger v1.5.9
 	github.com/fsouza/gizmo-stackdriver-logging v1.3.2
-	github.com/getsentry/sentry-go v0.5.1
+	github.com/getsentry/sentry-go v0.6.0
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/google/go-cmp v0.4.0
 	github.com/google/gops v0.3.7
