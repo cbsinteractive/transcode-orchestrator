@@ -30,7 +30,7 @@ jobs:
           name: Trigger deploy to dev
           command: |
             curl -u ${CIRCLE_CI_PROJECT_TOKEN}: -d build_parameters[CIRCLE_JOB]=build \
-            https://circleci.com/api/v1.1/project/github/cbsinteractive/video-transcoding-api-deploy/tree/master
+            https://circleci.com/api/v1.1/project/github/cbsinteractive/transcode-orchestrator-deploy/tree/master
             
   deploy_prod:
     docker:
@@ -40,7 +40,7 @@ jobs:
           name: Trigger deploy to prod
           command: |
             curl -u ${CIRCLE_CI_PROJECT_TOKEN}: -d build_parameters[CIRCLE_JOB]=build_prod \
-            https://circleci.com/api/v1.1/project/github/cbsinteractive/video-transcoding-api-deploy/tree/master
+            https://circleci.com/api/v1.1/project/github/cbsinteractive/transcode-orchestrator-deploy/tree/master
 
 workflows:
   version: 2
