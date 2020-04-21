@@ -1,4 +1,4 @@
-package transcodingapi
+package transcoding
 
 import "time"
 

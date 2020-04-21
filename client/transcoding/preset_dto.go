@@ -1,4 +1,4 @@
-package transcodingapi
+package transcoding
 
 // PresetName is a custom string type with the name of the preset
 type PresetName string

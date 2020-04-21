@@ -1,4 +1,4 @@
-package transcodingapi
+package transcoding
 
 // ProviderName is a custom string type with the name of the provider
 type ProviderName string
