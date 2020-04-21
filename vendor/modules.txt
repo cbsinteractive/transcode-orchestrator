@@ -11,7 +11,7 @@ github.com/NYTimes/gizmo/server
 github.com/NYTimes/gziphandler
 # github.com/NYTimes/logrotate v1.0.0
 github.com/NYTimes/logrotate
-# github.com/aws/aws-sdk-go v1.30.7
+# github.com/aws/aws-sdk-go v1.30.9
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/awserr
