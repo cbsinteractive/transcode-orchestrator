@@ -136,7 +136,7 @@ github.com/fsouza/ctxlogger
 # github.com/fsouza/gizmo-stackdriver-logging v1.3.2
 ## explicit
 github.com/fsouza/gizmo-stackdriver-logging
-# github.com/getsentry/sentry-go v0.5.1
+# github.com/getsentry/sentry-go v0.6.0
 ## explicit
 github.com/getsentry/sentry-go
 # github.com/go-redis/redis v6.15.7+incompatible
