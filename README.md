@@ -1,17 +1,17 @@
-![video-transcoding-api logo](https://cloud.githubusercontent.com/assets/244265/14191217/ae825932-f764-11e5-8eb3-d070aa8f2676.png)
+![transcode orchestrator logo](https://p191.p3.n0.cdn.getcloudapp.com/items/wbu0k6m1/path1059.png?v=44e064cde05df48d7a8ce13ca62e760c)
 
-# Video Transcoding API
+---
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/cbsinteractive/video-transcoding-api)](https://goreportcard.com/report/github.com/cbsinteractive/video-transcoding-api)
+[![Go Report Card](https://goreportcard.com/badge/github.com/cbsinteractive/transcode-orchestrator)](https://goreportcard.com/report/github.com/cbsinteractive/transcode-orchestrator)
 
-The Video Transcoding API provides an agnostic API to transcode media assets
+The transcode orchestrator provides an agnostic API to transcode media assets
 across different cloud services. Currently, it supports the following
 providers:
 
 - [Bitmovin](http://bitmovin.com)
 - [Hybrik](https://www.hybrik.com)
 - [MediaConvert](https://aws.amazon.com/mediaconvert)
-- [Flock](https://github.com/cbsinteractive/flock)
+- [Flock (CBS internal provider)](https://github.com/cbsinteractive/flock)
 
 ## Setting Up
 
@@ -69,14 +69,14 @@ export MEDIACONVERT_DESTINATION=s3://your-s3-bucket
 #### For [Flock](https://github.com/cbsinteractive/flock)
 
 ```
-export FLOCK_ENDPOINT=you.flock.endpoint
-export FLOCK_CREDENTIAL=you.flock.auth.secret
+export FLOCK_ENDPOINT=your.flock.endpoint
+export FLOCK_CREDENTIAL=your.flock.auth.secret
 ```
 
 ### Database configuration
 
 In order to store preset maps and job statuses we need a Redis instance
-running. Learn how to setup and run a Redis
+running. Learn how to set up and run a Redis server
 [here](http://redis.io/topics/quickstart). With the Redis instance running, set
 its configuration variables:
 
@@ -92,7 +92,7 @@ With all environment variables set and redis up and running, clone this
 repository and run:
 
 ```
-$ git clone https://github.com/cbsinteractive/video-transcoding-api.git
+$ git clone https://github.com/cbsinteractive/transcode-orchestrator.git
 $ make run
 ```
 
@@ -105,7 +105,4 @@ $ make test
 ## License
 
 - This code is under [Apache 2.0
-  license](https://github.com/NYTimes/video-transcoding-api/blob/master/LICENSE).
-- The video-transcoding-api logo is a variation on the Go gopher that was
-  designed by Renee French and copyrighted under the [Creative Commons
-  Attribution 3.0 license](https://creativecommons.org/licenses/by/3.0/).
+  license](https://github.com/cbsinteractive/transcode-orchestrator/blob/master/LICENSE).
