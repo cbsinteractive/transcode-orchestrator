@@ -5,7 +5,7 @@ import (
 	"net/url"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/pkg/errors"
 )
 

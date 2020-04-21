@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/video-transcoding-api/test"
+	"github.com/cbsinteractive/transcode-orchestrator/test"
 	"github.com/google/go-cmp/cmp"
 )
 

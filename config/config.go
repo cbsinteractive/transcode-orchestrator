@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/NYTimes/gizmo/server"
-	"github.com/cbsinteractive/video-transcoding-api/db/redis/storage"
+	"github.com/cbsinteractive/transcode-orchestrator/db/redis/storage"
 	logging "github.com/fsouza/gizmo-stackdriver-logging"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/zsiec/pkg/tracing"

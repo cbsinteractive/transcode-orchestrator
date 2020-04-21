@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/video-transcoding-api/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/provider"
 )
 
 type taskWithOutputMatcher struct {

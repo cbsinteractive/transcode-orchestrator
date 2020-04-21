@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/NYTimes/gizmo/server"
-	"github.com/cbsinteractive/video-transcoding-api/config"
-	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/db/dbtest"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/db/dbtest"
 	"github.com/sirupsen/logrus"
 )
 

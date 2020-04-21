@@ -3,7 +3,7 @@ package service
 import (
 	"net/http"
 
-	"github.com/cbsinteractive/video-transcoding-api/swagger"
+	"github.com/cbsinteractive/transcode-orchestrator/swagger"
 )
 
 type newPresetResponse struct {

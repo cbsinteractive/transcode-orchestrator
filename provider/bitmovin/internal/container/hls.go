@@ -6,9 +6,9 @@ import (
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/video-transcoding-api/provider"
-	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/storage"
-	"github.com/cbsinteractive/video-transcoding-api/provider/bitmovin/internal/types"
+	"github.com/cbsinteractive/transcode-orchestrator/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/storage"
+	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/types"
 	"github.com/pkg/errors"
 )
 

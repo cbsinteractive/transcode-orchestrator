@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"github.com/cbsinteractive/video-transcoding-api/config"
-	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/provider"
 )
 
 func init() {

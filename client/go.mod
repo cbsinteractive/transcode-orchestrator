@@ -1,3 +1,3 @@
-module github.com/cbsinteractive/video-transcoding-api/client
+module github.com/cbsinteractive/transcode-orchestrator/client
 
 go 1.13

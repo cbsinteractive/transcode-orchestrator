@@ -3,8 +3,8 @@ package service
 import (
 	"net/http"
 
-	"github.com/cbsinteractive/video-transcoding-api/provider"
-	"github.com/cbsinteractive/video-transcoding-api/swagger"
+	"github.com/cbsinteractive/transcode-orchestrator/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/swagger"
 )
 
 // response for the listProviders operation. Contains the list of providers

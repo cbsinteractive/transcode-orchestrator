@@ -1,5 +1,5 @@
 access.log
-video-transcoding-api
+transcode-orchestrator
 secrets.yml
 coverage.txt
 .DS_Store

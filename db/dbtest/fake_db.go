@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
 type fakeRepository struct {

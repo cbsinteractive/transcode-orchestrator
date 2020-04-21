@@ -1,9 +1,9 @@
 package redis
 
 import (
-	"github.com/cbsinteractive/video-transcoding-api/config"
-	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/db/redis/storage"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/db/redis/storage"
 )
 
 // NewRepository creates a new Repository that uses Redis for persistence.

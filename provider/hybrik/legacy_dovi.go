@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
 // TODO remove once Hybrik fixes bugs with the new Dolby Vision job structure

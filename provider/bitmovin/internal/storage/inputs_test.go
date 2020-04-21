@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/video-transcoding-api/config"
-	"github.com/cbsinteractive/video-transcoding-api/test"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/test"
 	"github.com/pkg/errors"
 )
 

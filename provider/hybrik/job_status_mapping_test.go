@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/video-transcoding-api/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/google/go-cmp/cmp"
 )
 

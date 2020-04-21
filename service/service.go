@@ -6,11 +6,11 @@ import (
 
 	"github.com/NYTimes/gizmo/server"
 	"github.com/NYTimes/gziphandler"
-	"github.com/cbsinteractive/video-transcoding-api/config"
-	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/db/redis"
-	"github.com/cbsinteractive/video-transcoding-api/service/exceptions"
-	"github.com/cbsinteractive/video-transcoding-api/swagger"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/db/redis"
+	"github.com/cbsinteractive/transcode-orchestrator/service/exceptions"
+	"github.com/cbsinteractive/transcode-orchestrator/swagger"
 	"github.com/fsouza/ctxlogger"
 	"github.com/gorilla/handlers"
 	"github.com/sirupsen/logrus"
@@ -76,7 +76,7 @@ func (s *TranscodingService) Middleware(h http.Handler) http.Handler {
 		h = handlers.LoggingHandler(s.logger.Writer(), h)
 	}
 	return s.tracer.Handle(
-		tracing.FixedNamer("video-transcoding-api"),
+		tracing.FixedNamer("transcode-orchestrator"),
 		gziphandler.GzipHandler(server.CORSHandler(h, "")),
 	)
 }

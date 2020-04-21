@@ -1,6 +1,6 @@
 package mediaconvert
 
-import "github.com/cbsinteractive/video-transcoding-api/db"
+import "github.com/cbsinteractive/transcode-orchestrator/db"
 
 func (p *mcProvider) canUsePreferredQueue(info db.SourceInfo) bool {
 	return !p.requiresAcceleration(info)

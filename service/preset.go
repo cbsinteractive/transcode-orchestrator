@@ -7,9 +7,9 @@ import (
 	"net/http"
 
 	"github.com/NYTimes/gizmo/server"
-	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/provider"
-	"github.com/cbsinteractive/video-transcoding-api/swagger"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/swagger"
 )
 
 // swagger:route DELETE /presets/{name} presets deletePreset

@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/video-transcoding-api/config"
-	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/db/dbtest"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/db/dbtest"
 	"github.com/google/go-cmp/cmp"
 )
 

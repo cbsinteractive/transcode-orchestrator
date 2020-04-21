@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/NYTimes/gizmo/server"
-	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/swagger"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/swagger"
 )
 
 // swagger:route POST /presetmaps presets newPreset

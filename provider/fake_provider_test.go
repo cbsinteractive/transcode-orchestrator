@@ -3,8 +3,8 @@ package provider
 import (
 	"context"
 
-	"github.com/cbsinteractive/video-transcoding-api/config"
-	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
 type fakeProvider struct {

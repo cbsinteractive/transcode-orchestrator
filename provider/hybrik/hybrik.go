@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/video-transcoding-api/config"
-	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/db/redis"
-	"github.com/cbsinteractive/video-transcoding-api/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/db/redis"
+	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/pkg/errors"
 )
 

@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/swagger"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/swagger"
 )
 
 // JSON-encoded preset returned on the newPreset and getPreset operations.

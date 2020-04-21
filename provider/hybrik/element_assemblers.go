@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/mitchellh/hashstructure"
 	"github.com/pkg/errors"
 )

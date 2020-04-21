@@ -7,7 +7,7 @@ import (
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/bitmovin/bitmovin-api-sdk-go/query"
-	"github.com/cbsinteractive/video-transcoding-api/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/pkg/errors"
 )
 

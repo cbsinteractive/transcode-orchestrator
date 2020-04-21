@@ -1,6 +1,6 @@
 package container
 
-import "github.com/cbsinteractive/video-transcoding-api/provider"
+import "github.com/cbsinteractive/transcode-orchestrator/provider"
 
 // StatusEnricher enriches status information for output containers
 type StatusEnricher interface {

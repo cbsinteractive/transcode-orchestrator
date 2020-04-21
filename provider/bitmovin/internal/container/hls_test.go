@@ -5,11 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-
-	"github.com/cbsinteractive/video-transcoding-api/test"
-
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
+	"github.com/cbsinteractive/transcode-orchestrator/test"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewHLSAssembler(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/cbsinteractive/video-transcoding-api/config"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
 )
 
 func noopFactory(*config.Config) (TranscodingProvider, error) {

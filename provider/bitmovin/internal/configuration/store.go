@@ -1,7 +1,7 @@
 package configuration
 
 import (
-	"github.com/cbsinteractive/video-transcoding-api/db"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
 // Store is the interface for any underlying codec config services

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"io"
 
-	"github.com/cbsinteractive/video-transcoding-api/db"
-	"github.com/cbsinteractive/video-transcoding-api/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/provider"
 )
 
 // NewTranscodeJobInputPayload makes up the parameters available for

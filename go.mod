@@ -1,4 +1,4 @@
-module github.com/cbsinteractive/video-transcoding-api
+module github.com/cbsinteractive/transcode-orchestrator
 
 replace (
 	github.com/aws/aws-sdk-go-v2 => github.com/zsiec/aws-sdk-go-v2 v0.20.1-0.20200414144658-8a86d9e7fcb8
