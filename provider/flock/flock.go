@@ -105,7 +105,7 @@ func (p *flock) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		fmt.Sprintf("%s/api/v1/job", p.cfg.Endpoint), bytes.NewBuffer(jsonValue))
+		fmt.Sprintf("%s/api/v1/jobs", p.cfg.Endpoint), bytes.NewBuffer(jsonValue))
 	if err != nil {
 		return nil, fmt.Errorf("creating job request: %w", err)
 	}
@@ -233,7 +233,7 @@ func (p *flock) flockJobRequestFrom(ctx context.Context, job *db.Job) (*JobReque
 
 func (p *flock) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		fmt.Sprintf("%s/api/v1/job/%s", p.cfg.Endpoint, job.ProviderJobID), nil)
+		fmt.Sprintf("%s/api/v1/jobs/%s", p.cfg.Endpoint, job.ProviderJobID), nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating status request: %w", err)
 	}
