@@ -1,14 +1,24 @@
 package transcoding
 
-import "time"
+import (
+	"time"
+
+	"github.com/cbsinteractive/pkg/timecode"
+)
 
 // JobID is our job's unique identifier
 type JobID string
 
 // CreateJobRequest contains the parameters needed to create a new transcode job
 type CreateJobRequest struct {
-	Source              string                      `json:"source"`
-	SourceInfo          CreateJobSourceInfo         `json:"sourceInfo,omitempty"`
+	Source     string              `json:"source"`
+	SourceInfo CreateJobSourceInfo `json:"sourceInfo,omitempty"`
+
+	// Splice is a request to cut the source before processing. It falls somewhere
+	// between file metadata and a request by the user to operate on the source.
+	// Not every provider currently supports this feature.
+	Splice              timecode.Splice             `json:"splice,omitempty"`
+
 	Name                string                      `json:"name,omitempty"`
 	DestinationBasePath string                      `json:"destinationBasePath,omitempty"`
 	Outputs             []JobOutput                 `json:"outputs"`
