@@ -353,7 +353,13 @@ func (p *flock) DeletePreset(ctx context.Context, presetID string) error {
 	return p.repository.DeleteLocalPreset(preset.(*db.LocalPreset))
 }
 
-func (*flock) CancelJob(context.Context, string) error {
+func (p *flock) CancelJob(ctx context.Context, providerID string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fmt.Sprintf("%s/api/v1/jobs/%s", p.cfg.Endpoint, providerID), nil)
+	req.Header.Set("Authorization", p.cfg.Credential)
+	_, err = p.client.Do(req)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
