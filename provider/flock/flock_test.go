@@ -32,6 +32,15 @@ func TestFlock_CancelJob(t *testing.T) {
 			},
 		},
 		{
+			name: "the correct HTTP method is used to cancel a job",
+			reqAssertion: func(t *testing.T, r *http.Request) {
+				wantMethod := http.MethodDelete
+				if g, e := r.Method, wantMethod; g != e {
+					t.Errorf("CancelJob() wrong HTTP method used, got %q, expected %q", g, e)
+				}
+			},
+		},
+		{
 			name: "the credential is added to the request to flock on cancel",
 			cfg:  config.Flock{Credential: "some-credential"},
 			reqAssertion: func(t *testing.T, r *http.Request) {
