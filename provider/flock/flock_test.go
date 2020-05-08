@@ -66,9 +66,13 @@ func TestFlock_CancelJob(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockTransport := &mockRoundTripper{returnsResp: tt.response}
-			client := &http.Client{Transport: mockTransport}
 
-			err := (&flock{cfg: &tt.cfg, client: client}).CancelJob(context.Background(), tt.providerID)
+			provider := &flock{
+				cfg:    &tt.cfg,
+				client: &http.Client{Transport: mockTransport},
+			}
+
+			err := provider.CancelJob(context.Background(), tt.providerID)
 			if err != nil {
 				if g, e := err.Error(), tt.expectErr; g != e {
 					t.Errorf("CancelJob() wrong error returned, got: %v, want: %v", g, e)
