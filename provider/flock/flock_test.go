@@ -2,7 +2,10 @@ package flock
 
 import (
 	"context"
+	"errors"
+	"io/ioutil"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/cbsinteractive/transcode-orchestrator/config"
@@ -37,6 +40,21 @@ func TestFlock_CancelJob(t *testing.T) {
 					t.Errorf("CancelJob() wrong credential sent, got %q, expected %q", g, e)
 				}
 			},
+		},
+		{
+			name: "if the backend returns a non 2xx status code, a useful error is returned",
+			response: http.Response{
+				StatusCode: 500,
+				Body:       ioutil.NopCloser(strings.NewReader("oops something went wrong")),
+			},
+			expectErr: "received non 2xx status code, got 500 with body: oops something went wrong",
+		},
+		{
+			name: "if we fail to read the resp body, a useful error is returned",
+			response: http.Response{
+				Body: ioutil.NopCloser(errReader{}),
+			},
+			expectErr: "reading resp body: error forced by mock reader",
 		},
 		{
 			name:      "if the flock endpoint is malformed, a useful error is returned",
@@ -74,5 +92,16 @@ type mockRoundTripper struct {
 
 func (rt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	rt.calledWithReq = req
+
+	if rt.returnsResp.Body == nil {
+		rt.returnsResp.Body = ioutil.NopCloser(strings.NewReader(""))
+	}
+
 	return &rt.returnsResp, rt.returnsErr
+}
+
+type errReader struct{}
+
+func (errReader) Read([]byte) (int, error) {
+	return 0, errors.New("error forced by mock reader")
 }

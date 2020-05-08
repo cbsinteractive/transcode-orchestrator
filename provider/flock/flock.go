@@ -361,9 +361,19 @@ func (p *flock) CancelJob(ctx context.Context, providerID string) error {
 
 	req.Header.Set("Authorization", p.cfg.Credential)
 
-	_, err = p.client.Do(req)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("reading resp body: %w", err)
+	}
+
+	if c := resp.StatusCode; c/100 > 3 {
+		return fmt.Errorf("received non 2xx status code, got %d with body: %s", c, string(body))
 	}
 
 	return nil
