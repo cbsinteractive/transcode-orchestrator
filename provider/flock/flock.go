@@ -353,7 +353,29 @@ func (p *flock) DeletePreset(ctx context.Context, presetID string) error {
 	return p.repository.DeleteLocalPreset(preset.(*db.LocalPreset))
 }
 
-func (*flock) CancelJob(context.Context, string) error {
+func (p *flock) CancelJob(ctx context.Context, providerID string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fmt.Sprintf("%s/api/v1/jobs/%s", p.cfg.Endpoint, providerID), nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", p.cfg.Credential)
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("reading resp body: %w", err)
+	}
+
+	if c := resp.StatusCode; c/100 > 3 {
+		return fmt.Errorf("received non 2xx status code, got %d with body: %s", c, string(body))
+	}
+
 	return nil
 }
 
