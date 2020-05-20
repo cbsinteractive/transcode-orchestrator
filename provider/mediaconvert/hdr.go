@@ -15,12 +15,16 @@ const (
 	masterDisplayValueGroupGreen      = "green"
 	masterDisplayValueGroupWhitepoint = "whitepoint"
 	masterDisplayValueGroupLuminance  = "luminance"
+)
 
-	masterDisplayRegxp = `(?P<` + masterDisplayValueGroupGreen + `>G\(\d+,\d+\))|` +
+var (
+	masterDisplayRegxp = regexp.MustCompile(`(?P<` + masterDisplayValueGroupGreen + `>G\(\d+,\d+\))|` +
 		`(?P<` + masterDisplayValueGroupBlue + `>B\(\d+,\d+\))|` +
 		`(?P<` + masterDisplayValueGroupRed + `>R\(\d+,\d+\))|` +
 		`(?P<` + masterDisplayValueGroupWhitepoint + `>WP\(\d+,\d+\))|` +
-		`(?P<` + masterDisplayValueGroupLuminance + `>L\(\d+,\d+\))`
+		`(?P<` + masterDisplayValueGroupLuminance + `>L\(\d+,\d+\))`)
+
+	nonNumericRegex = regexp.MustCompile(`[^0-9]+`)
 )
 
 type masterDisplay struct {
@@ -41,10 +45,7 @@ type tuple struct {
 }
 
 func parseMasterDisplay(encoded string) (masterDisplay, error) {
-	groupRegex, err := regexp.Compile(masterDisplayRegxp)
-	if err != nil {
-		return masterDisplay{}, errors.Wrap(err, "parsing groups regex")
-	}
+	groupRegex := masterDisplayRegxp
 
 	matchGroup := groupRegex.FindAllStringSubmatch(encoded, -1)
 
@@ -92,9 +93,5 @@ func parseMasterDisplay(encoded string) (masterDisplay, error) {
 }
 
 func numbersInString(str string) (int64, error) {
-	nonNumericRegex, err := regexp.Compile(`[^0-9]+`)
-	if err != nil {
-		return 0, errors.Wrap(err, "parsing non numeric regex")
-	}
 	return strconv.ParseInt(nonNumericRegex.ReplaceAllString(str, ""), 10, 64)
 }
