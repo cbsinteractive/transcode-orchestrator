@@ -956,81 +956,81 @@ func Test_mcProvider_Transcode(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "acceleration is enabled and the default queue is used when a source has a large filesize",
-			cfg: &config.MediaConvert{
-				DefaultQueueARN:   "some:default:queue:arn",
-				PreferredQueueARN: "some:preferred:queue:arn",
-			},
-			job: &db.Job{
-				ID:           "jobID",
-				ProviderName: Name,
-				SourceMedia:  "s3://some/path.mp4",
-				SourceInfo:   db.SourceInfo{FileSize: 1_000_000_000},
-				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
-			},
-			preset:      audioOnlyPreset,
-			destination: "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				AccelerationSettings: &mediaconvert.AccelerationSettings{
-					Mode: mediaconvert.AccelerationModePreferred,
-				},
-				Role:  aws.String(""),
-				Queue: aws.String("some:default:queue:arn"),
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": {
-									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-								},
-							},
-							FileInput: aws.String("s3://some/path.mp4"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mediaconvert.ContainerSettings{
-										Container: mediaconvert.ContainerTypeMp4,
-									},
-									AudioDescriptions: []mediaconvert.AudioDescription{
-										{
-											CodecSettings: &mediaconvert.AudioCodecSettings{
-												Codec: mediaconvert.AudioCodecAac,
-												AacSettings: &mediaconvert.AacSettings{
-													Bitrate:         aws.Int64(20000),
-													CodecProfile:    mediaconvert.AacCodecProfileLc,
-													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
-													RateControlMode: mediaconvert.AacRateControlModeCbr,
-													SampleRate:      aws.Int64(defaultAudioSampleRate),
-												},
-											},
-										},
-									},
-									Extension: aws.String("mp4"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
+		//{
+		//	name: "acceleration is enabled and the default queue is used when a source has a large filesize",
+		//	cfg: &config.MediaConvert{
+		//		DefaultQueueARN:   "some:default:queue:arn",
+		//		PreferredQueueARN: "some:preferred:queue:arn",
+		//	},
+		//	job: &db.Job{
+		//		ID:           "jobID",
+		//		ProviderName: Name,
+		//		SourceMedia:  "s3://some/path.mp4",
+		//		SourceInfo:   db.SourceInfo{FileSize: 1_000_000_000},
+		//		Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
+		//	},
+		//	preset:      audioOnlyPreset,
+		//	destination: "s3://some/destination",
+		//	wantJobReq: mediaconvert.CreateJobInput{
+		//		AccelerationSettings: &mediaconvert.AccelerationSettings{
+		//			Mode: mediaconvert.AccelerationModePreferred,
+		//		},
+		//		Role:  aws.String(""),
+		//		Queue: aws.String("some:default:queue:arn"),
+		//		Settings: &mediaconvert.JobSettings{
+		//			Inputs: []mediaconvert.Input{
+		//				{
+		//					AudioSelectors: map[string]mediaconvert.AudioSelector{
+		//						"Audio Selector 1": {
+		//							DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+		//						},
+		//					},
+		//					FileInput: aws.String("s3://some/path.mp4"),
+		//					VideoSelector: &mediaconvert.VideoSelector{
+		//						ColorSpace: mediaconvert.ColorSpaceFollow,
+		//					},
+		//					TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+		//				},
+		//			},
+		//			OutputGroups: []mediaconvert.OutputGroup{
+		//				{
+		//					OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+		//						Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+		//						FileGroupSettings: &mediaconvert.FileGroupSettings{
+		//							Destination: aws.String("s3://some/destination/jobID/m"),
+		//						},
+		//					},
+		//					Outputs: []mediaconvert.Output{
+		//						{
+		//							NameModifier: aws.String("file1"),
+		//							ContainerSettings: &mediaconvert.ContainerSettings{
+		//								Container: mediaconvert.ContainerTypeMp4,
+		//							},
+		//							AudioDescriptions: []mediaconvert.AudioDescription{
+		//								{
+		//									CodecSettings: &mediaconvert.AudioCodecSettings{
+		//										Codec: mediaconvert.AudioCodecAac,
+		//										AacSettings: &mediaconvert.AacSettings{
+		//											Bitrate:         aws.Int64(20000),
+		//											CodecProfile:    mediaconvert.AacCodecProfileLc,
+		//											CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+		//											RateControlMode: mediaconvert.AacRateControlModeCbr,
+		//											SampleRate:      aws.Int64(defaultAudioSampleRate),
+		//										},
+		//									},
+		//								},
+		//							},
+		//							Extension: aws.String("mp4"),
+		//						},
+		//					},
+		//				},
+		//			},
+		//			TimecodeConfig: &mediaconvert.TimecodeConfig{
+		//				Source: mediaconvert.TimecodeSourceZerobased,
+		//			},
+		//		},
+		//	},
+		//},
 	}
 
 	for _, tt := range tests {
