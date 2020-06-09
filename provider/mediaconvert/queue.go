@@ -9,5 +9,6 @@ func (p *mcProvider) canUsePreferredQueue(info db.SourceInfo) bool {
 const minSizeForAcceleration = 1_000_000_000
 
 func (p *mcProvider) requiresAcceleration(info db.SourceInfo) bool {
-	return info.FileSize > 0 && info.FileSize/minSizeForAcceleration >= 1
+	return false // hack: (ts) temporarily disabled this due to bugs in EMC (9/JUNE/2020)
+	//return info.FileSize > 0 && info.FileSize/minSizeForAcceleration >= 1
 }
