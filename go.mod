@@ -1,16 +1,12 @@
 module github.com/cbsinteractive/transcode-orchestrator
 
-replace (
-	github.com/aws/aws-sdk-go-v2 => github.com/zsiec/aws-sdk-go-v2 v0.20.1-0.20200414144658-8a86d9e7fcb8
-	github.com/bitmovin/bitmovin-api-sdk-go => github.com/zsiec/bitmovin-api-sdk-go v1.30.0-alpha.0.0.20191206023358-8ff55f235fcf
-)
+replace github.com/bitmovin/bitmovin-api-sdk-go => github.com/zsiec/bitmovin-api-sdk-go v1.30.0-alpha.0.0.20191206023358-8ff55f235fcf
 
 require (
 	github.com/NYTimes/gizmo v1.3.5
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/aws/aws-sdk-go v1.30.9
-	github.com/aws/aws-sdk-go-v2 v0.20.0
-	github.com/aws/aws-xray-sdk-go v1.0.0-rc.15 // indirect
+	github.com/aws/aws-sdk-go-v2 v0.21.0
 	github.com/bitmovin/bitmovin-api-sdk-go v1.37.0-alpha.0
 	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20191031180025-00f04ed90532
 	github.com/cbsinteractive/pkg/timecode v0.0.0-20200409233703-f2037b1185c6
