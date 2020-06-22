@@ -295,8 +295,6 @@ github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0/go.mod h1:/LWChgwKmv
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=
 github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82/go.mod h1:lgjkn3NuSvDfVJdfcVVdX+jpBxNmX4rDAzaS45IcYoM=
 github.com/yudai/pp v2.0.1+incompatible/go.mod h1:PuxR/8QJ7cyCkFp/aUDS+JY727OFEZkTdatxwunjIkc=
-github.com/zsiec/aws-sdk-go-v2 v0.20.1-0.20200622194625-a707ff8e168e h1:woQae2cdv124ugGIbTZ8gJoYjh8pl6jCY6A6ZNKI+pg=
-github.com/zsiec/aws-sdk-go-v2 v0.20.1-0.20200622194625-a707ff8e168e/go.mod h1:gI/sZexbRyMiFze3cbQ/qGJg5yZdacy6WYlpIWNKfHU=
 github.com/zsiec/bitmovin-api-sdk-go v1.30.0-alpha.0.0.20191206023358-8ff55f235fcf h1:iKJ/0o6L+83rH2nXd07gnLD4RDkv0khTG1/GK+Vo78A=
 github.com/zsiec/bitmovin-api-sdk-go v1.30.0-alpha.0.0.20191206023358-8ff55f235fcf/go.mod h1:pW52EVUSUbzKDj6BpS1fEL1L0A4atBSh+7/O2KhbgAY=
 github.com/zsiec/pkg/tracing v0.0.0-20200316013157-874eb6019248 h1:1MeuNU+LSO96QkTHIeviyQF1+CwDKVzMRbyjCeW1IP4=
