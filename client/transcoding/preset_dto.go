@@ -63,8 +63,17 @@ type VideoPreset struct {
 	GopUnit             string              `json:"gopUnit,omitempty"`
 	GopMode             string              `json:"gopMode,omitempty"`
 	InterlaceMode       string              `json:"interlaceMode,omitempty"`
+	TimecodeBurnin      TimecodeBurnin      `json:"timecodeBurnin,omitempty"`
 	HDR10Settings       HDR10Settings       `json:"hdr10"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision"`
+}
+
+//TimecodeBurnin defines the timecode burnin settings
+type TimecodeBurnin struct {
+	Enabled  bool   `json:"enabled"`
+	Position string `json:"position,omitempty"`
+	Prefix   string `json:"prefix,omitempty"`
+	FontSize int64  `json:"fontSize,omitempty"`
 }
 
 // HDR10Settings defines a set of configurations for defining HDR10 metadata

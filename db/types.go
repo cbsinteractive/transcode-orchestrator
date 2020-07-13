@@ -226,6 +226,7 @@ type VideoPreset struct {
 	GopUnit             string              `json:"gopUnit,omitempty" redis-hash:"gopunit,omitempty"`
 	GopMode             string              `json:"gopMode,omitempty" redis-hash:"gopmode,omitempty"`
 	InterlaceMode       string              `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
+	TimecodeBurnin      TimecodeBurnin      `json:"timecodeBurnin,omitempty" redish-hash:"timecodeburnin,omitempty"`
 	HDR10Settings       HDR10Settings       `json:"hdr10" redis-hash:"hdr10,expand,omitempty"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision" redis-hash:"dolbyvision,expand,omitempty"`
 }
@@ -240,6 +241,14 @@ const (
 	// GopUnitSeconds uses Key Intervals in transcode job
 	GopUnitSeconds GopUnit = "seconds"
 )
+
+//TimecodeBurnin defines the timecode burnin settings
+type TimecodeBurnin struct {
+	Enabled  bool   `json:"enabled" redis-hash:"enabled"`
+	Position string `json:"position,omitempty" redis-hash:"position,omitempty"`
+	Prefix   string `json:"prefix,omitempty" redis-hash:"prefix,omitempty"`
+	FontSize int64  `json:"fontSize,omitempty" redis-hash:"fontsize,omitempty"`
+}
 
 // HDR10Settings defines a set of configurations for defining HDR10 metadata
 type HDR10Settings struct {
