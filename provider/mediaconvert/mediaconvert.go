@@ -105,9 +105,7 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 				{
 					InputClippings: splice2clippings(job.SourceSplice, 0), // TODO(as): Find FPS in job
 					FileInput:      aws.String(job.SourceMedia),
-					AudioSelectors: map[string]mediaconvert.AudioSelector{
-						"Audio Selector 1": {DefaultSelection: mediaconvert.AudioDefaultSelectionDefault},
-					},
+					AudioSelectors: p.audioSelectorsFrom(job.SourceInfo),
 					VideoSelector: &mediaconvert.VideoSelector{
 						ColorSpace: mediaconvert.ColorSpaceFollow,
 					},
@@ -226,6 +224,72 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 	}
 
 	return mcOutputGroups, nil
+}
+
+func (p *mcProvider) audioSelectorsFrom(info db.SourceInfo) map[string]mediaconvert.AudioSelector {
+	audioSelector := mediaconvert.AudioSelector{
+		DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+	}
+
+	if audioChannels := info.AudioChannels; audioChannels != nil {
+		var offset int64
+		var programSelection int64 = 1
+		var channelsOut int64 = 2
+		var channelsIn int64 = int64(len(audioChannels))
+
+		audioSelector.Offset = &offset
+		audioSelector.SelectorType = mediaconvert.AudioSelectorTypeTrack
+		audioSelector.ProgramSelection = &programSelection
+
+		var tracks []int64
+		for i := 0; i < len(audioChannels); i++ {
+			tracks = append(tracks, int64(i+1))
+		}
+		audioSelector.Tracks = tracks
+
+		audioSelector.RemixSettings = &mediaconvert.RemixSettings{
+			ChannelsIn:     &channelsIn,
+			ChannelsOut:    &channelsOut,
+			ChannelMapping: p.stereoAudioChannelMappingFrom(audioChannels),
+		}
+	}
+
+	return map[string]mediaconvert.AudioSelector{
+		"Audio Selector 1": audioSelector,
+	}
+}
+
+func (p *mcProvider) stereoAudioChannelMappingFrom(audioChannels []db.ChannelLayout) *mediaconvert.ChannelMapping {
+	var leftChannel, rightChannel []int64
+	var mute, set int64 = -60, 0
+
+	for _, layout := range audioChannels {
+		switch layout {
+		case db.LFE:
+			leftChannel = append(leftChannel, mute)
+			rightChannel = append(rightChannel, mute)
+		case db.Center:
+			leftChannel = append(leftChannel, set)
+			rightChannel = append(rightChannel, set)
+		default:
+			if strings.Contains(string(layout), string(db.Left)) {
+				leftChannel = append(leftChannel, set)
+				rightChannel = append(rightChannel, mute)
+			}
+
+			if strings.Contains(string(layout), string(db.Right)) {
+				leftChannel = append(leftChannel, mute)
+				rightChannel = append(rightChannel, set)
+			}
+		}
+	}
+
+	return &mediaconvert.ChannelMapping{
+		OutputChannels: []mediaconvert.OutputChannelMapping{
+			mediaconvert.OutputChannelMapping{InputChannels: leftChannel},
+			mediaconvert.OutputChannelMapping{InputChannels: rightChannel},
+		},
+	}
 }
 
 func (p *mcProvider) destinationPathFrom(job *db.Job) string {

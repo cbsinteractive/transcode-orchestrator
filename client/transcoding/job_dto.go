@@ -44,20 +44,38 @@ type (
 	SidecarAssetKind = string
 )
 
+//ChannelLayout describes the audio channel layout
+type ChannelLayout string
+
+const (
+	// Center channel layout
+	Center ChannelLayout = "C"
+
+	// Left channel layout
+	Left ChannelLayout = "L"
+
+	// Right channel layout
+	Right ChannelLayout = "R"
+
+	// LFE channel layout
+	LFE ChannelLayout = "LFE"
+)
+
 // File is a media file. It replaces the following objects
 // SourceInfo: Duration, Height, Width, Codec
 // CreateJobSourceInfo: Height, Width, FrameRate, File Size, ScanType
 // SourceInfo:
 type File struct {
-	Path       string        `json:"path"`
-	Size       int64         `json:"fileSize"`
-	Container  string        `json:"container"`
-	Duration   time.Duration `json:"duration,omitempty"`
-	VideoCodec string        `json:"videoCodec,omitempty"`
-	Width      int           `json:"width,omitempty"`
-	Height     int           `json:"height,omitempty"`
-	FrameRate  float64       `json:"frameRate,omitempty"`
-	ScanType   ScanType      `json:"scanType,omitempty"`
+	Path          string          `json:"path"`
+	Size          int64           `json:"fileSize"`
+	Container     string          `json:"container"`
+	Duration      time.Duration   `json:"duration,omitempty"`
+	VideoCodec    string          `json:"videoCodec,omitempty"`
+	Width         int             `json:"width,omitempty"`
+	Height        int             `json:"height,omitempty"`
+	FrameRate     float64         `json:"frameRate,omitempty"`
+	ScanType      ScanType        `json:"scanType,omitempty"`
+	AudioChannels []ChannelLayout `json:"audioChannels,omitempty"`
 }
 
 type (

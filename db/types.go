@@ -141,15 +141,32 @@ const (
 	ScanTypeUnknown ScanType = "unknown"
 )
 
+type ChannelLayout string
+
+const (
+	// Center channel layout
+	Center ChannelLayout = "C"
+
+	// Left channel layout
+	Left ChannelLayout = "L"
+
+	// Right channel layout
+	Right ChannelLayout = "R"
+
+	// LFE channel layout
+	LFE ChannelLayout = "LFE"
+)
+
 // SourceInfo represents basic information about the source that may be of aid to providers
 //
 // swagger:model
 type SourceInfo struct {
-	Width     uint     `redis-hash:"width,omitempty" json:"width,omitempty"`
-	Height    uint     `redis-hash:"height,omitempty" json:"height,omitempty"`
-	FrameRate float64  `redis-hash:"framerate,omitempty" json:"frameRate,omitempty"`
-	FileSize  int64    `redis-hash:"filesize,omitempty" json:"fileSize,omitempty"`
-	ScanType  ScanType `redis-hash:"scantype,omitempty" json:"scanType,omitempty"`
+	Width         uint            `redis-hash:"width,omitempty" json:"width,omitempty"`
+	Height        uint            `redis-hash:"height,omitempty" json:"height,omitempty"`
+	FrameRate     float64         `redis-hash:"framerate,omitempty" json:"frameRate,omitempty"`
+	FileSize      int64           `redis-hash:"filesize,omitempty" json:"fileSize,omitempty"`
+	ScanType      ScanType        `redis-hash:"scantype,omitempty" json:"scanType,omitempty"`
+	AudioChannels []ChannelLayout `redis-hash:"audiochannels,omitempty" json:"audioChannels,omitempty"`
 }
 
 // ExecutionFeatures is a map whose key is a custom feature name and value is a json string
