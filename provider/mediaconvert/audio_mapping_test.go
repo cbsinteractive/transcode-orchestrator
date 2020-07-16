@@ -36,19 +36,25 @@ func Test_mcProvider_audioSelectorsFrom(t *testing.T) {
 
 func Test_mcProvider_stereoAudioChannelMappingFrom(t *testing.T) {
 	tests := []struct {
-		name          string
-		audioChannels []db.AudioChannel
-		want          *mediaconvert.ChannelMapping
+		name    string
+		audioDM db.AudioDownmix
+		want    *mediaconvert.ChannelMapping
 	}{
 		{
 			name: "5.1",
-			audioChannels: []db.AudioChannel{
-				{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
-				{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
-				{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},
-				{TrackIdx: 1, ChannelIdx: 4, Layout: "LFE"},
-				{TrackIdx: 1, ChannelIdx: 5, Layout: "Ls"},
-				{TrackIdx: 1, ChannelIdx: 6, Layout: "Rs"},
+			audioDM: db.AudioDownmix{
+				SrcChannels: []db.AudioChannel{
+					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
+					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
+					{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},
+					{TrackIdx: 1, ChannelIdx: 4, Layout: "LFE"},
+					{TrackIdx: 1, ChannelIdx: 5, Layout: "Ls"},
+					{TrackIdx: 1, ChannelIdx: 6, Layout: "Rs"},
+				},
+				DestChannels: []db.AudioChannel{
+					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
+					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
+				},
 			},
 			want: &mediaconvert.ChannelMapping{
 				OutputChannels: []mediaconvert.OutputChannelMapping{
@@ -62,7 +68,7 @@ func Test_mcProvider_stereoAudioChannelMappingFrom(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &mcProvider{}
 
-			if got := p.stereoAudioChannelMappingFrom(tc.audioChannels); !reflect.DeepEqual(got, tc.want) {
+			if got := p.audioChannelMappingFrom(tc.audioDM); !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("got\n%v\nwant\n %v", got, tc.want)
 			}
 		})

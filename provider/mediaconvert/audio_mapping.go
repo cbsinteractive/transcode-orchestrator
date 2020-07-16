@@ -6,8 +6,12 @@ import (
 )
 
 const (
-	muteChannel int64 = 0
-	setChannel  int64 = -60
+	muteChannel   int64  = 0
+	setChannel    int64  = -60
+	lfeChannel    string = "LFE"
+	centerChannel string = "C"
+	leftChannel   string = "L"
+	rightChannel  string = "R"
 )
 
 func (p *mcProvider) audioSelectorsFrom(audioDownmix db.AudioDownmix) map[string]mediaconvert.AudioSelector {
@@ -32,7 +36,7 @@ func (p *mcProvider) audioSelectorsFrom(audioDownmix db.AudioDownmix) map[string
 		audioSelector.RemixSettings = &mediaconvert.RemixSettings{
 			ChannelsIn:     &channelsIn,
 			ChannelsOut:    &channelsOut,
-			ChannelMapping: p.stereoAudioChannelMappingFrom(audioDownmix.SrcChannels),
+			ChannelMapping: p.audioChannelMappingFrom(audioDownmix),
 		}
 	}
 
@@ -41,31 +45,39 @@ func (p *mcProvider) audioSelectorsFrom(audioDownmix db.AudioDownmix) map[string
 	}
 }
 
-func (p *mcProvider) stereoAudioChannelMappingFrom(audioChannels []db.AudioChannel) *mediaconvert.ChannelMapping {
-	var leftChannel, rightChannel []int64
+func (p *mcProvider) audioChannelMappingFrom(audioDownmix db.AudioDownmix) *mediaconvert.ChannelMapping {
+	var outputChannelMapping []mediaconvert.OutputChannelMapping
 
-	for _, ac := range audioChannels {
-		layout := db.ChannelLayout(ac.Layout)
-		switch layout {
-		case db.LFE:
-			leftChannel = append(leftChannel, muteChannel)
-			rightChannel = append(rightChannel, muteChannel)
-		case db.Center:
-			leftChannel = append(leftChannel, setChannel)
-			rightChannel = append(rightChannel, setChannel)
-		case db.Left, db.LeftBack, db.LeftSurround, db.LeftTotal:
-			leftChannel = append(leftChannel, setChannel)
-			rightChannel = append(rightChannel, muteChannel)
-		case db.Right, db.RightBack, db.RightSurround, db.RightTotal:
-			leftChannel = append(leftChannel, muteChannel)
-			rightChannel = append(rightChannel, setChannel)
+	for _, dest := range audioDownmix.DestChannels {
+		var outputChannel []int64
+
+		for _, src := range audioDownmix.SrcChannels {
+			if src.Layout == lfeChannel {
+				outputChannel = append(outputChannel, muteChannel)
+				continue
+			}
+
+			for _, l := range src.Layout {
+				layout := string(l)
+
+				if layout != centerChannel && layout != rightChannel && layout != leftChannel {
+					continue
+				}
+
+				if layout == centerChannel || layout == dest.Layout {
+					outputChannel = append(outputChannel, setChannel)
+					continue
+				}
+
+				outputChannel = append(outputChannel, muteChannel)
+			}
 		}
+
+		outputChannelMapping = append(outputChannelMapping,
+			mediaconvert.OutputChannelMapping{InputChannels: outputChannel})
 	}
 
 	return &mediaconvert.ChannelMapping{
-		OutputChannels: []mediaconvert.OutputChannelMapping{
-			mediaconvert.OutputChannelMapping{InputChannels: leftChannel},
-			mediaconvert.OutputChannelMapping{InputChannels: rightChannel},
-		},
+		OutputChannels: outputChannelMapping,
 	}
 }
