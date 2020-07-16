@@ -44,7 +44,7 @@ type Job struct {
 	SourceMedia string `redis-hash:"source" json:"source"`
 
 	// SourceInfo is source information
-	SourceInfo SourceInfo `redis-hash:"sourceinfo,omitempty" json:"sourceInfo,omitempty"`
+	SourceInfo File `redis-hash:"sourceinfo,omitempty" json:"sourceInfo,omitempty"`
 
 	// SourceSplice is a set of second ranges to excise from the input and catenate
 	// together before processing the source. For example, [[0,1],[8,9]], will cut out
@@ -62,6 +62,9 @@ type Job struct {
 
 	// Output list of the given job
 	Outputs []TranscodeOutput `redis-hash:"-" json:"outputs"`
+
+	// AudioDownmix holds source and output channels for configuring downmixing
+	AudioDownmix AudioDownmix `json:"audioDownmix"`
 }
 
 type SidecarAssetKind = string
@@ -141,6 +144,7 @@ const (
 	ScanTypeUnknown ScanType = "unknown"
 )
 
+//ChannelLayout describes layout of an audio channel
 type ChannelLayout string
 
 const (
@@ -153,20 +157,56 @@ const (
 	// Right channel layout
 	Right ChannelLayout = "R"
 
-	// LFE channel layout
+	// LeftSurround describes left surround direct
+	LeftSurround ChannelLayout = "Ls"
+
+	// RightSurround describes right surround direct
+	RightSurround ChannelLayout = "Rs"
+
+	// LeftBack describes left rear surround
+	LeftBack ChannelLayout = "Lb"
+
+	// RightBack describes right rear surround
+	RightBack ChannelLayout = "Rb"
+
+	// LeftTotal describes left matrix total
+	LeftTotal ChannelLayout = "Lt"
+
+	// RightTotal describes right matrix total
+	RightTotal ChannelLayout = "Rt"
+
+	// LFE describes low frequency effect
 	LFE ChannelLayout = "LFE"
 )
 
-// SourceInfo represents basic information about the source that may be of aid to providers
+//AudioChannel describes and Audio Mix
+type AudioChannel struct {
+	TrackIdx   int
+	ChannelIdx int
+	Layout     string
+}
+
+//AudioDownmix holds source and output channels layouts for providers
+//to handle downmixing
+type AudioDownmix struct {
+	SrcChannels  []AudioChannel
+	DestChannels []AudioChannel
+}
+
+//IsSet will return true when AudioDownmix is set
+func (a *AudioDownmix) IsSet() bool {
+	return a.SrcChannels != nil && a.DestChannels != nil
+}
+
+// File represents basic information about the source that may be of aid to providers
 //
 // swagger:model
-type SourceInfo struct {
-	Width         uint            `redis-hash:"width,omitempty" json:"width,omitempty"`
-	Height        uint            `redis-hash:"height,omitempty" json:"height,omitempty"`
-	FrameRate     float64         `redis-hash:"framerate,omitempty" json:"frameRate,omitempty"`
-	FileSize      int64           `redis-hash:"filesize,omitempty" json:"fileSize,omitempty"`
-	ScanType      ScanType        `redis-hash:"scantype,omitempty" json:"scanType,omitempty"`
-	AudioChannels []ChannelLayout `redis-hash:"audiochannels,omitempty" json:"audioChannels,omitempty"`
+type File struct {
+	Width     uint     `redis-hash:"width,omitempty" json:"width,omitempty"`
+	Height    uint     `redis-hash:"height,omitempty" json:"height,omitempty"`
+	FrameRate float64  `redis-hash:"framerate,omitempty" json:"frameRate,omitempty"`
+	FileSize  int64    `redis-hash:"filesize,omitempty" json:"fileSize,omitempty"`
+	ScanType  ScanType `redis-hash:"scantype,omitempty" json:"scanType,omitempty"`
 }
 
 // ExecutionFeatures is a map whose key is a custom feature name and value is a json string

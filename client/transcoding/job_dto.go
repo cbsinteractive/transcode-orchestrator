@@ -44,38 +44,34 @@ type (
 	SidecarAssetKind = string
 )
 
-//ChannelLayout describes the audio channel layout
-type ChannelLayout string
+//AudioChannel describes and Audio Mix
+type AudioChannel struct {
+	TrackIdx   int
+	ChannelIdx int
+	Layout     string
+}
 
-const (
-	// Center channel layout
-	Center ChannelLayout = "C"
-
-	// Left channel layout
-	Left ChannelLayout = "L"
-
-	// Right channel layout
-	Right ChannelLayout = "R"
-
-	// LFE channel layout
-	LFE ChannelLayout = "LFE"
-)
+//AudioDownmix holds source and output channels layouts for providers
+//to handle downmixing
+type AudioDownmix struct {
+	SrcChannels  []AudioChannel
+	DestChannels []AudioChannel
+}
 
 // File is a media file. It replaces the following objects
 // SourceInfo: Duration, Height, Width, Codec
 // CreateJobSourceInfo: Height, Width, FrameRate, File Size, ScanType
 // SourceInfo:
 type File struct {
-	Path          string          `json:"path"`
-	Size          int64           `json:"fileSize"`
-	Container     string          `json:"container"`
-	Duration      time.Duration   `json:"duration,omitempty"`
-	VideoCodec    string          `json:"videoCodec,omitempty"`
-	Width         int             `json:"width,omitempty"`
-	Height        int             `json:"height,omitempty"`
-	FrameRate     float64         `json:"frameRate,omitempty"`
-	ScanType      ScanType        `json:"scanType,omitempty"`
-	AudioChannels []ChannelLayout `json:"audioChannels,omitempty"`
+	Path       string        `json:"path"`
+	Size       int64         `json:"fileSize"`
+	Container  string        `json:"container"`
+	Duration   time.Duration `json:"duration,omitempty"`
+	VideoCodec string        `json:"videoCodec,omitempty"`
+	Width      int           `json:"width,omitempty"`
+	Height     int           `json:"height,omitempty"`
+	FrameRate  float64       `json:"frameRate,omitempty"`
+	ScanType   ScanType      `json:"scanType,omitempty"`
 }
 
 type (
@@ -97,8 +93,9 @@ type (
 		StreamingParams   StreamingParams             `json:"streamingParams,omitempty"`
 		SidecarAssets     map[SidecarAssetKind]string `json:"sidecarAssets,omitempty"`
 
-		DestinationBasePath string      `json:"destinationBasePath,omitempty"`
-		Outputs             []JobOutput `json:"outputs"`
+		DestinationBasePath string       `json:"destinationBasePath,omitempty"`
+		Outputs             []JobOutput  `json:"outputs"`
+		AudioDownmix        AudioDownmix `json:"audioDownmix"`
 	}
 	CreateJobResponse struct {
 		JobID JobID `json:"jobId"`

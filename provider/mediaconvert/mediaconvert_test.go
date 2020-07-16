@@ -86,7 +86,7 @@ var (
 		ID:           "jobID",
 		ProviderName: Name,
 		SourceMedia:  "s3://some/path.mp4",
-		SourceInfo: db.SourceInfo{
+		SourceInfo: db.File{
 			ScanType: db.ScanTypeUnknown,
 		},
 		Outputs: []db.TranscodeOutput{
@@ -491,7 +491,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				SourceInfo: db.SourceInfo{
+				SourceInfo: db.File{
 					ScanType: db.ScanTypeInterlaced,
 				},
 				Outputs: []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
@@ -592,7 +592,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				SourceInfo: db.SourceInfo{
+				SourceInfo: db.File{
 					ScanType: db.ScanTypeProgressive,
 				},
 				Outputs: []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
@@ -966,7 +966,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 		//		ID:           "jobID",
 		//		ProviderName: Name,
 		//		SourceMedia:  "s3://some/path.mp4",
-		//		SourceInfo:   db.SourceInfo{FileSize: 1_000_000_000},
+		//		SourceInfo:   db.File{FileSize: 1_000_000_000},
 		//		Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
 		//	},
 		//	preset:      audioOnlyPreset,

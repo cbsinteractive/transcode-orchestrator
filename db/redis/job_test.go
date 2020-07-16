@@ -30,7 +30,7 @@ func TestCreateJob(t *testing.T) {
 	job := db.Job{
 		ID:          "job1",
 		SourceMedia: "http://nyt.net/source_here.mp4",
-		SourceInfo: db.SourceInfo{
+		SourceInfo: db.File{
 			Width:     20,
 			Height:    30,
 			FrameRate: 3.4,

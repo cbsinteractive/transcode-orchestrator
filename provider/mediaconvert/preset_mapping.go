@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func outputFrom(preset db.Preset, sourceInfo db.SourceInfo) (mediaconvert.Output, error) {
+func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, error) {
 	container, err := containerFrom(preset.Container)
 	if err != nil {
 		return mediaconvert.Output{}, errors.Wrap(err, "mapping preset container to MediaConvert container")
@@ -77,7 +77,7 @@ func containerFrom(container string) (mediaconvert.ContainerType, error) {
 	}
 }
 
-func videoPresetFrom(preset db.Preset, sourceInfo db.SourceInfo) (*mediaconvert.VideoDescription, error) {
+func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoDescription, error) {
 	videoPreset := mediaconvert.VideoDescription{
 		ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
 		TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
