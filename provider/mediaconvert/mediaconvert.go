@@ -364,6 +364,8 @@ func fileExtensionFromContainer(settings *mediaconvert.ContainerSettings) (strin
 	switch settings.Container {
 	case mediaconvert.ContainerTypeMp4:
 		return ".mp4", nil
+	case mediaconvert.ContainerTypeMov:
+		return ".mov", nil
 	default:
 		return "", fmt.Errorf("could not determine extension from output container %q", settings.Container)
 	}
@@ -377,6 +379,8 @@ func containerIdentifierFrom(settings *mediaconvert.ContainerSettings) (string, 
 	switch settings.Container {
 	case mediaconvert.ContainerTypeMp4:
 		return "mp4", nil
+	case mediaconvert.ContainerTypeMov:
+		return "mov", nil
 	default:
 		return "", fmt.Errorf("could not determine container identifier from output container %q", settings.Container)
 	}
@@ -409,7 +413,7 @@ func (p *mcProvider) Healthcheck() error {
 func (p *mcProvider) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
 		InputFormats:  []string{"h264", "h265", "hdr10"},
-		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf"},
+		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf", "mov"},
 		Destinations:  []string{"s3"},
 	}
 }

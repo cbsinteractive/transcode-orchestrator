@@ -36,9 +36,7 @@ func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, erro
 	}
 
 	output := mediaconvert.Output{
-		ContainerSettings: &mediaconvert.ContainerSettings{
-			Container: container,
-		},
+		ContainerSettings: containerSettingsFrom(container),
 		VideoDescription:  videoPreset,
 		AudioDescriptions: audioPresets,
 	}
@@ -72,9 +70,29 @@ func containerFrom(container string) (mediaconvert.ContainerType, error) {
 		return mediaconvert.ContainerTypeCmfc, nil
 	case "mp4":
 		return mediaconvert.ContainerTypeMp4, nil
+	case "mov":
+		return mediaconvert.ContainerTypeMov, nil
 	default:
 		return "", fmt.Errorf("container %q not supported with mediaconvert", container)
 	}
+}
+
+func containerSettingsFrom(container mediaconvert.ContainerType) *mediaconvert.ContainerSettings {
+	cs := &mediaconvert.ContainerSettings{
+		Container: container,
+	}
+
+	if container == mediaconvert.ContainerTypeMov {
+		cs.MovSettings = &mediaconvert.MovSettings{
+			ClapAtom:           mediaconvert.MovClapAtomExclude,
+			CslgAtom:           mediaconvert.MovCslgAtomInclude,
+			PaddingControl:     mediaconvert.MovPaddingControlOmneon,
+			Reference:          mediaconvert.MovReferenceSelfContained,
+			Mpeg2FourCCControl: mediaconvert.MovMpeg2FourCCControlMpeg,
+		}
+	}
+
+	return cs
 }
 
 func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoDescription, error) {
