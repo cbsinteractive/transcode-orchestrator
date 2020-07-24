@@ -2,75 +2,66 @@ package mediaconvert
 
 import (
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/service"
 )
 
-const (
-	muteChannel   int64  = 0
-	setChannel    int64  = -60
-	lfeChannel    string = "LFE"
-	centerChannel string = "C"
-	leftChannel   string = "L"
-	rightChannel  string = "R"
+type mapSettings map[bool]int64
+
+var (
+	channelSet = mapSettings{
+		true:  0,
+		false: -60,
+	}
 )
 
-func (p *mcProvider) audioSelectorsFrom(audioDownmix db.AudioDownmix) map[string]mediaconvert.AudioSelector {
-	audioSelector := mediaconvert.AudioSelector{
-		DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+func audioSelectorFrom(audioDownmix *db.AudioDownmix, audioSelector *mediaconvert.AudioSelector) error {
+	audioSelector.Offset = aws.Int64(0)
+	audioSelector.ProgramSelection = aws.Int64(1)
+	audioSelector.SelectorType = mediaconvert.AudioSelectorTypeTrack
+	audioSelector.Tracks = trackListFrom(*audioDownmix)
+
+	channelMapping, err := audioChannelMappingFrom(*audioDownmix)
+	if err != nil {
+		return err
 	}
 
-	if audioDownmix.IsSet() {
-		var offset int64
-		var programSelection int64 = 1
-		var channelsIn int64 = int64(len(audioDownmix.SrcChannels))
-		var channelsOut int64 = int64(len(audioDownmix.DestChannels))
-
-		audioSelector.Offset = &offset
-		audioSelector.SelectorType = mediaconvert.AudioSelectorTypeTrack
-		audioSelector.ProgramSelection = &programSelection
-
-		for i := 0; i < len(audioDownmix.SrcChannels); i++ {
-			audioSelector.Tracks = append(audioSelector.Tracks, int64(i+1))
-		}
-
-		audioSelector.RemixSettings = &mediaconvert.RemixSettings{
-			ChannelsIn:     &channelsIn,
-			ChannelsOut:    &channelsOut,
-			ChannelMapping: p.audioChannelMappingFrom(audioDownmix),
-		}
+	audioSelector.RemixSettings = &mediaconvert.RemixSettings{
+		ChannelsIn:     aws.Int64(int64(len(audioDownmix.SrcChannels))),
+		ChannelsOut:    aws.Int64(int64(len(audioDownmix.DestChannels))),
+		ChannelMapping: channelMapping,
 	}
 
-	return map[string]mediaconvert.AudioSelector{
-		"Audio Selector 1": audioSelector,
-	}
+	return nil
 }
 
-func (p *mcProvider) audioChannelMappingFrom(audioDownmix db.AudioDownmix) *mediaconvert.ChannelMapping {
+func trackListFrom(audioDownmix db.AudioDownmix) (tracks []int64) {
+	uniqueTracks := make(map[int]struct{})
+
+	for _, channel := range audioDownmix.SrcChannels {
+		if _, found := uniqueTracks[channel.TrackIdx]; !found {
+			tracks = append(tracks, int64(channel.TrackIdx))
+			uniqueTracks[channel.TrackIdx] = struct{}{}
+		}
+	}
+
+	return tracks
+}
+
+func audioChannelMappingFrom(audioDownmix db.AudioDownmix) (*mediaconvert.ChannelMapping, error) {
 	var outputChannelMapping []mediaconvert.OutputChannelMapping
 
-	for _, dest := range audioDownmix.DestChannels {
+	mapping, err := service.AudioDownmixMapping(audioDownmix)
+	if err != nil {
+		return &mediaconvert.ChannelMapping{}, err
+	}
+
+	for _, channel := range mapping {
 		var outputChannel []int64
 
-		for _, src := range audioDownmix.SrcChannels {
-			if src.Layout == lfeChannel {
-				outputChannel = append(outputChannel, muteChannel)
-				continue
-			}
-
-			for _, l := range src.Layout {
-				layout := string(l)
-
-				if layout != centerChannel && layout != rightChannel && layout != leftChannel {
-					continue
-				}
-
-				if layout == centerChannel || layout == dest.Layout {
-					outputChannel = append(outputChannel, setChannel)
-					continue
-				}
-
-				outputChannel = append(outputChannel, muteChannel)
-			}
+		for _, setting := range channel {
+			outputChannel = append(outputChannel, channelSet[setting])
 		}
 
 		outputChannelMapping = append(outputChannelMapping,
@@ -79,5 +70,5 @@ func (p *mcProvider) audioChannelMappingFrom(audioDownmix db.AudioDownmix) *medi
 
 	return &mediaconvert.ChannelMapping{
 		OutputChannels: outputChannelMapping,
-	}
+	}, nil
 }

@@ -95,6 +95,15 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 		}
 	}
 
+	audioSelector := mediaconvert.AudioSelector{
+		DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+	}
+	if job.AudioDownmix != nil {
+		if err = audioSelectorFrom(job.AudioDownmix, &audioSelector); err != nil {
+			return nil, fmt.Errorf("mediaconvert: audio selectors generator: %w", err)
+		}
+	}
+
 	resp, err := p.client.CreateJobRequest(&mediaconvert.CreateJobInput{
 		AccelerationSettings: accelerationSettings,
 		Queue:                queue,
@@ -105,7 +114,9 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 				{
 					InputClippings: splice2clippings(job.SourceSplice, 0), // TODO(as): Find FPS in job
 					FileInput:      aws.String(job.SourceMedia),
-					AudioSelectors: p.audioSelectorsFrom(job.AudioDownmix),
+					AudioSelectors: map[string]mediaconvert.AudioSelector{
+						"Audio Selector 1": audioSelector,
+					},
 					VideoSelector: &mediaconvert.VideoSelector{
 						ColorSpace: mediaconvert.ColorSpaceFollow,
 					},
@@ -209,7 +220,7 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 					SegmentControl:         mediaconvert.HlsSegmentControlSegmentedFiles,
 				},
 			}
-		case mediaconvert.ContainerTypeMp4:
+		case mediaconvert.ContainerTypeMp4, mediaconvert.ContainerTypeMov:
 			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
 				Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 				FileGroupSettings: &mediaconvert.FileGroupSettings{

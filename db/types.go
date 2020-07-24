@@ -64,7 +64,7 @@ type Job struct {
 	Outputs []TranscodeOutput `redis-hash:"-" json:"outputs"`
 
 	// AudioDownmix holds source and output channels for configuring downmixing
-	AudioDownmix AudioDownmix `json:"audioDownmix"`
+	AudioDownmix *AudioDownmix `json:"audioDownmix,omitempty"`
 }
 
 type SidecarAssetKind = string
@@ -148,54 +148,30 @@ const (
 type ChannelLayout string
 
 const (
-	// Center channel layout
-	Center ChannelLayout = "C"
-
-	// Left channel layout
-	Left ChannelLayout = "L"
-
-	// Right channel layout
-	Right ChannelLayout = "R"
-
-	// LeftSurround describes left surround direct
-	LeftSurround ChannelLayout = "Ls"
-
-	// RightSurround describes right surround direct
-	RightSurround ChannelLayout = "Rs"
-
-	// LeftBack describes left rear surround
-	LeftBack ChannelLayout = "Lb"
-
-	// RightBack describes right rear surround
-	RightBack ChannelLayout = "Rb"
-
-	// LeftTotal describes left matrix total
-	LeftTotal ChannelLayout = "Lt"
-
-	// RightTotal describes right matrix total
-	RightTotal ChannelLayout = "Rt"
-
-	// LFE describes low frequency effect
-	LFE ChannelLayout = "LFE"
+	ChannelLayoutCenter        ChannelLayout = "C"
+	ChannelLayoutLeft          ChannelLayout = "L"
+	ChannelLayoutRight         ChannelLayout = "R"
+	ChannelLayoutLeftSurround  ChannelLayout = "Ls"
+	ChannelLayoutRightSurround ChannelLayout = "Rs"
+	ChannelLayoutLeftBack      ChannelLayout = "Lb"
+	ChannelLayoutRightBack     ChannelLayout = "Rb"
+	ChannelLayoutLeftTotal     ChannelLayout = "Lt"
+	ChannelLayoutRightTotal    ChannelLayout = "Rt"
+	ChannelLayoutLFE           ChannelLayout = "LFE"
 )
 
-//AudioChannel describes and Audio Mix
+// AudioChannel describes the position and attributes of a
+// single channel of audio inside a container
 type AudioChannel struct {
-	TrackIdx   int
-	ChannelIdx int
-	Layout     string
+	TrackIdx, ChannelIdx int
+	Layout               string
 }
 
-//AudioDownmix holds source and output channels layouts for providers
+//AudioDownmix holds source and output channels for providers
 //to handle downmixing
 type AudioDownmix struct {
 	SrcChannels  []AudioChannel
 	DestChannels []AudioChannel
-}
-
-//IsSet will return true when AudioDownmix is set
-func (a *AudioDownmix) IsSet() bool {
-	return a.SrcChannels != nil && a.DestChannels != nil
 }
 
 // File represents basic information about the source that may be of aid to providers
@@ -266,9 +242,9 @@ type VideoPreset struct {
 	GopUnit             string              `json:"gopUnit,omitempty" redis-hash:"gopunit,omitempty"`
 	GopMode             string              `json:"gopMode,omitempty" redis-hash:"gopmode,omitempty"`
 	InterlaceMode       string              `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
-	TimecodeBurnin      TimecodeBurnin      `json:"timecodeBurnin,omitempty" redish-hash:"timecodeburnin,omitempty"`
 	HDR10Settings       HDR10Settings       `json:"hdr10" redis-hash:"hdr10,expand,omitempty"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision" redis-hash:"dolbyvision,expand,omitempty"`
+	Overlays            *Overlays           `json:"overlays,omitempty" redish-hash:"overlays,expand,omitempty"`
 }
 
 // GopUnit defines the unit used to measure gops
@@ -281,6 +257,11 @@ const (
 	// GopUnitSeconds uses Key Intervals in transcode job
 	GopUnitSeconds GopUnit = "seconds"
 )
+
+//Overlays defines all the overlay settings for a Video preset
+type Overlays struct {
+	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty" redish-hash:"timecodeburnin,expand,omitempty"`
+}
 
 //TimecodeBurnin defines the timecode burnin settings
 type TimecodeBurnin struct {

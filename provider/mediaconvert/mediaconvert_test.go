@@ -82,6 +82,36 @@ var (
 		},
 	}
 
+	tcBurninPreset = db.Preset{
+		Name:        "preset_name",
+		Description: "test_desc",
+		Container:   "mov",
+		RateControl: "VBR",
+		TwoPass:     true,
+		Video: db.VideoPreset{
+			Profile:       "high",
+			ProfileLevel:  "4.1",
+			Width:         "300",
+			Height:        "400",
+			Codec:         "h264",
+			Bitrate:       "400000",
+			GopSize:       "120",
+			GopUnit:       "frames",
+			InterlaceMode: "progressive",
+			Overlays: &db.Overlays{
+				TimecodeBurnin: &db.TimecodeBurnin{
+					Enabled:  true,
+					FontSize: int64(12),
+					Position: "BOTTOM_LEFT",
+				},
+			},
+		},
+		Audio: db.AudioPreset{
+			Codec:   "aac",
+			Bitrate: "20000",
+		},
+	}
+
 	defaultJob = db.Job{
 		ID:           "jobID",
 		ProviderName: Name,
@@ -946,6 +976,136 @@ func Test_mcProvider_Transcode(t *testing.T) {
 										},
 									},
 									Extension: aws.String("mp4"),
+								},
+							},
+						},
+					},
+					TimecodeConfig: &mediaconvert.TimecodeConfig{
+						Source: mediaconvert.TimecodeSourceZerobased,
+					},
+				},
+			},
+		},
+		{
+			name: "JobWithAudioDownmixAndTimeCodeBurninForMovOutput",
+			cfg: &config.MediaConvert{
+				DefaultQueueARN:   "some:default:queue:arn",
+				PreferredQueueARN: "some:preferred:queue:arn",
+			},
+			job: &db.Job{
+				ID:           "jobID",
+				ProviderName: Name,
+				SourceMedia:  "s3://some/path.mov",
+				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: tcBurninPreset.Name}, FileName: "file1.mov"}},
+				AudioDownmix: &db.AudioDownmix{
+					SrcChannels: []db.AudioChannel{
+						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
+						{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
+						{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},
+						{TrackIdx: 1, ChannelIdx: 4, Layout: "LFE"},
+						{TrackIdx: 1, ChannelIdx: 5, Layout: "Ls"},
+						{TrackIdx: 1, ChannelIdx: 6, Layout: "Rs"},
+					},
+					DestChannels: []db.AudioChannel{
+						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
+						{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
+					},
+				},
+			},
+			preset:      tcBurninPreset,
+			destination: "s3://some/destination",
+			wantJobReq: mediaconvert.CreateJobInput{
+				Role:            aws.String(""),
+				Queue:           aws.String("some:preferred:queue:arn"),
+				HopDestinations: []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
+				Settings: &mediaconvert.JobSettings{
+					Inputs: []mediaconvert.Input{
+						{
+							AudioSelectors: map[string]mediaconvert.AudioSelector{
+								"Audio Selector 1": getAudioSelector(6, 2, []int64{1}, []mediaconvert.OutputChannelMapping{
+									{InputChannels: []int64{0, -60, 0, -60, 0, -60}},
+									{InputChannels: []int64{-60, 0, 0, -60, -60, 0}},
+								}),
+							},
+							FileInput: aws.String("s3://some/path.mov"),
+							VideoSelector: &mediaconvert.VideoSelector{
+								ColorSpace: mediaconvert.ColorSpaceFollow,
+							},
+							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+						},
+					},
+					OutputGroups: []mediaconvert.OutputGroup{
+						{
+							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+								FileGroupSettings: &mediaconvert.FileGroupSettings{
+									Destination: aws.String("s3://some/destination/jobID/m"),
+								},
+							},
+							Outputs: []mediaconvert.Output{
+								{
+									NameModifier: aws.String("file1"),
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeMov,
+										MovSettings: &mediaconvert.MovSettings{
+											ClapAtom:           mediaconvert.MovClapAtomExclude,
+											CslgAtom:           mediaconvert.MovCslgAtomInclude,
+											PaddingControl:     mediaconvert.MovPaddingControlOmneon,
+											Reference:          mediaconvert.MovReferenceSelfContained,
+											Mpeg2FourCCControl: mediaconvert.MovMpeg2FourCCControlMpeg,
+										},
+									},
+									VideoDescription: &mediaconvert.VideoDescription{
+										Height:            aws.Int64(400),
+										Width:             aws.Int64(300),
+										RespondToAfd:      mediaconvert.RespondToAfdNone,
+										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+										AntiAlias:         mediaconvert.AntiAliasEnabled,
+										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+											Deinterlacer: &mediaconvert.Deinterlacer{
+												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+												Control:   mediaconvert.DeinterlacerControlNormal,
+												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+											},
+											TimecodeBurnin: &mediaconvert.TimecodeBurnin{
+												FontSize: aws.Int64(12),
+												Position: mediaconvert.TimecodeBurninPositionBottomLeft,
+												Prefix:   aws.String(""),
+											},
+										},
+										CodecSettings: &mediaconvert.VideoCodecSettings{
+											Codec: mediaconvert.VideoCodecH264,
+											H264Settings: &mediaconvert.H264Settings{
+												Bitrate:            aws.Int64(400000),
+												CodecLevel:         mediaconvert.H264CodecLevelAuto,
+												CodecProfile:       mediaconvert.H264CodecProfileHigh,
+												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+												RateControlMode:    mediaconvert.H264RateControlModeVbr,
+												GopSize:            aws.Float64(120),
+												GopSizeUnits:       mediaconvert.H264GopSizeUnitsFrames,
+												ParControl:         mediaconvert.H264ParControlSpecified,
+												ParNumerator:       aws.Int64(1),
+												ParDenominator:     aws.Int64(1),
+											},
+										},
+									},
+									AudioDescriptions: []mediaconvert.AudioDescription{
+										{
+											CodecSettings: &mediaconvert.AudioCodecSettings{
+												Codec: mediaconvert.AudioCodecAac,
+												AacSettings: &mediaconvert.AacSettings{
+													Bitrate:         aws.Int64(20000),
+													CodecProfile:    mediaconvert.AacCodecProfileLc,
+													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+													RateControlMode: mediaconvert.AacRateControlModeCbr,
+													SampleRate:      aws.Int64(defaultAudioSampleRate),
+												},
+											},
+										},
+									},
+									Extension: aws.String("mov"),
 								},
 							},
 						},

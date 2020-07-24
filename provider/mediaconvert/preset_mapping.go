@@ -12,6 +12,18 @@ import (
 	"github.com/pkg/errors"
 )
 
+var timecodePositionMap = map[string]mediaconvert.TimecodeBurninPosition{
+	"TOP_CENTER":    mediaconvert.TimecodeBurninPositionTopCenter,
+	"TOP_LEFT":      mediaconvert.TimecodeBurninPositionTopLeft,
+	"TOP_RIGHT":     mediaconvert.TimecodeBurninPositionTopRight,
+	"MIDDLE_CENTER": mediaconvert.TimecodeBurninPositionMiddleCenter,
+	"MIDDLE_LEFT":   mediaconvert.TimecodeBurninPositionMiddleLeft,
+	"MIDDLE_RIGHT":  mediaconvert.TimecodeBurninPositionMiddleRight,
+	"BOTTOM_CENTER": mediaconvert.TimecodeBurninPositionBottomCenter,
+	"BOTTOM_LEFT":   mediaconvert.TimecodeBurninPositionBottomLeft,
+	"BOTTOM_RIGHT":  mediaconvert.TimecodeBurninPositionBottomRight,
+}
+
 func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, error) {
 	container, err := containerFrom(preset.Container)
 	if err != nil {
@@ -174,13 +186,13 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPreprocessor, error) {
 	videoPreprocessor := &mediaconvert.VideoPreprocessor{}
 
-	if tcBurnin := videoPreset.TimecodeBurnin; tcBurnin.Enabled {
-		prefix := "pre"
-		fontSize := int64(10)
-		videoPreprocessor.TimecodeBurnin = &mediaconvert.TimecodeBurnin{
-			Prefix:   &prefix,
-			FontSize: &fontSize,
-			Position: mediaconvert.TimecodeBurninPositionTopLeft,
+	if videoPreset.Overlays != nil && videoPreset.Overlays.TimecodeBurnin != nil {
+		if tcBurnin := videoPreset.Overlays.TimecodeBurnin; tcBurnin.Enabled {
+			videoPreprocessor.TimecodeBurnin = &mediaconvert.TimecodeBurnin{
+				Prefix:   &tcBurnin.Prefix,
+				FontSize: &tcBurnin.FontSize,
+				Position: timecodePositionMap[tcBurnin.Position],
+			}
 		}
 	}
 
