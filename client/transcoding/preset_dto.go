@@ -63,9 +63,14 @@ type VideoPreset struct {
 	GopUnit             string              `json:"gopUnit,omitempty"`
 	GopMode             string              `json:"gopMode,omitempty"`
 	InterlaceMode       string              `json:"interlaceMode,omitempty"`
-	TimecodeBurnin      TimecodeBurnin      `json:"timecodeBurnin,omitempty"`
 	HDR10Settings       HDR10Settings       `json:"hdr10"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision"`
+	Overlays            *Overlays           `json:"overlays,omitempty"`
+}
+
+//Overlays defines all the overlay settings for a Video preset
+type Overlays struct {
+	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty"`
 }
 
 //TimecodeBurnin defines the timecode burnin settings
