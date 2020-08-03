@@ -307,37 +307,38 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		videoFilters[filterVideoDeinterlace] = deInterlace.Id
 	}
 
-	var wg sync.WaitGroup
 	errorc := make(chan error)
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-outputs")
-	for idx, o := range job.Outputs {
-		wg.Add(1)
-
-		go p.createOutput(outputCfg{
-			preset:             presets[idx],
-			encodingID:         enc.Id,
-			audInputStreams:    audInputStreams,
-			vidInputStreams:    vidInputStreams,
-			videoFilters:       videoFilters,
-			outputID:           outputID,
-			destPath:           destPath,
-			outputFilename:     o.FileName,
-			manifestID:         manifestID,
-			manifestMasterPath: manifestMasterPath,
-			job:                job,
-		}, &wg, errorc)
+	i := 0
+	for ; i < len(job.Outputs); i++ {
+		go func(i int) {
+			errorc <- p.createOutput(outputCfg{
+				preset:             presets[i],
+				encodingID:         enc.Id,
+				audInputStreams:    audInputStreams,
+				vidInputStreams:    vidInputStreams,
+				videoFilters:       videoFilters,
+				outputID:           outputID,
+				destPath:           destPath,
+				outputFilename:     job.Outputs[i].FileName,
+				manifestID:         manifestID,
+				manifestMasterPath: manifestMasterPath,
+				job:                job,
+			})
+		}(i)
 	}
 
-	go func() {
-		wg.Wait()
-		close(errorc)
-	}()
-
-	for err := range errorc {
-		subSeg.Close(err)
-		if err != nil {
-			return nil, err
+	for ; i != 0; i--{
+		select{
+		case <-ctx.Done():
+			subSeg.Close(ctx.Err())
+			return nil, ctx.Err()
+		case err := <-errorc:
+			if err != nil{
+				subSeg.Close(err)
+				return nil, err
+			}
 		}
 	}
 	subSeg.Close(nil)
@@ -376,8 +377,7 @@ type outputCfg struct {
 	job                *db.Job
 }
 
-func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan error) {
-	defer wg.Done()
+func (p *bitmovinProvider) createOutput(cfg outputCfg) error {
 	var audioMuxingStream, videoMuxingStream model.MuxingStream
 
 	if audCfgID := cfg.preset.AudioConfigID; audCfgID != "" {
@@ -386,8 +386,7 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 			InputStreams:  cfg.audInputStreams,
 		})
 		if err != nil {
-			errorc <- errors.Wrap(err, "adding audio stream to the encoding")
-			return
+			return errors.Wrap(err, "adding audio stream to the encoding")
 		}
 
 		audioMuxingStream = model.MuxingStream{StreamId: audStream.Id}
@@ -399,8 +398,7 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 			InputStreams:  cfg.vidInputStreams,
 		})
 		if err != nil {
-			errorc <- errors.Wrap(err, "adding video stream to the encoding")
-			return
+			return errors.Wrap(err, "adding video stream to the encoding")
 		}
 
 		if deinterlaceID, ok := cfg.videoFilters[filterVideoDeinterlace]; ok {
@@ -408,8 +406,7 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 				{Id: deinterlaceID, Position: bitmovin.Int32Ptr(0)},
 			})
 			if err != nil {
-				errorc <- errors.Wrap(err, "adding filter to video stream")
-				return
+				return errors.Wrap(err, "adding filter to video stream")
 			}
 		}
 
@@ -418,11 +415,10 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 
 	contnrSvcs, err := p.containerServicesFrom(cfg.preset.Container, model.CodecConfigType(cfg.preset.VideoCodec))
 	if err != nil {
-		errorc <- err
-		return
+		return err
 	}
 
-	if err = contnrSvcs.assembler.Assemble(container.AssemblerCfg{
+	return contnrSvcs.assembler.Assemble(container.AssemblerCfg{
 		EncID:              cfg.encodingID,
 		OutputID:           cfg.outputID,
 		DestPath:           cfg.destPath,
@@ -434,10 +430,7 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 		ManifestID:         cfg.manifestID,
 		ManifestMasterPath: cfg.manifestMasterPath,
 		SegDuration:        cfg.job.StreamingParams.SegmentDuration,
-	}); err != nil {
-		errorc <- err
-		return
-	}
+	})
 }
 
 func (p *bitmovinProvider) inputFrom(ctx context.Context, job *db.Job) (inputID string, srcPath string, err error) {
