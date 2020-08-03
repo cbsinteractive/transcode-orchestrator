@@ -348,13 +348,14 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 			sp, ep := r.Timecodes(0)
 			splice, err := p.api.Encoding.Encodings.InputStreams.Trimming.TimecodeTrack.Create(enc.Id, model.TimecodeTrackTrimmingInputStream{
 				Name:          "splice",
+				InputStreamId: inputID,
 				StartTimeCode: sp,
 				EndTimeCode:   ep,
 			})
 			if err != nil {
 				return err
 			}
-			splice = splice
+			splice = splice // TODO
 		}
 		return nil
 	}()
