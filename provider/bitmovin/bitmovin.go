@@ -310,42 +310,67 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	errorc := make(chan error)
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-outputs")
-	i := 0
-	for ; i < len(job.Outputs); i++ {
-		go func(i int) {
-			errorc <- p.createOutput(outputCfg{
-				preset:             presets[i],
-				encodingID:         enc.Id,
-				audInputStreams:    audInputStreams,
-				vidInputStreams:    vidInputStreams,
-				videoFilters:       videoFilters,
-				outputID:           outputID,
-				destPath:           destPath,
-				outputFilename:     job.Outputs[i].FileName,
-				manifestID:         manifestID,
-				manifestMasterPath: manifestMasterPath,
-				job:                job,
-			})
-		}(i)
-	}
+	err = func() error {
+		i := 0
+		for ; i < len(job.Outputs); i++ {
+			go func(i int) {
+				errorc <- p.createOutput(outputCfg{
+					preset:             presets[i],
+					encodingID:         enc.Id,
+					audInputStreams:    audInputStreams,
+					vidInputStreams:    vidInputStreams,
+					videoFilters:       videoFilters,
+					outputID:           outputID,
+					destPath:           destPath,
+					outputFilename:     job.Outputs[i].FileName,
+					manifestID:         manifestID,
+					manifestMasterPath: manifestMasterPath,
+					job:                job,
+				})
+			}(i)
+		}
 
-	for ; i != 0; i--{
-		select{
-		case <-ctx.Done():
-			subSeg.Close(ctx.Err())
-			return nil, ctx.Err()
-		case err := <-errorc:
-			if err != nil{
-				subSeg.Close(err)
-				return nil, err
+		for ; i != 0; i-- {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case err := <-errorc:
+				if err != nil {
+					return err
+				}
 			}
 		}
+		return nil
+	}()
+	subSeg.Close(err)
+	if err != nil {
+		return nil, err
 	}
-	subSeg.Close(nil)
 
 	var vodHLSManifests []model.ManifestResource
 	if generatingHLS && manifestID != "" {
 		vodHLSManifests = []model.ManifestResource{{ManifestId: manifestID}}
+	}
+
+	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-splice")
+	err = func() error {
+		for _, r := range job.SourceSplice {
+			sp, ep := r.Timecodes(0)
+			splice, err := p.api.Encoding.Encodings.InputStreams.Trimming.TimecodeTrack.Create(enc.Id, model.TimecodeTrackTrimmingInputStream{
+				Name:          "splice",
+				StartTimeCode: sp,
+				EndTimeCode:   ep,
+			})
+			if err != nil {
+				return err
+			}
+			splice = splice
+		}
+		return nil
+	}()
+	subSeg.Close(err)
+	if err != nil {
+		return nil, fmt.Errorf("splice: %w", err)
 	}
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-start-encoding")
