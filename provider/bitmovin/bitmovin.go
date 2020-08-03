@@ -342,6 +342,27 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	}
 	subSeg.Close(nil)
 
+	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-splice")
+	err = func() error {
+		for _, r := range job.SourceSplice {
+			sp, ep := r.Timecodes(0)
+			splice, err := p.api.Encoding.Encodings.InputStreams.Trimming.TimecodeTrack.Create(enc.Id, model.TimecodeTrackTrimmingInputStream{
+				Name:          "splice",
+				StartTimeCode: sp,
+				EndTimeCode:   ep,
+			})
+			if err != nil {
+				return err
+			}
+			splice = splice
+		}
+		return nil
+	}()
+	subSeg.Close(err)
+	if err != nil {
+		return nil, fmt.Errorf("splice: %w", err)
+	}
+
 	var vodHLSManifests []model.ManifestResource
 	if generatingHLS && manifestID != "" {
 		vodHLSManifests = []model.ManifestResource{{ManifestId: manifestID}}
