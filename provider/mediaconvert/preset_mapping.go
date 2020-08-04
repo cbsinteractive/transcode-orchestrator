@@ -12,16 +12,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-var timecodePositionMap = map[string]mediaconvert.TimecodeBurninPosition{
-	"TOP_CENTER":    mediaconvert.TimecodeBurninPositionTopCenter,
-	"TOP_LEFT":      mediaconvert.TimecodeBurninPositionTopLeft,
-	"TOP_RIGHT":     mediaconvert.TimecodeBurninPositionTopRight,
-	"MIDDLE_CENTER": mediaconvert.TimecodeBurninPositionMiddleCenter,
-	"MIDDLE_LEFT":   mediaconvert.TimecodeBurninPositionMiddleLeft,
-	"MIDDLE_RIGHT":  mediaconvert.TimecodeBurninPositionMiddleRight,
-	"BOTTOM_CENTER": mediaconvert.TimecodeBurninPositionBottomCenter,
-	"BOTTOM_LEFT":   mediaconvert.TimecodeBurninPositionBottomLeft,
-	"BOTTOM_RIGHT":  mediaconvert.TimecodeBurninPositionBottomRight,
+var timecodePositionMap = map[int]mediaconvert.TimecodeBurninPosition{
+	0: mediaconvert.TimecodeBurninPositionTopCenter,
+	1: mediaconvert.TimecodeBurninPositionTopLeft,
+	2: mediaconvert.TimecodeBurninPositionTopRight,
+	3: mediaconvert.TimecodeBurninPositionMiddleCenter,
+	4: mediaconvert.TimecodeBurninPositionMiddleLeft,
+	5: mediaconvert.TimecodeBurninPositionMiddleRight,
+	6: mediaconvert.TimecodeBurninPositionBottomCenter,
+	7: mediaconvert.TimecodeBurninPositionBottomLeft,
+	8: mediaconvert.TimecodeBurninPositionBottomRight,
 }
 
 func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, error) {
@@ -190,7 +190,7 @@ func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPrep
 		if tcBurnin := videoPreset.Overlays.TimecodeBurnin; tcBurnin.Enabled {
 			videoPreprocessor.TimecodeBurnin = &mediaconvert.TimecodeBurnin{
 				Prefix:   &tcBurnin.Prefix,
-				FontSize: &tcBurnin.FontSize,
+				FontSize: aws.Int64(int64(tcBurnin.FontSize)),
 				Position: timecodePositionMap[tcBurnin.Position],
 			}
 		}

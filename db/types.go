@@ -266,9 +266,9 @@ type Overlays struct {
 //TimecodeBurnin defines the timecode burnin settings
 type TimecodeBurnin struct {
 	Enabled  bool   `json:"enabled" redis-hash:"enabled"`
-	Position string `json:"position,omitempty" redis-hash:"position,omitempty"`
+	FontSize int    `json:"fontSize,omitempty" redis-hash:"fontsize,omitempty"`
+	Position int    `json:"position,omitempty" redis-hash:"position,omitempty"`
 	Prefix   string `json:"prefix,omitempty" redis-hash:"prefix,omitempty"`
-	FontSize int64  `json:"fontSize,omitempty" redis-hash:"fontsize,omitempty"`
 }
 
 // HDR10Settings defines a set of configurations for defining HDR10 metadata

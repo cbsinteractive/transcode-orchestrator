@@ -101,8 +101,8 @@ var (
 			Overlays: &db.Overlays{
 				TimecodeBurnin: &db.TimecodeBurnin{
 					Enabled:  true,
-					FontSize: int64(12),
-					Position: "BOTTOM_LEFT",
+					FontSize: 12,
+					Position: 7,
 				},
 			},
 		},
