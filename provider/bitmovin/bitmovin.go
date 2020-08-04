@@ -223,15 +223,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		return nil, err
 	}
 
-	inputStream := model.StreamInput{
-		InputId:       inputID,
-		InputPath:     mediaPath,
-		SelectionMode: model.StreamSelectionMode_AUTO,
-	}
-
-	vidInputStreams := []model.StreamInput{inputStream}
-	audInputStreams := []model.StreamInput{inputStream}
-
 	var generatingHLS, processingVideo bool
 	for _, preset := range presets {
 		if preset.Container == containerHLS {
@@ -259,6 +250,12 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		subSeg.Close(nil)
 
 		manifestID = hlsManifest.Id
+	}
+
+	inputStream := model.StreamInput{
+		InputId:       inputID,
+		InputPath:     mediaPath,
+		SelectionMode: model.StreamSelectionMode_AUTO,
 	}
 
 	encCustomData := make(map[string]map[string]interface{})
@@ -291,6 +288,35 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		return nil, errors.Wrap(err, "creating encoding")
 	}
 	subSeg.Close(nil)
+
+	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-splice")
+	err = func() error {
+		for _, r := range job.SourceSplice {
+			sp, ep := r.Timecodes(0)
+			splice, err := p.api.Encoding.Encodings.InputStreams.Trimming.TimecodeTrack.Create(enc.Id, model.TimecodeTrackTrimmingInputStream{
+				Name:          "splice",
+				InputStreamId: inputID,
+				StartTimeCode: sp,
+				EndTimeCode:   ep,
+			})
+			if err != nil {
+				return err
+			}
+			// NOTE(as): docs say: Set this property instead of all others to reference an ingest, trimming or concatenation input stream
+			inputStream.InputStreamId = splice.Id
+			inputStream.InputId = ""
+			inputStream.InputPath = ""
+			return nil
+		}
+		return nil
+	}()
+	subSeg.Close(err)
+	if err != nil {
+		return nil, fmt.Errorf("splice: %w", err)
+	}
+
+	vidInputStreams := []model.StreamInput{inputStream}
+	audInputStreams := []model.StreamInput{inputStream}
 
 	videoFilters := map[int]string{}
 	if processingVideo {
@@ -341,28 +367,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		}
 	}
 	subSeg.Close(nil)
-
-	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-splice")
-	err = func() error {
-		for _, r := range job.SourceSplice {
-			sp, ep := r.Timecodes(0)
-			splice, err := p.api.Encoding.Encodings.InputStreams.Trimming.TimecodeTrack.Create(enc.Id, model.TimecodeTrackTrimmingInputStream{
-				Name:          "splice",
-				InputStreamId: inputID,
-				StartTimeCode: sp,
-				EndTimeCode:   ep,
-			})
-			if err != nil {
-				return err
-			}
-			splice = splice // TODO
-		}
-		return nil
-	}()
-	subSeg.Close(err)
-	if err != nil {
-		return nil, fmt.Errorf("splice: %w", err)
-	}
 
 	var vodHLSManifests []model.ManifestResource
 	if generatingHLS && manifestID != "" {
