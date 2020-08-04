@@ -76,9 +76,9 @@ type Overlays struct {
 //TimecodeBurnin defines the timecode burnin settings
 type TimecodeBurnin struct {
 	Enabled  bool   `json:"enabled"`
-	Position string `json:"position,omitempty"`
+	FontSize int    `json:"fontSize,omitempty"`
+	Position int    `json:"position,omitempty"`
 	Prefix   string `json:"prefix,omitempty"`
-	FontSize int64  `json:"fontSize,omitempty"`
 }
 
 // HDR10Settings defines a set of configurations for defining HDR10 metadata
