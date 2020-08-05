@@ -42,6 +42,7 @@ func (s *TranscodingService) newTranscodeJob(r *http.Request) swagger.GizmoJSONR
 		Name:                input.Payload.Name,
 		SourceMedia:         input.Payload.Source,
 		SourceInfo:          input.Payload.SourceInfo,
+		SourceSplice:        input.Payload.SourceSplice,
 		DestinationBasePath: input.Payload.DestinationBasePath,
 		ExecutionEnv:        input.Payload.ExecutionEnv,
 		SidecarAssets:       input.Payload.SidecarAssets,
