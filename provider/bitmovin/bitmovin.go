@@ -3,8 +3,10 @@ package bitmovin
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/url"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 
@@ -252,12 +254,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		manifestID = hlsManifest.Id
 	}
 
-	inputStream := model.StreamInput{
-		InputId:       inputID,
-		InputPath:     mediaPath,
-		SelectionMode: model.StreamSelectionMode_AUTO,
-	}
-
 	encCustomData := make(map[string]map[string]interface{})
 	if manifestID != "" {
 		encCustomData[container.CustomDataKeyManifest] = map[string]interface{}{
@@ -288,35 +284,96 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		return nil, errors.Wrap(err, "creating encoding")
 	}
 	subSeg.Close(nil)
+	log.Println("encoding")
+	log.Printf("inputID: %q", inputID)
 
-	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-splice")
+	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-ingest")
 	err = func() error {
-		for _, r := range job.SourceSplice {
-			sp, ep := r.Timecodes(0)
-			splice, err := p.api.Encoding.Encodings.InputStreams.Trimming.TimecodeTrack.Create(enc.Id, model.TimecodeTrackTrimmingInputStream{
-				Name:          "splice",
-				InputStreamId: inputID,
-				StartTimeCode: sp,
-				EndTimeCode:   ep,
-			})
-			if err != nil {
-				return err
-			}
-			// NOTE(as): docs say: Set this property instead of all others to reference an ingest, trimming or concatenation input stream
-			inputStream.InputStreamId = splice.Id
-			inputStream.InputId = ""
-			inputStream.InputPath = ""
-			return nil
-		}
-		return nil
+		istream, err := p.api.Encoding.Encodings.InputStreams.Ingest.Create(enc.Id, model.IngestInputStream{
+			InputId:       inputID,
+			InputPath:     mediaPath,
+			SelectionMode: model.StreamSelectionMode_AUTO,
+		})
+		inputID = istream.Id // use the ingest as the real input to the rest of the pipeline
+		return err
 	}()
 	subSeg.Close(err)
 	if err != nil {
+		return nil, fmt.Errorf("ingest: %v", err)
+	}
+	log.Println("ingest")
+	log.Printf("inputID: %q", inputID)
+
+	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-concatenated-splice")
+	inputID, err = func(inputID string) (string, error) {
+		type work struct {
+			pos        int32
+			start, dur float64
+			id         string
+			err        error
+		}
+		workc := make(chan work, len(job.SourceSplice))
+		if cap(workc) == 0 {
+			return inputID, nil
+		}
+
+		// splice each range concurrently
+		for i, r := range job.SourceSplice {
+			w := work{
+				pos:   int32(i),
+				start: r[0],
+				dur:   r[1] - r[0],
+			}
+			go func() {
+				// NOTE(as): don't use the timecode "api", it seems to look for a real
+				// timecode track in the source. If it doesn't find it, it just doesn't trim
+				// the clip and provides no logging or errors. For this "api", it wants
+				// start, duration; not start, end, and it also wants pointers
+				splice, err := p.api.Encoding.Encodings.InputStreams.Trimming.TimeBased.Create(enc.Id, model.TimeBasedTrimmingInputStream{
+					InputStreamId: inputID,
+					Offset:        &w.start,
+					Duration:      &w.dur,
+				})
+				w.err = err
+				w.id = splice.Id
+				workc <- w
+			}()
+		}
+
+		// collect the results serially
+		cat := []model.ConcatenationInputConfiguration{}
+		for i := 0; i < cap(workc); i++ {
+			w := <-workc
+			if w.err != nil {
+				return inputID, fmt.Errorf("trim: range#%d: %w", w.pos, err)
+			}
+			main := i == 0
+			cat = append(cat, model.ConcatenationInputConfiguration{
+				IsMain:        &main,
+				InputStreamId: w.id,
+				Position:      &w.pos,
+			})
+		}
+
+		// although there are position markers in the struct,
+		// sort it just in case, this makes the logging consistent too
+		sort.Slice(cat, func(i, j int) bool {
+			return *cat[i].Position < *cat[j].Position
+		})
+		c, err := p.api.Encoding.Encodings.InputStreams.Concatenation.Create(enc.Id, model.ConcatenationInputStream{
+			Concatenation: cat,
+		})
+		if err != nil {
+			return inputID, fmt.Errorf("concatenation: %v", err)
+		}
+		return c.Id, nil
+	}(inputID)
+	defer subSeg.Close(err)
+	if err != nil {
 		return nil, fmt.Errorf("splice: %w", err)
 	}
-
-	vidInputStreams := []model.StreamInput{inputStream}
-	audInputStreams := []model.StreamInput{inputStream}
+	log.Println("splice")
+	log.Printf("inputID: %q", inputID)
 
 	videoFilters := map[int]string{}
 	if processingVideo {
@@ -339,16 +396,15 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-outputs")
 	for idx, o := range job.Outputs {
 		wg.Add(1)
-
 		go p.createOutput(outputCfg{
 			preset:             presets[idx],
 			encodingID:         enc.Id,
-			audInputStreams:    audInputStreams,
-			vidInputStreams:    vidInputStreams,
+			audioIn:            inputID,
+			videoIn:            inputID,
 			videoFilters:       videoFilters,
 			outputID:           outputID,
-			destPath:           destPath,
 			outputFilename:     o.FileName,
+			destPath:           destPath,
 			manifestID:         manifestID,
 			manifestMasterPath: manifestMasterPath,
 			job:                job,
@@ -391,8 +447,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 type outputCfg struct {
 	preset             db.PresetSummary
 	encodingID         string
-	audInputStreams    []model.StreamInput
-	vidInputStreams    []model.StreamInput
+	videoIn, audioIn   string
 	videoFilters       map[int]string
 	outputID           string
 	destPath           string
@@ -409,7 +464,7 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 	if audCfgID := cfg.preset.AudioConfigID; audCfgID != "" {
 		audStream, err := p.api.Encoding.Encodings.Streams.Create(cfg.encodingID, model.Stream{
 			CodecConfigId: audCfgID,
-			InputStreams:  cfg.audInputStreams,
+			InputStreams:  []model.StreamInput{{InputStreamId: cfg.audioIn}},
 		})
 		if err != nil {
 			errorc <- errors.Wrap(err, "adding audio stream to the encoding")
@@ -422,7 +477,7 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 	if vidCfgID := cfg.preset.VideoConfigID; vidCfgID != "" {
 		vidStream, err := p.api.Encoding.Encodings.Streams.Create(cfg.encodingID, model.Stream{
 			CodecConfigId: vidCfgID,
-			InputStreams:  cfg.vidInputStreams,
+			InputStreams:  []model.StreamInput{{InputStreamId: cfg.videoIn}},
 		})
 		if err != nil {
 			errorc <- errors.Wrap(err, "adding video stream to the encoding")
