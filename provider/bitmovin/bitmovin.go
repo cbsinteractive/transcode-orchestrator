@@ -3,7 +3,7 @@ package bitmovin
 import (
 	"context"
 	"fmt"
-	"log"
+
 	"net/url"
 	"path"
 	"sort"
@@ -284,8 +284,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		return nil, errors.Wrap(err, "creating encoding")
 	}
 	subSeg.Close(nil)
-	log.Println("encoding")
-	log.Printf("inputID: %q", inputID)
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-ingest")
 	err = func() error {
@@ -301,8 +299,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	if err != nil {
 		return nil, fmt.Errorf("ingest: %v", err)
 	}
-	log.Println("ingest")
-	log.Printf("inputID: %q", inputID)
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-concatenated-splice")
 	inputID, err = func(inputID string) (string, error) {
@@ -372,9 +368,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	if err != nil {
 		return nil, fmt.Errorf("splice: %w", err)
 	}
-	log.Println("splice")
-	log.Printf("inputID: %q", inputID)
-
 	videoFilters := map[int]string{}
 	if processingVideo {
 		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-deinterlace-filter")
