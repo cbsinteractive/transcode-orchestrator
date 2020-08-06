@@ -364,7 +364,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		}
 		return c.Id, nil
 	}(inputID)
-	defer subSeg.Close(err)
+	subSeg.Close(err)
 	if err != nil {
 		return nil, fmt.Errorf("splice: %w", err)
 	}
