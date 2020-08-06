@@ -12,7 +12,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-func outputFrom(preset db.Preset, sourceInfo db.SourceInfo) (mediaconvert.Output, error) {
+var timecodePositionMap = map[int]mediaconvert.TimecodeBurninPosition{
+	0: mediaconvert.TimecodeBurninPositionTopCenter,
+	1: mediaconvert.TimecodeBurninPositionTopLeft,
+	2: mediaconvert.TimecodeBurninPositionTopRight,
+	3: mediaconvert.TimecodeBurninPositionMiddleCenter,
+	4: mediaconvert.TimecodeBurninPositionMiddleLeft,
+	5: mediaconvert.TimecodeBurninPositionMiddleRight,
+	6: mediaconvert.TimecodeBurninPositionBottomCenter,
+	7: mediaconvert.TimecodeBurninPositionBottomLeft,
+	8: mediaconvert.TimecodeBurninPositionBottomRight,
+}
+
+func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, error) {
 	container, err := containerFrom(preset.Container)
 	if err != nil {
 		return mediaconvert.Output{}, errors.Wrap(err, "mapping preset container to MediaConvert container")
@@ -36,9 +48,7 @@ func outputFrom(preset db.Preset, sourceInfo db.SourceInfo) (mediaconvert.Output
 	}
 
 	output := mediaconvert.Output{
-		ContainerSettings: &mediaconvert.ContainerSettings{
-			Container: container,
-		},
+		ContainerSettings: containerSettingsFrom(container),
 		VideoDescription:  videoPreset,
 		AudioDescriptions: audioPresets,
 	}
@@ -72,12 +82,32 @@ func containerFrom(container string) (mediaconvert.ContainerType, error) {
 		return mediaconvert.ContainerTypeCmfc, nil
 	case "mp4":
 		return mediaconvert.ContainerTypeMp4, nil
+	case "mov":
+		return mediaconvert.ContainerTypeMov, nil
 	default:
 		return "", fmt.Errorf("container %q not supported with mediaconvert", container)
 	}
 }
 
-func videoPresetFrom(preset db.Preset, sourceInfo db.SourceInfo) (*mediaconvert.VideoDescription, error) {
+func containerSettingsFrom(container mediaconvert.ContainerType) *mediaconvert.ContainerSettings {
+	cs := &mediaconvert.ContainerSettings{
+		Container: container,
+	}
+
+	if container == mediaconvert.ContainerTypeMov {
+		cs.MovSettings = &mediaconvert.MovSettings{
+			ClapAtom:           mediaconvert.MovClapAtomExclude,
+			CslgAtom:           mediaconvert.MovCslgAtomInclude,
+			PaddingControl:     mediaconvert.MovPaddingControlOmneon,
+			Reference:          mediaconvert.MovReferenceSelfContained,
+			Mpeg2FourCCControl: mediaconvert.MovMpeg2FourCCControlMpeg,
+		}
+	}
+
+	return cs
+}
+
+func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoDescription, error) {
 	videoPreset := mediaconvert.VideoDescription{
 		ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
 		TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
@@ -99,41 +129,6 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.SourceInfo) (*mediaconvert.
 			return nil, errors.Wrapf(err, "parsing video height %q to int64", preset.Video.Height)
 		}
 		videoPreset.Height = aws.Int64(height)
-	}
-
-	if hdr10 := preset.Video.HDR10Settings; hdr10.Enabled {
-		mcHDR10Metadata := &mediaconvert.Hdr10Metadata{}
-		if hdr10.MasterDisplay != "" {
-			display, err := parseMasterDisplay(hdr10.MasterDisplay)
-			if err != nil {
-				return nil, errors.Wrap(err, "parsing master display string")
-			}
-			mcHDR10Metadata.BluePrimaryX = aws.Int64(display.bluePrimaryX)
-			mcHDR10Metadata.BluePrimaryY = aws.Int64(display.bluePrimaryY)
-			mcHDR10Metadata.GreenPrimaryX = aws.Int64(display.greenPrimaryX)
-			mcHDR10Metadata.GreenPrimaryY = aws.Int64(display.greenPrimaryY)
-			mcHDR10Metadata.RedPrimaryX = aws.Int64(display.redPrimaryX)
-			mcHDR10Metadata.RedPrimaryY = aws.Int64(display.redPrimaryY)
-			mcHDR10Metadata.WhitePointX = aws.Int64(display.whitePointX)
-			mcHDR10Metadata.WhitePointY = aws.Int64(display.whitePointY)
-			mcHDR10Metadata.MaxLuminance = aws.Int64(display.maxLuminance)
-			mcHDR10Metadata.MinLuminance = aws.Int64(display.minLuminance)
-		}
-
-		if hdr10.MaxCLL != 0 {
-			mcHDR10Metadata.MaxContentLightLevel = aws.Int64(int64(hdr10.MaxCLL))
-		}
-
-		if hdr10.MaxFALL != 0 {
-			mcHDR10Metadata.MaxFrameAverageLightLevel = aws.Int64(int64(hdr10.MaxFALL))
-		}
-
-		videoPreset.VideoPreprocessors = &mediaconvert.VideoPreprocessor{
-			ColorCorrector: &mediaconvert.ColorCorrector{
-				Hdr10Metadata:        mcHDR10Metadata,
-				ColorSpaceConversion: mediaconvert.ColorSpaceConversionForceHdr10,
-			},
-		}
 	}
 
 	codec := strings.ToLower(preset.Video.Codec)
@@ -163,9 +158,11 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.SourceInfo) (*mediaconvert.
 		return nil, fmt.Errorf("video codec %q is not yet supported with mediaconvert", codec)
 	}
 
-	if videoPreset.VideoPreprocessors == nil {
-		videoPreset.VideoPreprocessors = &mediaconvert.VideoPreprocessor{}
+	videoPreprocessors, err := videoPreprocessorsFrom(preset.Video)
+	if err != nil {
+		return nil, errors.Wrap(err, "building videoPreprocessors")
 	}
+	videoPreset.VideoPreprocessors = videoPreprocessors
 
 	switch sourceInfo.ScanType {
 	case db.ScanTypeProgressive:
@@ -184,6 +181,55 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.SourceInfo) (*mediaconvert.
 	}
 
 	return &videoPreset, nil
+}
+
+func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPreprocessor, error) {
+	videoPreprocessor := &mediaconvert.VideoPreprocessor{}
+
+	if videoPreset.Overlays != nil && videoPreset.Overlays.TimecodeBurnin != nil {
+		if tcBurnin := videoPreset.Overlays.TimecodeBurnin; tcBurnin.Enabled {
+			videoPreprocessor.TimecodeBurnin = &mediaconvert.TimecodeBurnin{
+				Prefix:   &tcBurnin.Prefix,
+				FontSize: aws.Int64(int64(tcBurnin.FontSize)),
+				Position: timecodePositionMap[tcBurnin.Position],
+			}
+		}
+	}
+
+	if hdr10 := videoPreset.HDR10Settings; hdr10.Enabled {
+		mcHDR10Metadata := &mediaconvert.Hdr10Metadata{}
+		if hdr10.MasterDisplay != "" {
+			display, err := parseMasterDisplay(hdr10.MasterDisplay)
+			if err != nil {
+				return videoPreprocessor, errors.Wrap(err, "parsing master display string")
+			}
+			mcHDR10Metadata.BluePrimaryX = aws.Int64(display.bluePrimaryX)
+			mcHDR10Metadata.BluePrimaryY = aws.Int64(display.bluePrimaryY)
+			mcHDR10Metadata.GreenPrimaryX = aws.Int64(display.greenPrimaryX)
+			mcHDR10Metadata.GreenPrimaryY = aws.Int64(display.greenPrimaryY)
+			mcHDR10Metadata.RedPrimaryX = aws.Int64(display.redPrimaryX)
+			mcHDR10Metadata.RedPrimaryY = aws.Int64(display.redPrimaryY)
+			mcHDR10Metadata.WhitePointX = aws.Int64(display.whitePointX)
+			mcHDR10Metadata.WhitePointY = aws.Int64(display.whitePointY)
+			mcHDR10Metadata.MaxLuminance = aws.Int64(display.maxLuminance)
+			mcHDR10Metadata.MinLuminance = aws.Int64(display.minLuminance)
+		}
+
+		if hdr10.MaxCLL != 0 {
+			mcHDR10Metadata.MaxContentLightLevel = aws.Int64(int64(hdr10.MaxCLL))
+		}
+
+		if hdr10.MaxFALL != 0 {
+			mcHDR10Metadata.MaxFrameAverageLightLevel = aws.Int64(int64(hdr10.MaxFALL))
+		}
+
+		videoPreprocessor.ColorCorrector = &mediaconvert.ColorCorrector{
+			Hdr10Metadata:        mcHDR10Metadata,
+			ColorSpaceConversion: mediaconvert.ColorSpaceConversionForceHdr10,
+		}
+	}
+
+	return videoPreprocessor, nil
 }
 
 func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {

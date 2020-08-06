@@ -44,7 +44,7 @@ type Job struct {
 	SourceMedia string `redis-hash:"source" json:"source"`
 
 	// SourceInfo is source information
-	SourceInfo SourceInfo `redis-hash:"sourceinfo,omitempty" json:"sourceInfo,omitempty"`
+	SourceInfo File `redis-hash:"sourceinfo,omitempty" json:"sourceInfo,omitempty"`
 
 	// SourceSplice is a set of second ranges to excise from the input and catenate
 	// together before processing the source. For example, [[0,1],[8,9]], will cut out
@@ -62,6 +62,9 @@ type Job struct {
 
 	// Output list of the given job
 	Outputs []TranscodeOutput `redis-hash:"-" json:"outputs"`
+
+	// AudioDownmix holds source and output channels for configuring downmixing
+	AudioDownmix *AudioDownmix `json:"audioDownmix,omitempty"`
 }
 
 type SidecarAssetKind = string
@@ -141,10 +144,40 @@ const (
 	ScanTypeUnknown ScanType = "unknown"
 )
 
-// SourceInfo represents basic information about the source that may be of aid to providers
+//ChannelLayout describes layout of an audio channel
+type ChannelLayout string
+
+const (
+	ChannelLayoutCenter        ChannelLayout = "C"
+	ChannelLayoutLeft          ChannelLayout = "L"
+	ChannelLayoutRight         ChannelLayout = "R"
+	ChannelLayoutLeftSurround  ChannelLayout = "Ls"
+	ChannelLayoutRightSurround ChannelLayout = "Rs"
+	ChannelLayoutLeftBack      ChannelLayout = "Lb"
+	ChannelLayoutRightBack     ChannelLayout = "Rb"
+	ChannelLayoutLeftTotal     ChannelLayout = "Lt"
+	ChannelLayoutRightTotal    ChannelLayout = "Rt"
+	ChannelLayoutLFE           ChannelLayout = "LFE"
+)
+
+// AudioChannel describes the position and attributes of a
+// single channel of audio inside a container
+type AudioChannel struct {
+	TrackIdx, ChannelIdx int
+	Layout               string
+}
+
+//AudioDownmix holds source and output channels for providers
+//to handle downmixing
+type AudioDownmix struct {
+	SrcChannels  []AudioChannel
+	DestChannels []AudioChannel
+}
+
+// File represents basic information about the source that may be of aid to providers
 //
 // swagger:model
-type SourceInfo struct {
+type File struct {
 	Width     uint     `redis-hash:"width,omitempty" json:"width,omitempty"`
 	Height    uint     `redis-hash:"height,omitempty" json:"height,omitempty"`
 	FrameRate float64  `redis-hash:"framerate,omitempty" json:"frameRate,omitempty"`
@@ -211,6 +244,7 @@ type VideoPreset struct {
 	InterlaceMode       string              `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
 	HDR10Settings       HDR10Settings       `json:"hdr10" redis-hash:"hdr10,expand,omitempty"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision" redis-hash:"dolbyvision,expand,omitempty"`
+	Overlays            *Overlays           `json:"overlays,omitempty" redish-hash:"overlays,expand,omitempty"`
 }
 
 // GopUnit defines the unit used to measure gops
@@ -223,6 +257,19 @@ const (
 	// GopUnitSeconds uses Key Intervals in transcode job
 	GopUnitSeconds GopUnit = "seconds"
 )
+
+//Overlays defines all the overlay settings for a Video preset
+type Overlays struct {
+	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty" redish-hash:"timecodeburnin,expand,omitempty"`
+}
+
+//TimecodeBurnin defines the timecode burnin settings
+type TimecodeBurnin struct {
+	Enabled  bool   `json:"enabled" redis-hash:"enabled"`
+	FontSize int    `json:"fontSize,omitempty" redis-hash:"fontsize,omitempty"`
+	Position int    `json:"position,omitempty" redis-hash:"position,omitempty"`
+	Prefix   string `json:"prefix,omitempty" redis-hash:"prefix,omitempty"`
+}
 
 // HDR10Settings defines a set of configurations for defining HDR10 metadata
 type HDR10Settings struct {

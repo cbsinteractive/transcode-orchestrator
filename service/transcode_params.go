@@ -16,7 +16,7 @@ type NewTranscodeJobInputPayload struct {
 	Source string `json:"source"`
 
 	// SourceInfo is an optional param allowing users to add helpful information about the source content
-	SourceInfo db.SourceInfo `json:"sourceInfo,omitempty"`
+	SourceInfo db.File `json:"sourceInfo,omitempty"`
 
 	// list of outputs in this job
 	Outputs []struct {

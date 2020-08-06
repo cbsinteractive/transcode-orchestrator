@@ -65,6 +65,20 @@ type VideoPreset struct {
 	InterlaceMode       string              `json:"interlaceMode,omitempty"`
 	HDR10Settings       HDR10Settings       `json:"hdr10"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision"`
+	Overlays            *Overlays           `json:"overlays,omitempty"`
+}
+
+//Overlays defines all the overlay settings for a Video preset
+type Overlays struct {
+	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty"`
+}
+
+//TimecodeBurnin defines the timecode burnin settings
+type TimecodeBurnin struct {
+	Enabled  bool   `json:"enabled"`
+	FontSize int    `json:"fontSize,omitempty"`
+	Position int    `json:"position,omitempty"`
+	Prefix   string `json:"prefix,omitempty"`
 }
 
 // HDR10Settings defines a set of configurations for defining HDR10 metadata

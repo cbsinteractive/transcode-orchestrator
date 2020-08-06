@@ -95,6 +95,15 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 		}
 	}
 
+	audioSelector := mediaconvert.AudioSelector{
+		DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+	}
+	if job.AudioDownmix != nil {
+		if err = audioSelectorFrom(job.AudioDownmix, &audioSelector); err != nil {
+			return nil, fmt.Errorf("mediaconvert: audio selectors generator: %w", err)
+		}
+	}
+
 	resp, err := p.client.CreateJobRequest(&mediaconvert.CreateJobInput{
 		AccelerationSettings: accelerationSettings,
 		Queue:                queue,
@@ -106,7 +115,7 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 					InputClippings: splice2clippings(job.SourceSplice, 0), // TODO(as): Find FPS in job
 					FileInput:      aws.String(job.SourceMedia),
 					AudioSelectors: map[string]mediaconvert.AudioSelector{
-						"Audio Selector 1": {DefaultSelection: mediaconvert.AudioDefaultSelectionDefault},
+						"Audio Selector 1": audioSelector,
 					},
 					VideoSelector: &mediaconvert.VideoSelector{
 						ColorSpace: mediaconvert.ColorSpaceFollow,
@@ -211,7 +220,7 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 					SegmentControl:         mediaconvert.HlsSegmentControlSegmentedFiles,
 				},
 			}
-		case mediaconvert.ContainerTypeMp4:
+		case mediaconvert.ContainerTypeMp4, mediaconvert.ContainerTypeMov:
 			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
 				Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 				FileGroupSettings: &mediaconvert.FileGroupSettings{
@@ -366,6 +375,8 @@ func fileExtensionFromContainer(settings *mediaconvert.ContainerSettings) (strin
 	switch settings.Container {
 	case mediaconvert.ContainerTypeMp4:
 		return ".mp4", nil
+	case mediaconvert.ContainerTypeMov:
+		return ".mov", nil
 	default:
 		return "", fmt.Errorf("could not determine extension from output container %q", settings.Container)
 	}
@@ -379,6 +390,8 @@ func containerIdentifierFrom(settings *mediaconvert.ContainerSettings) (string, 
 	switch settings.Container {
 	case mediaconvert.ContainerTypeMp4:
 		return "mp4", nil
+	case mediaconvert.ContainerTypeMov:
+		return "mov", nil
 	default:
 		return "", fmt.Errorf("could not determine container identifier from output container %q", settings.Container)
 	}
@@ -411,7 +424,7 @@ func (p *mcProvider) Healthcheck() error {
 func (p *mcProvider) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
 		InputFormats:  []string{"h264", "h265", "hdr10"},
-		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf"},
+		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf", "mov"},
 		Destinations:  []string{"s3"},
 	}
 }
