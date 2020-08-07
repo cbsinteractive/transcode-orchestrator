@@ -286,15 +286,17 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	subSeg.Close(nil)
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-ingest")
-	err = func() error {
+	inputID, err = func(inputID string) (string, error) {
 		istream, err := p.api.Encoding.Encodings.InputStreams.Ingest.Create(enc.Id, model.IngestInputStream{
 			InputId:       inputID,
 			InputPath:     mediaPath,
 			SelectionMode: model.StreamSelectionMode_AUTO,
 		})
-		inputID = istream.Id // use the ingest as the real input to the rest of the pipeline
-		return err
-	}()
+		if err != nil {
+			return inputID, err
+		}
+		return istream.Id, err
+	}(inputID)
 	subSeg.Close(err)
 	if err != nil {
 		return nil, fmt.Errorf("ingest: %v", err)
@@ -302,6 +304,10 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-concatenated-splice")
 	inputID, err = func(inputID string) (string, error) {
+		if len(job.SourceSplice) == 0 {
+			return inputID, nil
+		}
+
 		type work struct {
 			pos        int32
 			start, dur float64
@@ -309,9 +315,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 			err        error
 		}
 		workc := make(chan work, len(job.SourceSplice))
-		if cap(workc) == 0 {
-			return inputID, nil
-		}
 
 		// splice each range concurrently
 		for i, r := range job.SourceSplice {
@@ -330,8 +333,10 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 					Offset:        &w.start,
 					Duration:      &w.dur,
 				})
+				if splice != nil {
+					w.id = splice.Id
+				}
 				w.err = err
-				w.id = splice.Id
 				workc <- w
 			}()
 		}
@@ -368,6 +373,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	if err != nil {
 		return nil, fmt.Errorf("splice: %w", err)
 	}
+
 	videoFilters := map[int]string{}
 	if processingVideo {
 		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-deinterlace-filter")
