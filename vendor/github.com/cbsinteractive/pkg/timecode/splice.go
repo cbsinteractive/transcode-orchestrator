@@ -75,3 +75,8 @@ func (s *Splice) UnmarshalText(p []byte) error {
 	// does videorobot do?
 	return json.Unmarshal(p, (*[]Range)(s))
 }
+
+// UnmarshalJSON calls UnmarshalText on the splice
+func (s *Splice) UnmarshalJSON(p []byte) error {
+	return s.UnmarshalText(p)
+}
