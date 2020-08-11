@@ -22,23 +22,18 @@ func NewAV1(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *AV1 {
 }
 
 // Create will create a new AV1 configuration based on a preset
-func (c *AV1) Create(preset db.Preset) (string, error) {
+func (c *AV1) Create(preset db.Preset) (db.PresetSummary, error) {
 	vidCfgID, err := codec.NewAV1(c.api, preset)
 	if err != nil {
-		return "", err
+		return db.PresetSummary{}, err
 	}
 
-	err = c.repo.CreatePresetSummary(&db.PresetSummary{
+	return db.PresetSummary{
 		Name:          preset.Name,
 		Container:     preset.Container,
 		VideoCodec:    string(model.CodecConfigType_AV1),
 		VideoConfigID: vidCfgID,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return preset.Name, nil
+	}, nil
 }
 
 // Get retrieves a stored db.PresetSummary by its name

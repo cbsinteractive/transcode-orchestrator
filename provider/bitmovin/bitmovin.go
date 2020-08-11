@@ -62,8 +62,6 @@ const (
 	cfgStoreAV1       cfgStore = "av1"
 	cfgStoreAAC       cfgStore = "aac"
 	cfgStoreOpus      cfgStore = "opus"
-
-	filterVideoDeinterlace = iota + 1
 )
 
 func init() {
@@ -225,13 +223,10 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		return nil, err
 	}
 
-	var generatingHLS, processingVideo bool
+	var generatingHLS bool
 	for _, preset := range presets {
 		if preset.Container == containerHLS {
 			generatingHLS = true
-		}
-		if preset.VideoConfigID != "" {
-			processingVideo = true
 		}
 	}
 
@@ -385,21 +380,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		return nil, fmt.Errorf("splice: %w", err)
 	}
 
-	videoFilters := map[int]string{}
-	if processingVideo {
-		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-deinterlace-filter")
-		deInterlace, err := p.api.Encoding.Filters.Deinterlace.Create(model.DeinterlaceFilter{
-			Name:       "deinterlace",
-			AutoEnable: model.DeinterlaceAutoEnable_META_DATA_AND_CONTENT_BASED,
-		})
-		if err != nil {
-			subSeg.Close(err)
-			return nil, errors.Wrap(err, "creating deinterlace filter")
-		}
-		subSeg.Close(nil)
-		videoFilters[filterVideoDeinterlace] = deInterlace.Id
-	}
-
 	var wg sync.WaitGroup
 	errorc := make(chan error)
 
@@ -411,7 +391,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 			encodingID:         enc.Id,
 			audioIn:            inputID,
 			videoIn:            inputID,
-			videoFilters:       videoFilters,
 			outputID:           outputID,
 			outputFilename:     o.FileName,
 			destPath:           destPath,
@@ -467,7 +446,6 @@ type outputCfg struct {
 	preset             db.PresetSummary
 	encodingID         string
 	videoIn, audioIn   string
-	videoFilters       map[int]string
 	outputID           string
 	destPath           string
 	outputFilename     string
@@ -503,15 +481,19 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 			return
 		}
 
-		if deinterlaceID, ok := cfg.videoFilters[filterVideoDeinterlace]; ok {
-			_, err = p.api.Encoding.Encodings.Streams.Filters.Create(cfg.encodingID, vidStream.Id, []model.StreamFilter{
-				{Id: deinterlaceID, Position: bitmovin.Int32Ptr(0)},
-			})
-			if err != nil {
-				errorc <- errors.Wrap(err, "adding filter to video stream")
-				return
+		if videoFilters := cfg.preset.VideoFilters; videoFilters != nil {
+			for _, filter := range videoFilters {
+				_, err = p.api.Encoding.Encodings.Streams.Filters.Create(cfg.encodingID, vidStream.Id, []model.StreamFilter{
+					{Id: filter, Position: bitmovin.Int32Ptr(0)},
+				})
+				if err != nil {
+					errorc <- errors.Wrap(err, "adding filter to video stream")
+					return
+				}
 			}
 		}
+
+		// check for image overlay and create
 
 		videoMuxingStream = model.MuxingStream{StreamId: vidStream.Id}
 	}
@@ -742,7 +724,40 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 		return "", err
 	}
 
-	return svc.Create(preset)
+	//should we trace the request here since create video/audio configs are being made?
+	presetSummary, err := svc.Create(preset)
+	if err != nil {
+		return "", err
+	}
+
+	if presetSummary.HasVideo() {
+		deInterlace, err := p.api.Encoding.Filters.Deinterlace.Create(model.DeinterlaceFilter{
+			Name:       "deinterlace",
+			AutoEnable: model.DeinterlaceAutoEnable_META_DATA_AND_CONTENT_BASED,
+		})
+		if err != nil {
+			return "", errors.Wrap(err, "creating deinterlace filter")
+		}
+
+		presetSummary.VideoFilters = append(presetSummary.VideoFilters, deInterlace.Id)
+
+		if overlays := preset.Video.Overlays; overlays != nil && overlays.Image != nil {
+			watermark, err := p.api.Encoding.Filters.Watermark.Create(model.WatermarkFilter{
+				Name:   "imageOverlay",
+				Left:   bitmovin.Int32Ptr(0),
+				Bottom: bitmovin.Int32Ptr(0),
+				Unit:   model.PositionUnit_PERCENTS,
+				Image:  overlays.Image.URL,
+			})
+			if err != nil {
+				return "", errors.Wrap(err, "creating watermark filter")
+			}
+
+			presetSummary.VideoFilters = append(presetSummary.VideoFilters, watermark.Id)
+		}
+	}
+
+	return preset.Name, p.repo.CreatePresetSummary(&presetSummary)
 }
 
 // DeletePreset loops over registered cfg services and attempts to delete them

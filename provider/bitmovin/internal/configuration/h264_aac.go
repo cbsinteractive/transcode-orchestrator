@@ -22,30 +22,25 @@ func NewH264AAC(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *H26
 }
 
 // Create will create a new H264AAC configuration based on a preset
-func (c *H264AAC) Create(preset db.Preset) (string, error) {
+func (c *H264AAC) Create(preset db.Preset) (db.PresetSummary, error) {
 	audCfgID, err := codec.NewAAC(c.api, preset.Audio.Bitrate)
 	if err != nil {
-		return "", err
+		return db.PresetSummary{}, err
 	}
 
 	vidCfgID, err := codec.NewH264(c.api, preset)
 	if err != nil {
-		return "", err
+		return db.PresetSummary{}, err
 	}
 
-	err = c.repo.CreatePresetSummary(&db.PresetSummary{
+	return db.PresetSummary{
 		Name:          preset.Name,
 		Container:     preset.Container,
 		VideoCodec:    string(model.CodecConfigType_H264),
 		VideoConfigID: vidCfgID,
 		AudioCodec:    string(model.CodecConfigType_AAC),
 		AudioConfigID: audCfgID,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return preset.Name, nil
+	}, nil
 }
 
 // Get retrieves a stored db.PresetSummary by its name
