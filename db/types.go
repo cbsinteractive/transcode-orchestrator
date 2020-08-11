@@ -67,7 +67,7 @@ type Job struct {
 	AudioDownmix *AudioDownmix `json:"audioDownmix,omitempty"`
 
 	// Optional list of string labels
-	Labels []string `redis-hash:"labels" json:"labels"`
+	Labels []string `redis-hash:"labels,omitempty" json:"labels,omitempty"`
 }
 
 type SidecarAssetKind = string

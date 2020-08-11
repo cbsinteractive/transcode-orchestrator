@@ -43,7 +43,7 @@ type JobRequest struct {
 type JobSpec struct {
 	Source  string      `json:"source"`
 	Outputs []JobOutput `json:"outputs"`
-	Labels  []string    `json:"labels"`
+	Labels  []string    `json:"labels,omitempty"`
 }
 
 type JobOutput struct {

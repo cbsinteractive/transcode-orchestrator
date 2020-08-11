@@ -46,7 +46,7 @@ type NewTranscodeJobInputPayload struct {
 	StreamingParams db.StreamingParams `json:"streamingParams,omitempty"`
 
 	// job labels
-	Labels []string `json:"labels"`
+	Labels []string `json:"labels,omitempty"`
 }
 
 // swagger:parameters newJob
