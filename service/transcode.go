@@ -48,6 +48,7 @@ func (s *TranscodingService) newTranscodeJob(r *http.Request) swagger.GizmoJSONR
 		StreamingParams:     input.Payload.StreamingParams,
 		ExecutionFeatures:   input.Payload.ExecutionFeatures,
 		ExecutionCfgReport:  fmt.Sprint(input.Payload.ExecutionFeatures),
+		Labels:              input.Payload.Labels,
 	}
 	outputs := make([]db.TranscodeOutput, len(input.Payload.Outputs))
 	for i, output := range input.Payload.Outputs {

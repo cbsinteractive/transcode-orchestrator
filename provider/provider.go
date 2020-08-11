@@ -80,6 +80,7 @@ type JobStatus struct {
 	ProviderStatus map[string]interface{} `json:"providerStatus,omitempty"`
 	Output         JobOutput              `json:"output"`
 	SourceInfo     SourceInfo             `json:"sourceInfo,omitempty"`
+	Labels         []string               `json:"labels,omitempty"`
 }
 
 // JobOutput represents information about a job output.

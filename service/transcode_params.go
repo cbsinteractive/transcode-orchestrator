@@ -44,6 +44,9 @@ type NewTranscodeJobInputPayload struct {
 
 	// provider Adaptive Streaming parameters
 	StreamingParams db.StreamingParams `json:"streamingParams,omitempty"`
+
+	// job labels
+	Labels []string `json:"labels"`
 }
 
 // swagger:parameters newJob
