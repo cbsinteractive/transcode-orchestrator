@@ -30,7 +30,7 @@ func TestTranscode(t *testing.T) {
 		wantSegmentDuration  uint
 	}{
 		{
-			"New job",
+			"NewJob",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -47,7 +47,7 @@ func TestTranscode(t *testing.T) {
 			3,
 		},
 		{
-			"New job - default playlist file name & segment duration",
+			"NewJobDefaultPlaylistFileNameAndSegmentDuration",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -64,7 +64,7 @@ func TestTranscode(t *testing.T) {
 			5,
 		},
 		{
-			"New job - default playlist file name, segment duration & regular file name",
+			"NewJobDefaultPlaylistFileNameSegmentDurationAndRegularFileName",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -81,7 +81,7 @@ func TestTranscode(t *testing.T) {
 			5,
 		},
 		{
-			"New job - no playlist file name",
+			"NewJobNoPlaylistFileName",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -98,7 +98,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job - default output file name",
+			"NewJobDefaultOutputFileName",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -114,7 +114,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job with preset not found in provider",
+			"NewJobWithPresetNotFoundInProvider",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -130,7 +130,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job with preset not found in the API",
+			"NewJobWithPresetNotFoundInTheAPI",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -162,7 +162,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job with invalid provider",
+			"NewJobWithInvalidProvider",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -178,7 +178,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job missing outputs",
+			"NewJobMissingOutputs",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -193,7 +193,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job labels empty list",
+			"NewJobLabelsEmptyList",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -210,7 +210,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job labels null",
+			"NewJobLabelsNull",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
