@@ -341,12 +341,23 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 			}()
 		}
 
+		if cap(workc) == 1 {
+			// NOTE(as): turns out bitmovin complains if you run the equivalent of:
+			// 'cat input0.mp4 > input.mp4'  because there's only one input0.mp4
+			w := <-workc
+			if w.err != nil {
+				return inputID, fmt.Errorf("trim: range#%d: %w", 1, w.err)
+			}
+			// can't concatenate, need special case for one input splice
+			return w.id, nil
+		}
+
 		// collect the results serially
 		cat := []model.ConcatenationInputConfiguration{}
 		for i := 0; i < cap(workc); i++ {
 			w := <-workc
 			if w.err != nil {
-				return inputID, fmt.Errorf("trim: range#%d: %w", w.pos, err)
+				return inputID, fmt.Errorf("trim: range#%d: %w", w.pos, w.err)
 			}
 			main := i == 0
 			cat = append(cat, model.ConcatenationInputConfiguration{
