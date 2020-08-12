@@ -157,7 +157,6 @@ func (p *flock) flockJobRequestFrom(ctx context.Context, job *db.Job) (*JobReque
 	var jobReq JobRequest
 	jobReq.Job.Source = job.SourceMedia
 
-	jobReq.Job.Labels = make([]string, 0)
 	for _,label := range job.Labels {
 		jobReq.Job.Labels = append(jobReq.Job.Labels, label)
 	}

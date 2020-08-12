@@ -529,8 +529,8 @@ func TestGetTranscodeJobLabels(t *testing.T) {
 					"destination": "s3://mybucket/some/dir/job-123",
 				},
 				"sourceInfo": map[string]interface{}{
-					"width":      float64(4096),
-					"height":     float64(2160),
+					"width":      4096.0,
+					"height":     2160.0,
 					"duration":   183e9,
 					"videoCodec": "VP9",
 				},
@@ -558,8 +558,8 @@ func TestGetTranscodeJobLabels(t *testing.T) {
 					"destination": "s3://mybucket/some/dir/job-123",
 				},
 				"sourceInfo": map[string]interface{}{
-					"width":      float64(4096),
-					"height":     float64(2160),
+					"width":      4096.0,
+					"height":     2160.0,
 					"duration":   183e9,
 					"videoCodec": "VP9",
 				},
@@ -588,8 +588,8 @@ func TestGetTranscodeJobLabels(t *testing.T) {
 					"destination": "s3://mybucket/some/dir/job-123",
 				},
 				"sourceInfo": map[string]interface{}{
-					"width":      float64(4096),
-					"height":     float64(2160),
+					"width":      4096.0,
+					"height":     2160.0,
 					"duration":   183e9,
 					"videoCodec": "VP9",
 				},
