@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/cbsinteractive/pkg/timecode"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 )
@@ -16,7 +17,12 @@ type NewTranscodeJobInputPayload struct {
 	Source string `json:"source"`
 
 	// SourceInfo is an optional param allowing users to add helpful information about the source content
-	SourceInfo db.SourceInfo `json:"sourceInfo,omitempty"`
+	SourceInfo db.File `json:"sourceInfo,omitempty"`
+
+	// SourceSplice is a set of second ranges to excise from the input and catenate
+	// together before processing the source. For example, [[0,1],[8,9]], will cut out
+	// a two-second clip, from the first and last second of a 10s video.
+	SourceSplice timecode.Splice `json:"splice,omitempty"`
 
 	// list of outputs in this job
 	Outputs []struct {

@@ -44,6 +44,20 @@ type (
 	SidecarAssetKind = string
 )
 
+//AudioChannel describes and Audio Mix
+type AudioChannel struct {
+	TrackIdx   int
+	ChannelIdx int
+	Layout     string
+}
+
+//AudioDownmix holds source and output channels layouts for providers
+//to handle downmixing
+type AudioDownmix struct {
+	SrcChannels  []AudioChannel
+	DestChannels []AudioChannel
+}
+
 // File is a media file. It replaces the following objects
 // SourceInfo: Duration, Height, Width, Codec
 // CreateJobSourceInfo: Height, Width, FrameRate, File Size, ScanType
@@ -79,8 +93,9 @@ type (
 		StreamingParams   StreamingParams             `json:"streamingParams,omitempty"`
 		SidecarAssets     map[SidecarAssetKind]string `json:"sidecarAssets,omitempty"`
 
-		DestinationBasePath string      `json:"destinationBasePath,omitempty"`
-		Outputs             []JobOutput `json:"outputs"`
+		DestinationBasePath string       `json:"destinationBasePath,omitempty"`
+		Outputs             []JobOutput  `json:"outputs"`
+		AudioDownmix        AudioDownmix `json:"audioDownmix"`
 	}
 	CreateJobResponse struct {
 		JobID JobID `json:"jobId"`
