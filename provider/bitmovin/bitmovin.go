@@ -341,12 +341,23 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 			}()
 		}
 
+		if cap(workc) == 1 {
+			// NOTE(as): turns out bitmovin complains if you run the equivalent of:
+			// 'cat input0.mp4 > input.mp4'  because there's only one input0.mp4
+			w := <-workc
+			if w.err != nil {
+				return inputID, fmt.Errorf("trim: range#%d: %w", 1, w.err)
+			}
+			// can't concatenate, need special case for one input splice
+			return w.id, nil
+		}
+
 		// collect the results serially
 		cat := []model.ConcatenationInputConfiguration{}
 		for i := 0; i < cap(workc); i++ {
 			w := <-workc
 			if w.err != nil {
-				return inputID, fmt.Errorf("trim: range#%d: %w", w.pos, err)
+				return inputID, fmt.Errorf("trim: range#%d: %w", w.pos, w.err)
 			}
 			main := i == 0
 			cat = append(cat, model.ConcatenationInputConfiguration{
@@ -422,27 +433,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		}
 	}
 	subSeg.Close(nil)
-
-	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-splice")
-	err = func() error {
-		for _, r := range job.SourceSplice {
-			sp, ep := r.Timecodes(0)
-			splice, err := p.api.Encoding.Encodings.InputStreams.Trimming.TimecodeTrack.Create(enc.Id, model.TimecodeTrackTrimmingInputStream{
-				Name:          "splice",
-				StartTimeCode: sp,
-				EndTimeCode:   ep,
-			})
-			if err != nil {
-				return err
-			}
-			splice = splice
-		}
-		return nil
-	}()
-	subSeg.Close(err)
-	if err != nil {
-		return nil, fmt.Errorf("splice: %w", err)
-	}
 
 	var vodHLSManifests []model.ManifestResource
 	if generatingHLS && manifestID != "" {
