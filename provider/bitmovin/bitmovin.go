@@ -439,6 +439,15 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		vodHLSManifests = []model.ManifestResource{{ManifestId: manifestID}}
 	}
 
+	if o := job.ExplicitKeyframeOffsets; len(o) > 0 {
+		subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-keyframes")
+		if err = p.createExplicitKeyframes(enc.Id, o); err != nil {
+			subSeg.Close(err)
+			return nil, fmt.Errorf("creating keyframes: %w", err)
+		}
+		subSeg.Close(nil)
+	}
+
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-start-encoding")
 	encResp, err := p.api.Encoding.Encodings.Start(enc.Id, model.StartEncodingRequest{VodHlsManifests: vodHLSManifests})
 	if err != nil {
@@ -629,6 +638,36 @@ func (p *bitmovinProvider) encodingInfrastructureFrom(job *db.Job) (*model.Infra
 	}
 
 	return nil, encodingCloudRegion, nil
+}
+
+func (p *bitmovinProvider) createExplicitKeyframes(encodingID string, offsets []float64) error {
+	if len(offsets) == 0 {
+		return nil
+	}
+
+	type work struct {
+		offset float64
+		err    error
+	}
+
+	workc := make(chan work, len(offsets))
+
+	for _, o := range offsets {
+		w := work{offset: o}
+		go func() {
+			_, w.err = p.api.Encoding.Encodings.Keyframes.Create(encodingID, model.Keyframe{Time: &w.offset})
+			workc <- w
+		}()
+	}
+
+	for i := 0; i < cap(workc); i++ {
+		w := <-workc
+		if w.err != nil {
+			return w.err
+		}
+	}
+
+	return nil
 }
 
 func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
