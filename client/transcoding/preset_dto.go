@@ -70,7 +70,13 @@ type VideoPreset struct {
 
 //Overlays defines all the overlay settings for a Video preset
 type Overlays struct {
+	Image          *Image          `json:"image,omitempty"`
 	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty"`
+}
+
+//Image defines the image overlay settings
+type Image struct {
+	URL string `json:"url"`
 }
 
 //TimecodeBurnin defines the timecode burnin settings

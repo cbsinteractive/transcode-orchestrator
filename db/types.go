@@ -64,7 +64,7 @@ type Job struct {
 	Outputs []TranscodeOutput `redis-hash:"-" json:"outputs"`
 
 	// AudioDownmix holds source and output channels for configuring downmixing
-	AudioDownmix *AudioDownmix `json:"audioDownmix,omitempty"`
+	AudioDownmix *AudioDownmix `redis-hash:"-" json:"audioDownmix,omitempty"`
 
 	// ExplicitKeyframeOffsets define offsets from the beginning of the media to insert keyframes when encoding
 	ExplicitKeyframeOffsets []float64 `redis-hash:"-" json:"explicitKeyframeOffsets,omitempty"`
@@ -275,7 +275,7 @@ type Overlays struct {
 	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty" redis-hash:"timecodeburnin,expand,omitempty"`
 }
 
-//Image defines the watermark configurations
+//Image defines the image overlay settings
 type Image struct {
 	URL string `json:"url" redis-hash:"url"`
 }
