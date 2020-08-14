@@ -65,6 +65,9 @@ type Job struct {
 
 	// AudioDownmix holds source and output channels for configuring downmixing
 	AudioDownmix *AudioDownmix `json:"audioDownmix,omitempty"`
+
+	// Optional list of string labels
+	Labels []string `redis-hash:"labels,omitempty" json:"labels,omitempty"`
 }
 
 type SidecarAssetKind = string

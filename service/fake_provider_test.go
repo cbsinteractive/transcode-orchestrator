@@ -75,6 +75,7 @@ func (p *fakeProvider) JobStatus(_ context.Context, job *db.Job) (*provider.JobS
 			Output: provider.JobOutput{
 				Destination: "s3://mybucket/some/dir/job-123",
 			},
+			Labels: job.Labels,
 		}, nil
 	}
 	return nil, provider.JobNotFoundError{ID: id}

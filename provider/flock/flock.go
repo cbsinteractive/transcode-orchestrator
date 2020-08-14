@@ -43,6 +43,7 @@ type JobRequest struct {
 type JobSpec struct {
 	Source  string      `json:"source"`
 	Outputs []JobOutput `json:"outputs"`
+	Labels  []string    `json:"labels,omitempty"`
 }
 
 type JobOutput struct {
@@ -155,6 +156,10 @@ func (p *flock) flockJobRequestFrom(ctx context.Context, job *db.Job) (*JobReque
 
 	var jobReq JobRequest
 	jobReq.Job.Source = job.SourceMedia
+
+	for _,label := range job.Labels {
+		jobReq.Job.Labels = append(jobReq.Job.Labels, label)
+	}
 
 	jobOuts := make([]JobOutput, 0, len(job.Outputs))
 	for i, output := range job.Outputs {
@@ -282,6 +287,7 @@ func (p *flock) jobStatusFrom(job *db.Job, jobResp *JobResponse) *provider.JobSt
 		Output: provider.JobOutput{
 			Destination: joinBaseAndParts(job.DestinationBasePath, job.ID),
 		},
+		Labels: job.Labels,
 	}
 
 	outputsStatus := make([]map[string]interface{}, 0, len(jobResp.Outputs))

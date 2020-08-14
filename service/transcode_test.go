@@ -30,7 +30,7 @@ func TestTranscode(t *testing.T) {
 		wantSegmentDuration  uint
 	}{
 		{
-			"New job",
+			"NewJob",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -47,7 +47,7 @@ func TestTranscode(t *testing.T) {
 			3,
 		},
 		{
-			"New job - default playlist file name & segment duration",
+			"NewJobDefaultPlaylistFileNameAndSegmentDuration",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -64,7 +64,7 @@ func TestTranscode(t *testing.T) {
 			5,
 		},
 		{
-			"New job - default playlist file name, segment duration & regular file name",
+			"NewJobDefaultPlaylistFileNameSegmentDurationAndRegularFileName",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -81,7 +81,7 @@ func TestTranscode(t *testing.T) {
 			5,
 		},
 		{
-			"New job - no playlist file name",
+			"NewJobNoPlaylistFileName",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -98,7 +98,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job - default output file name",
+			"NewJobDefaultOutputFileName",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -114,7 +114,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job with preset not found in provider",
+			"NewJobWithPresetNotFoundInProvider",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -130,7 +130,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job with preset not found in the API",
+			"NewJobWithPresetNotFoundInTheAPI",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -162,7 +162,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job with invalid provider",
+			"NewJobWithInvalidProvider",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -178,7 +178,7 @@ func TestTranscode(t *testing.T) {
 			0,
 		},
 		{
-			"New job missing outputs",
+			"NewJobMissingOutputs",
 			`{
   "source": "http://another.non.existent/video.mp4",
   "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
@@ -189,6 +189,40 @@ func TestTranscode(t *testing.T) {
 			http.StatusBadRequest,
 			map[string]interface{}{"error": "missing output list from request"},
 			nil,
+			"",
+			0,
+		},
+		{
+			"NewJobLabelsEmptyList",
+			`{
+  "source": "http://another.non.existent/video.mp4",
+  "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
+  "provider": "fake",
+  "outputs": [{"preset":"mp4_1080p"}],
+  "labels": []
+}`,
+			false,
+
+			http.StatusOK,
+			map[string]interface{}{"jobId": "fill me"},
+			[]string{"video_mp4_1080p.mp4"},
+			"",
+			0,
+		},
+		{
+			"NewJobLabelsNull",
+			`{
+  "source": "http://another.non.existent/video.mp4",
+  "destination": "s3://some.bucket.s3.amazonaws.com/some_path",
+  "provider": "fake",
+  "outputs": [{"preset":"mp4_1080p"}],
+  "labels": null
+}`,
+			false,
+
+			http.StatusOK,
+			map[string]interface{}{"jobId": "fill me"},
+			[]string{"video_mp4_1080p.mp4"},
 			"",
 			0,
 		},
@@ -457,6 +491,146 @@ func TestCancelTranscodeJob(t *testing.T) {
 			} else if fprovider.canceledJobs[0] != "provider-job-123" {
 				t.Errorf("%s: did not send the correct job id to the provider. Want %q. Got %q", test.givenTestCase, "provider-job-123", fprovider.canceledJobs[0])
 			}
+		}
+	}
+}
+
+func TestGetTranscodeJobLabels(t *testing.T) {
+	tests := []struct {
+		givenTestCase        string
+		givenURI             string
+		givenTriggerDBError  bool
+		givenProtocol        string
+		givenSegmentDuration uint
+		givenLabels          []string
+
+		wantCode int
+		wantBody interface{}
+	}{
+		{
+			"Get job",
+			"/jobs/job-123",
+			false,
+			"hls",
+			5,
+			make([]string, 0),
+			http.StatusOK,
+			map[string]interface{}{
+				"providerJobId": "provider-job-123",
+				"status":        "finished",
+				"providerName":  "fake",
+				"statusMessage": "The job is finished",
+				"progress":      10.3,
+				"providerStatus": map[string]interface{}{
+					"progress":   10.3,
+					"sourcefile": "http://some.source.file",
+				},
+				"output": map[string]interface{}{
+					"destination": "s3://mybucket/some/dir/job-123",
+				},
+				"sourceInfo": map[string]interface{}{
+					"width":      4096.0,
+					"height":     2160.0,
+					"duration":   183e9,
+					"videoCodec": "VP9",
+				},
+			},
+		},
+		{
+			"Get job",
+			"/jobs/job-123",
+			false,
+			"hls",
+			5,
+			[]string{"test1"},
+			http.StatusOK,
+			map[string]interface{}{
+				"providerJobId": "provider-job-123",
+				"status":        "finished",
+				"providerName":  "fake",
+				"statusMessage": "The job is finished",
+				"progress":      10.3,
+				"providerStatus": map[string]interface{}{
+					"progress":   10.3,
+					"sourcefile": "http://some.source.file",
+				},
+				"output": map[string]interface{}{
+					"destination": "s3://mybucket/some/dir/job-123",
+				},
+				"sourceInfo": map[string]interface{}{
+					"width":      4096.0,
+					"height":     2160.0,
+					"duration":   183e9,
+					"videoCodec": "VP9",
+				},
+				"labels": []interface{}{"test1"},
+			},
+		},
+		{
+			"Get job",
+			"/jobs/job-123",
+			false,
+			"hls",
+			5,
+			[]string{"test1","test2"},
+			http.StatusOK,
+			map[string]interface{}{
+				"providerJobId": "provider-job-123",
+				"status":        "finished",
+				"providerName":  "fake",
+				"statusMessage": "The job is finished",
+				"progress":      10.3,
+				"providerStatus": map[string]interface{}{
+					"progress":   10.3,
+					"sourcefile": "http://some.source.file",
+				},
+				"output": map[string]interface{}{
+					"destination": "s3://mybucket/some/dir/job-123",
+				},
+				"sourceInfo": map[string]interface{}{
+					"width":      4096.0,
+					"height":     2160.0,
+					"duration":   183e9,
+					"videoCodec": "VP9",
+				},
+				"labels": []interface{}{"test1", "test2"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		srvr := server.NewSimpleServer(&server.Config{})
+		fakeDBObj := dbtest.NewFakeRepository(test.givenTriggerDBError)
+		fakeDBObj.CreateJob(&db.Job{
+			ID:            "job-123",
+			ProviderName:  "fake",
+			ProviderJobID: "provider-job-123",
+			StreamingParams: db.StreamingParams{
+				SegmentDuration: test.givenSegmentDuration,
+				Protocol:        test.givenProtocol,
+			},
+			Labels: test.givenLabels,
+		})
+		service, err := NewTranscodingService(&config.Config{Server: &server.Config{}}, logrus.New())
+		if err != nil {
+			t.Fatal(err)
+		}
+		service.db = fakeDBObj
+		srvr.Register(service)
+		r, _ := http.NewRequest("GET", test.givenURI, nil)
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		srvr.ServeHTTP(w, r)
+		if w.Code != test.wantCode {
+			t.Errorf("%s: expected response code of %d; got %d", test.givenTestCase, test.wantCode, w.Code)
+		}
+		var got interface{}
+		err = json.NewDecoder(w.Body).Decode(&got)
+		if err != nil {
+			t.Errorf("%s: unable to JSON decode response body: %s", test.givenTestCase, err)
+		}
+		if !reflect.DeepEqual(got, test.wantBody) {
+			t.Errorf("%s: expected response body of\n%#v;\ngot\n%#v", test.givenTestCase, test.wantBody, got)
 		}
 	}
 }
