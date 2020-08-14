@@ -1,5 +1,6 @@
-![transcode orchestrator logo](https://p191.p3.n0.cdn.getcloudapp.com/items/wbu0k6m1/path1059.png?v=44e064cde05df48d7a8ce13ca62e760c)
-
+<p align="center">
+  <img width="450" src="https://p191.p3.n0.cdn.getcloudapp.com/items/wbu0k6m1/path1059.png?v=44e064cde05df48d7a8ce13ca62e760c">
+</p>
 ---
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/cbsinteractive/transcode-orchestrator)](https://goreportcard.com/report/github.com/cbsinteractive/transcode-orchestrator)
