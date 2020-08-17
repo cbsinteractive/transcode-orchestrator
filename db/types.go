@@ -66,7 +66,7 @@ type Job struct {
 	// AudioDownmix holds source and output channels for configuring downmixing
 	AudioDownmix *AudioDownmix `json:"audioDownmix,omitempty"`
 
-	// ExplicitKeyframeOffsets define offsets from the beginning of the media to insert IDR frames when encoding
+	// ExplicitKeyframeOffsets define offsets from the beginning of the media to insert keyframes when encoding
 	ExplicitKeyframeOffsets []float64 `redis-hash:"-" json:"explicitKeyframeOffsets,omitempty"`
 }
 
