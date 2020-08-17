@@ -51,6 +51,9 @@ type NewTranscodeJobInputPayload struct {
 	// provider Adaptive Streaming parameters
 	StreamingParams db.StreamingParams `json:"streamingParams,omitempty"`
 
+	// ExplicitKeyframeOffsets define offsets from the beginning of the media to insert keyframes when encoding
+	ExplicitKeyframeOffsets []float64 `json:"explicitKeyframeOffsets,omitempty"`
+
 	// Labels for jobs for grouping/searching later on
 	Labels []string `json:"labels,omitempty"`
 }
