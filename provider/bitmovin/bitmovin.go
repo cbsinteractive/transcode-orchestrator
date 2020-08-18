@@ -741,19 +741,21 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 
 		presetSummary.VideoFilters = append(presetSummary.VideoFilters, deInterlace.Id)
 
-		if overlays := preset.Video.Overlays; overlays != nil && overlays.Image != nil {
-			watermark, err := p.api.Encoding.Filters.Watermark.Create(model.WatermarkFilter{
-				Name:   "imageOverlay",
-				Left:   bitmovin.Int32Ptr(0),
-				Bottom: bitmovin.Int32Ptr(0),
-				Unit:   model.PositionUnit_PERCENTS,
-				Image:  overlays.Image.URL,
-			})
-			if err != nil {
-				return "", errors.Wrap(err, "creating watermark filter")
-			}
+		if overlays := preset.Video.Overlays; overlays != nil && overlays.Images != nil {
+			for _, image := range overlays.Images {
+				watermark, err := p.api.Encoding.Filters.Watermark.Create(model.WatermarkFilter{
+					Name:   "imageOverlay",
+					Left:   bitmovin.Int32Ptr(0),
+					Bottom: bitmovin.Int32Ptr(0),
+					Unit:   model.PositionUnit_PERCENTS,
+					Image:  image.URL,
+				})
+				if err != nil {
+					return "", errors.Wrap(err, "creating watermark filter")
+				}
 
-			presetSummary.VideoFilters = append(presetSummary.VideoFilters, watermark.Id)
+				presetSummary.VideoFilters = append(presetSummary.VideoFilters, watermark.Id)
+			}
 		}
 	}
 
