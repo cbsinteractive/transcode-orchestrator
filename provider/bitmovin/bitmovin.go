@@ -493,8 +493,6 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 			}
 		}
 
-		// check for image overlay and create
-
 		videoMuxingStream = model.MuxingStream{StreamId: vidStream.Id}
 	}
 
@@ -724,7 +722,6 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 		return "", err
 	}
 
-	//should we trace the request here since create video/audio configs are being made?
 	presetSummary, err := svc.Create(preset)
 	if err != nil {
 		return "", err
