@@ -482,9 +482,9 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 		}
 
 		if videoFilters := cfg.preset.VideoFilters; videoFilters != nil {
-			for _, filter := range videoFilters {
+			for i, filter := range videoFilters {
 				_, err = p.api.Encoding.Encodings.Streams.Filters.Create(cfg.encodingID, vidStream.Id, []model.StreamFilter{
-					{Id: filter, Position: bitmovin.Int32Ptr(0)},
+					{Id: filter, Position: bitmovin.Int32Ptr(int32(i))},
 				})
 				if err != nil {
 					errorc <- errors.Wrap(err, "adding filter to video stream")
@@ -744,11 +744,11 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 		if overlays := preset.Video.Overlays; overlays != nil && overlays.Images != nil {
 			for _, image := range overlays.Images {
 				watermark, err := p.api.Encoding.Filters.Watermark.Create(model.WatermarkFilter{
-					Name:   "imageOverlay",
-					Left:   bitmovin.Int32Ptr(0),
-					Bottom: bitmovin.Int32Ptr(0),
-					Unit:   model.PositionUnit_PERCENTS,
-					Image:  image.URL,
+					Name:  "imageOverlay",
+					Right: bitmovin.Int32Ptr(0),
+					Top:   bitmovin.Int32Ptr(0),
+					Unit:  model.PositionUnit_PERCENTS,
+					Image: image.URL,
 				})
 				if err != nil {
 					return "", errors.Wrap(err, "creating watermark filter")
