@@ -733,7 +733,7 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 			AutoEnable: model.DeinterlaceAutoEnable_META_DATA_AND_CONTENT_BASED,
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "creating deinterlace filter")
+			return "", fmt.Errorf("creating deinterlace filter: %w", err)
 		}
 
 		presetSummary.VideoFilters = append(presetSummary.VideoFilters, deInterlace.Id)
@@ -748,7 +748,7 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 					Image: image.URL,
 				})
 				if err != nil {
-					return "", errors.Wrap(err, "creating watermark filter")
+					return "", fmt.Errorf("creating watermark filter: %w", err)
 				}
 
 				presetSummary.VideoFilters = append(presetSummary.VideoFilters, watermark.Id)
