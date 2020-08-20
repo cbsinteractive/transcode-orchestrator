@@ -136,6 +136,9 @@ func (s *Storage) structToFieldList(value reflect.Value, prefixes ...string) (ma
 		fieldValue := value.Field(i)
 		if _, ok := parts.characteristics["expand"]; ok {
 			if fieldValue.Kind() == reflect.Ptr {
+				if fieldValue.IsNil() {
+					continue
+				}
 				fieldValue = fieldValue.Elem()
 			}
 			myPrefixes := append(prefixes, parts.name)
@@ -250,6 +253,9 @@ func (s *Storage) loadStruct(in map[string]string, out reflect.Value, prefixes .
 		if _, ok := parts.characteristics["expand"]; ok {
 			myPrefixes := append(prefixes, parts.name)
 			if fieldValue.Kind() == reflect.Ptr {
+				if fieldValue.IsNil() {
+					continue
+				}
 				fieldValue = fieldValue.Elem()
 			}
 			switch fieldValue.Kind() {

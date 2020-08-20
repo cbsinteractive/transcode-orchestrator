@@ -22,23 +22,18 @@ func NewH264(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *H264 {
 }
 
 // Create will create a new H264 configuration based on a preset
-func (c *H264) Create(preset db.Preset) (string, error) {
+func (c *H264) Create(preset db.Preset) (db.PresetSummary, error) {
 	vidCfgID, err := codec.NewH264(c.api, preset)
 	if err != nil {
-		return "", err
+		return db.PresetSummary{}, err
 	}
 
-	err = c.repo.CreatePresetSummary(&db.PresetSummary{
+	return db.PresetSummary{
 		Name:          preset.Name,
 		Container:     preset.Container,
 		VideoCodec:    string(model.CodecConfigType_H264),
 		VideoConfigID: vidCfgID,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return preset.Name, nil
+	}, nil
 }
 
 // Get retrieves a stored db.PresetSummary by its name

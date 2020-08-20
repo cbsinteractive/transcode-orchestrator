@@ -22,30 +22,25 @@ func NewVP8Vorbis(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *V
 }
 
 // Create will create a new VP8 configuration based on a preset
-func (c *VP8Vorbis) Create(preset db.Preset) (string, error) {
+func (c *VP8Vorbis) Create(preset db.Preset) (db.PresetSummary, error) {
 	audCfgID, err := codec.NewVorbis(c.api, preset.Audio.Bitrate)
 	if err != nil {
-		return "", err
+		return db.PresetSummary{}, err
 	}
 
 	vidCfgID, err := codec.NewVP8(c.api, preset)
 	if err != nil {
-		return "", err
+		return db.PresetSummary{}, err
 	}
 
-	err = c.repo.CreatePresetSummary(&db.PresetSummary{
+	return db.PresetSummary{
 		Name:          preset.Name,
 		Container:     preset.Container,
 		VideoCodec:    string(model.CodecConfigType_VP8),
 		VideoConfigID: vidCfgID,
 		AudioCodec:    string(model.CodecConfigType_VORBIS),
 		AudioConfigID: audCfgID,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return preset.Name, nil
+	}, nil
 }
 
 // Get retrieves a stored db.PresetSummary by its name

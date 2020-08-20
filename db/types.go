@@ -64,7 +64,7 @@ type Job struct {
 	Outputs []TranscodeOutput `redis-hash:"-" json:"outputs"`
 
 	// AudioDownmix holds source and output channels for configuring downmixing
-	AudioDownmix *AudioDownmix `json:"audioDownmix,omitempty"`
+	AudioDownmix *AudioDownmix `redis-hash:"-" json:"audioDownmix,omitempty"`
 
 	// ExplicitKeyframeOffsets define offsets from the beginning of the media to insert keyframes when encoding
 	ExplicitKeyframeOffsets []float64 `redis-hash:"-" json:"explicitKeyframeOffsets,omitempty"`
@@ -200,12 +200,17 @@ type ExecutionFeatures map[string]interface{}
 //
 // swagger:model
 type PresetSummary struct {
-	Name          string `redis-hash:"-"`
-	Container     string `redis-hash:"container"`
-	VideoCodec    string `redis-hash:"videocodec,omitempty"`
-	VideoConfigID string `redis-hash:"videoconfigid,omitempty"`
-	AudioCodec    string `redis-hash:"audiocodec,omitempty"`
-	AudioConfigID string `redis-hash:"audioconfigid,omitempty"`
+	Name          string   `redis-hash:"-"`
+	Container     string   `redis-hash:"container"`
+	VideoCodec    string   `redis-hash:"videocodec,omitempty"`
+	VideoConfigID string   `redis-hash:"videoconfigid,omitempty"`
+	VideoFilters  []string `redis-hash:"videoFilters,omitempty"`
+	AudioCodec    string   `redis-hash:"audiocodec,omitempty"`
+	AudioConfigID string   `redis-hash:"audioconfigid,omitempty"`
+}
+
+func (ps PresetSummary) HasVideo() bool {
+	return ps.VideoConfigID != ""
 }
 
 // LocalPreset is a struct to persist encoding configurations. Some providers don't have
@@ -250,7 +255,7 @@ type VideoPreset struct {
 	InterlaceMode       string              `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
 	HDR10Settings       HDR10Settings       `json:"hdr10" redis-hash:"hdr10,expand,omitempty"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision" redis-hash:"dolbyvision,expand,omitempty"`
-	Overlays            *Overlays           `json:"overlays,omitempty" redish-hash:"overlays,expand,omitempty"`
+	Overlays            *Overlays           `json:"overlays,omitempty" redis-hash:"overlays,expand,omitempty"`
 }
 
 // GopUnit defines the unit used to measure gops
@@ -266,7 +271,13 @@ const (
 
 //Overlays defines all the overlay settings for a Video preset
 type Overlays struct {
-	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty" redish-hash:"timecodeburnin,expand,omitempty"`
+	Images         []Image         `json:"images,omitempty" redis-hash:"image,expand,omitempty"`
+	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty" redis-hash:"timecodeburnin,expand,omitempty"`
+}
+
+//Image defines the image overlay settings
+type Image struct {
+	URL string `json:"url" redis-hash:"url"`
 }
 
 //TimecodeBurnin defines the timecode burnin settings
