@@ -98,6 +98,7 @@ type (
 
 		AudioDownmix            AudioDownmix `json:"audioDownmix"`
 		ExplicitKeyframeOffsets []float64    `json:"explicitKeyframeOffsets,omitempty"`
+		Labels                  []string     `json:"labels,omitempty"`
 	}
 	CreateJobResponse struct {
 		JobID JobID `json:"jobId"`
