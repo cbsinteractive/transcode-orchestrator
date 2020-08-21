@@ -93,9 +93,12 @@ type (
 		StreamingParams   StreamingParams             `json:"streamingParams,omitempty"`
 		SidecarAssets     map[SidecarAssetKind]string `json:"sidecarAssets,omitempty"`
 
-		DestinationBasePath string       `json:"destinationBasePath,omitempty"`
-		Outputs             []JobOutput  `json:"outputs"`
-		AudioDownmix        AudioDownmix `json:"audioDownmix"`
+		DestinationBasePath string      `json:"destinationBasePath,omitempty"`
+		Outputs             []JobOutput `json:"outputs"`
+
+		AudioDownmix            AudioDownmix `json:"audioDownmix"`
+		ExplicitKeyframeOffsets []float64    `json:"explicitKeyframeOffsets,omitempty"`
+		Labels                  []string     `json:"labels,omitempty"`
 	}
 	CreateJobResponse struct {
 		JobID JobID `json:"jobId"`
