@@ -487,7 +487,7 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 					{Id: filter, Position: bitmovin.Int32Ptr(int32(i))},
 				})
 				if err != nil {
-					errorc <- errors.Wrap(err, "adding filter to video stream")
+					errorc <- fmt.Errorf("adding filter %s to video stream: %w", filter, err)
 					return
 				}
 			}
@@ -753,6 +753,20 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 
 				presetSummary.VideoFilters = append(presetSummary.VideoFilters, watermark.Id)
 			}
+		}
+
+		if c := preset.Video.Crop; c != nil {
+			f, err := p.api.Encoding.Filters.Crop.Create(model.CropFilter{
+				Left:   bitmovin.Int32Ptr(int32(c.Left)),
+				Right:  bitmovin.Int32Ptr(int32(c.Right)),
+				Top:    bitmovin.Int32Ptr(int32(c.Top)),
+				Bottom: bitmovin.Int32Ptr(int32(c.Bottom)),
+			})
+			if err != nil {
+				return "", fmt.Errorf("creating crop filter: %w", err)
+			}
+
+			presetSummary.VideoFilters = append(presetSummary.VideoFilters, f.Id)
 		}
 	}
 

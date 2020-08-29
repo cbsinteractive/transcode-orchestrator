@@ -1,5 +1,7 @@
 package transcoding
 
+import "github.com/cbsinteractive/pkg/video"
+
 // PresetName is a custom string type with the name of the preset
 type PresetName string
 
@@ -66,6 +68,9 @@ type VideoPreset struct {
 	HDR10Settings       HDR10Settings       `json:"hdr10"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision"`
 	Overlays            *Overlays           `json:"overlays,omitempty"`
+
+	// Crop contains offsets for top, bottom, left and right src cropping
+	Crop *video.Crop `json:"crop,omitempty"`
 }
 
 //Overlays defines all the overlay settings for a Video preset
