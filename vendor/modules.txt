@@ -129,6 +129,9 @@ github.com/cbsinteractive/hybrik-sdk-go
 # github.com/cbsinteractive/pkg/timecode v0.0.0-20200805005557-c8cd96fa0686
 ## explicit
 github.com/cbsinteractive/pkg/timecode
+# github.com/cbsinteractive/pkg/video v0.0.0-20200829154626-5096cad96783
+## explicit
+github.com/cbsinteractive/pkg/video
 # github.com/facebookgo/stack v0.0.0-20160209184415-751773369052
 github.com/facebookgo/stack
 # github.com/fluent/fluent-logger-golang v1.4.0

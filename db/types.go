@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cbsinteractive/pkg/timecode"
+	"github.com/cbsinteractive/pkg/video"
 )
 
 // Job represents the job that is persisted in the repository of the Transcoding
@@ -256,6 +257,9 @@ type VideoPreset struct {
 	HDR10Settings       HDR10Settings       `json:"hdr10" redis-hash:"hdr10,expand,omitempty"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision" redis-hash:"dolbyvision,expand,omitempty"`
 	Overlays            *Overlays           `json:"overlays,omitempty" redis-hash:"overlays,expand,omitempty"`
+
+	// Crop contains offsets for top, bottom, left and right src cropping
+	Crop *video.Crop `json:"crop,omitempty" redis-hash:"crop,expand,omitempty"`
 }
 
 // GopUnit defines the unit used to measure gops
