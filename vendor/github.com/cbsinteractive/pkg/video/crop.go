@@ -9,5 +9,5 @@ type Crop struct {
 }
 
 func (c Crop) Empty() bool {
-	return c != (Crop{})
+	return c == (Crop{})
 }
