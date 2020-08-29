@@ -755,7 +755,7 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 			}
 		}
 
-		if c := preset.Video.Crop; c != nil {
+		if c := preset.Video.Crop; !c.Empty() {
 			f, err := p.api.Encoding.Filters.Crop.Create(model.CropFilter{
 				Left:   bitmovin.Int32Ptr(int32(c.Left)),
 				Right:  bitmovin.Int32Ptr(int32(c.Right)),

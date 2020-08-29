@@ -259,7 +259,7 @@ type VideoPreset struct {
 	Overlays            *Overlays           `json:"overlays,omitempty" redis-hash:"overlays,expand,omitempty"`
 
 	// Crop contains offsets for top, bottom, left and right src cropping
-	Crop *video.Crop `json:"crop,omitempty" redis-hash:"crop,expand,omitempty"`
+	Crop video.Crop `json:"crop" redis-hash:"crop,expand,omitempty"`
 }
 
 // GopUnit defines the unit used to measure gops

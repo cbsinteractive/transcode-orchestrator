@@ -70,7 +70,7 @@ type VideoPreset struct {
 	Overlays            *Overlays           `json:"overlays,omitempty"`
 
 	// Crop contains offsets for top, bottom, left and right src cropping
-	Crop *video.Crop `json:"crop,omitempty"`
+	Crop video.Crop `json:"crop"`
 }
 
 //Overlays defines all the overlay settings for a Video preset
