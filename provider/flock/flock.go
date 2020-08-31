@@ -157,14 +157,14 @@ func (p *flock) flockJobRequestFrom(ctx context.Context, job *db.Job) (*JobReque
 	var jobReq JobRequest
 	jobReq.Job.Source = job.SourceMedia
 
-	for _,label := range job.Labels {
+	for _, label := range job.Labels {
 		jobReq.Job.Labels = append(jobReq.Job.Labels, label)
 	}
 
 	jobOuts := make([]JobOutput, 0, len(job.Outputs))
 	for i, output := range job.Outputs {
 		var jobOut JobOutput
-		jobOut.Destination = joinBaseAndParts(job.DestinationBasePath, job.ID, output.FileName)
+		jobOut.Destination = joinBaseAndParts(job.DestinationBasePath, job.RootFolder(), output.FileName)
 		jobOut.AudioCodec = presets[i].Audio.Codec
 		jobOut.VideoCodec = presets[i].Video.Codec
 		jobOut.Preset = "slow"

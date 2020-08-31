@@ -6,6 +6,7 @@ import (
 
 	"github.com/cbsinteractive/pkg/timecode"
 	"github.com/cbsinteractive/pkg/video"
+	"github.com/gofrs/uuid"
 )
 
 // Job represents the job that is persisted in the repository of the Transcoding
@@ -72,6 +73,16 @@ type Job struct {
 
 	// Optional list of string labels
 	Labels []string `redis-hash:"labels,omitempty" json:"labels,omitempty"`
+}
+
+func (j Job) RootFolder() string {
+	if j.Name != "" {
+		if _, err := uuid.FromString(j.Name); err == nil {
+			return j.Name
+		}
+	}
+
+	return j.ID
 }
 
 type SidecarAssetKind = string
