@@ -142,12 +142,17 @@ func (p *hybrikProvider) createJobReqFrom(ctx context.Context, job *db.Job) (hwr
 		return hwrapper.CreateJob{}, errors.Wrap(err, "creating the hybrik source element")
 	}
 
+	jobName := job.ID
+	if name := job.Name; name != "" {
+		jobName = name
+	}
+
 	cfg := jobCfg{
 		jobID:          job.ID,
 		sourceLocation: srcLocation,
 		destination: storageLocation{
 			provider: destStorageProvider,
-			path:     fmt.Sprintf("%s/%s", destinationPath, job.ID),
+			path:     fmt.Sprintf("%s/%s", destinationPath, jobName),
 		},
 		streamingParams:      job.StreamingParams,
 		executionEnvironment: job.ExecutionEnv,
