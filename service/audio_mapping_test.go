@@ -31,8 +31,8 @@ func TestAudioDownmixMapping(t *testing.T) {
 				},
 			},
 			want: [][]bool{
-				[]bool{true, false, true, false, true, false},
-				[]bool{false, true, true, false, false, true},
+				{true, false, true, false, true, false},
+				{false, true, true, false, false, true},
 			},
 		},
 		{

@@ -13,7 +13,7 @@ import (
 func Test_mcProvider_audioSelectorFrom(t *testing.T) {
 	audioSelectorKey := "Audio Selector 1"
 	defaultSelectorMap := map[string]mediaconvert.AudioSelector{
-		audioSelectorKey: mediaconvert.AudioSelector{
+		audioSelectorKey: {
 			DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
 		},
 	}

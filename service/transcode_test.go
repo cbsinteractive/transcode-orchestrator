@@ -572,7 +572,7 @@ func TestGetTranscodeJobLabels(t *testing.T) {
 			false,
 			"hls",
 			5,
-			[]string{"test1","test2"},
+			[]string{"test1", "test2"},
 			http.StatusOK,
 			map[string]interface{}{
 				"providerJobId": "provider-job-123",
