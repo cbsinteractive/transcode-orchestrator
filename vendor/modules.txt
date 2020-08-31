@@ -154,6 +154,9 @@ github.com/go-redis/redis/internal/hashtag
 github.com/go-redis/redis/internal/pool
 github.com/go-redis/redis/internal/proto
 github.com/go-redis/redis/internal/util
+# github.com/gofrs/uuid v3.3.0+incompatible
+## explicit
+github.com/gofrs/uuid
 # github.com/golang/protobuf v1.3.2
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes

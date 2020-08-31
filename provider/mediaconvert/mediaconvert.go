@@ -244,7 +244,7 @@ func (p *mcProvider) destinationPathFrom(job *db.Job) string {
 	} else {
 		basePath = p.cfg.Destination
 	}
-	return fmt.Sprintf("%s/%s/", strings.TrimRight(basePath, "/"), job.ID)
+	return fmt.Sprintf("%s/%s/", strings.TrimRight(basePath, "/"), job.RootFolder())
 }
 
 func (p *mcProvider) CreatePreset(_ context.Context, preset db.Preset) (string, error) {

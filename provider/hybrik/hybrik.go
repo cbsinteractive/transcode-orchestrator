@@ -147,7 +147,7 @@ func (p *hybrikProvider) createJobReqFrom(ctx context.Context, job *db.Job) (hwr
 		sourceLocation: srcLocation,
 		destination: storageLocation{
 			provider: destStorageProvider,
-			path:     fmt.Sprintf("%s/%s", destinationPath, job.ID),
+			path:     fmt.Sprintf("%s/%s", destinationPath, job.RootFolder()),
 		},
 		streamingParams:      job.StreamingParams,
 		executionEnvironment: job.ExecutionEnv,

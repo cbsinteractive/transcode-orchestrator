@@ -553,7 +553,8 @@ func (p *bitmovinProvider) outputFrom(ctx context.Context, job *db.Job) (inputID
 	if err != nil {
 		return "", "", err
 	}
-	destPath = path.Join(destURL.Path, job.ID)
+
+	destPath = path.Join(destURL.Path, job.RootFolder())
 
 	if alias := job.ExecutionEnv.OutputAlias; alias != "" {
 		return alias, destPath, nil
