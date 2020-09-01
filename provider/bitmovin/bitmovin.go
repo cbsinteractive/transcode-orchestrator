@@ -675,7 +675,7 @@ func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provide
 			"originalStatus": task.Status,
 		},
 		Output: provider.JobOutput{
-			Destination: strings.TrimRight(p.destinationForJob(job), "/") + "/" + job.ID + "/",
+			Destination: strings.TrimRight(p.destinationForJob(job), "/") + "/" + job.RootFolder() + "/",
 		},
 	}
 

@@ -285,7 +285,7 @@ func (p *flock) jobStatusFrom(job *db.Job, jobResp *JobResponse) *provider.JobSt
 		},
 		Status: statusFrom(jobResp),
 		Output: provider.JobOutput{
-			Destination: joinBaseAndParts(job.DestinationBasePath, job.ID),
+			Destination: joinBaseAndParts(job.DestinationBasePath, job.RootFolder()),
 		},
 		Labels: job.Labels,
 	}
