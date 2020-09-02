@@ -273,6 +273,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		CloudRegion:    encodingCloudRegion,
 		EncoderVersion: p.providerCfg.EncodingVersion,
 		Infrastructure: infrastructureSettings,
+		Labels:         job.Labels,
 	})
 	if err != nil {
 		subSeg.Close(err)
