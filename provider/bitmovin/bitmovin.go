@@ -743,9 +743,9 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 			for _, image := range overlays.Images {
 				watermark, err := p.api.Encoding.Filters.Watermark.Create(model.WatermarkFilter{
 					Name:  "imageOverlay",
-					Right: bitmovin.Int32Ptr(0),
-					Top:   bitmovin.Int32Ptr(0),
-					Unit:  model.PositionUnit_PERCENTS,
+					Right: bitmovin.Int32Ptr(int32(preset.Video.Crop.Right)),
+					Top:   bitmovin.Int32Ptr(int32(preset.Video.Crop.Top)),
+					Unit:  model.PositionUnit_PIXELS,
 					Image: image.URL,
 				})
 				if err != nil {
