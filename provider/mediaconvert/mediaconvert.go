@@ -377,6 +377,8 @@ func fileExtensionFromContainer(settings *mediaconvert.ContainerSettings) (strin
 		return ".mp4", nil
 	case mediaconvert.ContainerTypeMov:
 		return ".mov", nil
+	case mediaconvert.ContainerTypeWebm:
+		return ".webm", nil
 	default:
 		return "", fmt.Errorf("could not determine extension from output container %q", settings.Container)
 	}
@@ -392,6 +394,8 @@ func containerIdentifierFrom(settings *mediaconvert.ContainerSettings) (string, 
 		return "mp4", nil
 	case mediaconvert.ContainerTypeMov:
 		return "mov", nil
+	case mediaconvert.ContainerTypeWebm:
+		return "webm", nil
 	default:
 		return "", fmt.Errorf("could not determine container identifier from output container %q", settings.Container)
 	}
