@@ -21,6 +21,8 @@ const (
 	// Name identifies the MediaConvert provider by name
 	Name = "mediaconvert"
 
+	billingKey = "mediahub"
+
 	defaultAudioSampleRate     = 48000
 	defaultQueueHopTimeoutMins = 10
 )
@@ -128,6 +130,7 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 				Source: mediaconvert.TimecodeSourceZerobased,
 			},
 		},
+		Tags: p.billingTagsFrom(job.Labels),
 	}).Send(ctx)
 	if err != nil {
 		return nil, err
@@ -220,7 +223,7 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 					SegmentControl:         mediaconvert.HlsSegmentControlSegmentedFiles,
 				},
 			}
-		case mediaconvert.ContainerTypeMp4, mediaconvert.ContainerTypeMov:
+		case mediaconvert.ContainerTypeMp4, mediaconvert.ContainerTypeMov, mediaconvert.ContainerTypeWebm:
 			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
 				Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 				FileGroupSettings: &mediaconvert.FileGroupSettings{
@@ -431,6 +434,18 @@ func (p *mcProvider) Capabilities() provider.Capabilities {
 		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf", "mov"},
 		Destinations:  []string{"s3"},
 	}
+}
+
+func (p *mcProvider) billingTagsFrom(labels []string) map[string]string {
+	billing := make(map[string]string)
+
+	for _, label := range labels {
+		if strings.Contains(label, "bill") {
+			billing[billingKey] = label
+		}
+	}
+
+	return billing
 }
 
 func mediaconvertFactory(cfg *config.Config) (provider.TranscodingProvider, error) {

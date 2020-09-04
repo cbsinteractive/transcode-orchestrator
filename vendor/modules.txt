@@ -51,7 +51,7 @@ github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil
 github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
 github.com/aws/aws-sdk-go/service/xray
-# github.com/aws/aws-sdk-go-v2 v0.21.0
+# github.com/aws/aws-sdk-go-v2 v0.24.0
 ## explicit
 github.com/aws/aws-sdk-go-v2/aws
 github.com/aws/aws-sdk-go-v2/aws/awserr
@@ -61,7 +61,6 @@ github.com/aws/aws-sdk-go-v2/aws/ec2rolecreds
 github.com/aws/aws-sdk-go-v2/aws/endpointcreds
 github.com/aws/aws-sdk-go-v2/aws/endpoints
 github.com/aws/aws-sdk-go-v2/aws/external
-github.com/aws/aws-sdk-go-v2/aws/middleware
 github.com/aws/aws-sdk-go-v2/aws/processcreds
 github.com/aws/aws-sdk-go-v2/aws/ratelimit
 github.com/aws/aws-sdk-go-v2/aws/retry
@@ -103,8 +102,7 @@ github.com/aws/aws-xray-sdk-go/utils
 github.com/aws/aws-xray-sdk-go/xray
 github.com/aws/aws-xray-sdk-go/xraylog
 # github.com/awslabs/smithy-go v0.0.0-20200421200441-f1e89484c1b9
-github.com/awslabs/smithy-go/middleware
-github.com/awslabs/smithy-go/transport/http
+## explicit
 # github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
 github.com/beorn7/perks/quantile
 # github.com/bitmovin/bitmovin-api-sdk-go v1.37.0-alpha.0 => github.com/zsiec/bitmovin-api-sdk-go v1.30.0-alpha.0.0.20191206023358-8ff55f235fcf
