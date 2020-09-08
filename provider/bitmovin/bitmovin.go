@@ -740,23 +740,6 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 
 		presetSummary.VideoFilters = append(presetSummary.VideoFilters, deInterlace.Id)
 
-		if overlays := preset.Video.Overlays; overlays != nil && overlays.Images != nil {
-			for _, image := range overlays.Images {
-				watermark, err := p.api.Encoding.Filters.Watermark.Create(model.WatermarkFilter{
-					Name:  "imageOverlay",
-					Right: bitmovin.Int32Ptr(int32(preset.Video.Crop.Right)),
-					Top:   bitmovin.Int32Ptr(int32(preset.Video.Crop.Top)),
-					Unit:  model.PositionUnit_PIXELS,
-					Image: image.URL,
-				})
-				if err != nil {
-					return "", fmt.Errorf("creating watermark filter: %w", err)
-				}
-
-				presetSummary.VideoFilters = append(presetSummary.VideoFilters, watermark.Id)
-			}
-		}
-
 		if c := preset.Video.Crop; !c.Empty() {
 			f, err := p.api.Encoding.Filters.Crop.Create(model.CropFilter{
 				Left:   bitmovin.Int32Ptr(int32(c.Left)),
@@ -769,6 +752,23 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 			}
 
 			presetSummary.VideoFilters = append(presetSummary.VideoFilters, f.Id)
+		}
+
+		if overlays := preset.Video.Overlays; overlays != nil && overlays.Images != nil {
+			for _, image := range overlays.Images {
+				watermark, err := p.api.Encoding.Filters.Watermark.Create(model.WatermarkFilter{
+					Name:  "imageOverlay",
+					Right: bitmovin.Int32Ptr(0),
+					Top:   bitmovin.Int32Ptr(0),
+					Unit:  model.PositionUnit_PERCENTS,
+					Image: image.URL,
+				})
+				if err != nil {
+					return "", fmt.Errorf("creating watermark filter: %w", err)
+				}
+
+				presetSummary.VideoFilters = append(presetSummary.VideoFilters, watermark.Id)
+			}
 		}
 	}
 
