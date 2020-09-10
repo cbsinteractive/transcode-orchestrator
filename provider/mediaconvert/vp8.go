@@ -15,7 +15,7 @@ const (
 )
 
 func vp8CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, error) {
-	if preset.Video.GopUnit != defaultGopUnitVP8 {
+	if gu := preset.Video.GopUnit; len(gu) > 0 && gu != defaultGopUnitVP8 {
 		return nil, fmt.Errorf("can't configure gop unit: %v with vp8. Must use frames", preset.Video.GopUnit)
 	}
 
@@ -32,20 +32,13 @@ func vp8CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, e
 	return &mediaconvert.VideoCodecSettings{
 		Codec: mediaconvert.VideoCodecVp8,
 		Vp8Settings: &mediaconvert.Vp8Settings{
-			Bitrate:         aws.Int64(bitrate),
-			GopSize:         aws.Float64(gopSize),
-			RateControlMode: mediaconvert.Vp8RateControlModeVbr,
-			//TODO: which of these are needed below
-			//FramerateControl
-			//FramerateConversionAlgorithm
-			//FramerateDenominator
-			//FramerateNumerator
-			//HrdBufferSize
-			//MaxBitrate
-			//ParControl
-			//ParDenominator
-			//ParNumerator
-			//QualitytuningLevel
+			Bitrate:          aws.Int64(bitrate),
+			GopSize:          aws.Float64(gopSize),
+			RateControlMode:  mediaconvert.Vp8RateControlModeVbr,
+			FramerateControl: mediaconvert.Vp8FramerateControlInitializeFromSource,
+			ParControl:       mediaconvert.Vp8ParControlSpecified,
+			ParNumerator:     aws.Int64(1),
+			ParDenominator:   aws.Int64(1),
 		},
 	}, nil
 }

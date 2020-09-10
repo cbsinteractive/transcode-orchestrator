@@ -424,7 +424,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
 				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
-				Labels:       []string{"bill:some-bu"},
+				Labels:       []string{"bill:some-bu", "some-more-labels"},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -432,7 +432,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 				Role:  aws.String("some-role"),
 				Queue: aws.String("some:default:queue:arn"),
 				Tags: map[string]string{
-					"bill:some-bu": "true",
+					"bill:some-bu":     "true",
+					"some-more-labels": "true",
 				},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
