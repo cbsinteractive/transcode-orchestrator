@@ -84,6 +84,8 @@ func containerFrom(container string) (mediaconvert.ContainerType, error) {
 		return mediaconvert.ContainerTypeMp4, nil
 	case "mov":
 		return mediaconvert.ContainerTypeMov, nil
+	case "webm":
+		return mediaconvert.ContainerTypeWebm, nil
 	default:
 		return "", fmt.Errorf("container %q not supported with mediaconvert", container)
 	}
@@ -144,6 +146,13 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 		settings, err := h265CodecSettingsFrom(preset)
 		if err != nil {
 			return nil, errors.Wrap(err, "building h265 codec settings")
+		}
+
+		videoPreset.CodecSettings = settings
+	case "vp8":
+		settings, err := vp8CodecSettingsFrom(preset)
+		if err != nil {
+			return nil, fmt.Errorf("building vp8 codec settings: %w", err)
 		}
 
 		videoPreset.CodecSettings = settings
@@ -235,14 +244,14 @@ func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPrep
 func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 	audioPreset := mediaconvert.AudioDescription{}
 
+	bitrate, err := strconv.ParseInt(preset.Audio.Bitrate, 10, 64)
+	if err != nil {
+		return mediaconvert.AudioDescription{}, errors.Wrapf(err, "parsing audio bitrate %q to int64", preset.Audio.Bitrate)
+	}
+
 	codec := strings.ToLower(preset.Audio.Codec)
 	switch codec {
 	case "aac":
-		bitrate, err := strconv.ParseInt(preset.Audio.Bitrate, 10, 64)
-		if err != nil {
-			return mediaconvert.AudioDescription{}, errors.Wrapf(err, "parsing audio bitrate %q to int64", preset.Audio.Bitrate)
-		}
-
 		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
 			Codec: mediaconvert.AudioCodecAac,
 			AacSettings: &mediaconvert.AacSettings{
@@ -251,6 +260,15 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 				CodecProfile:    mediaconvert.AacCodecProfileLc,
 				CodingMode:      mediaconvert.AacCodingModeCodingMode20,
 				RateControlMode: mediaconvert.AacRateControlModeCbr,
+			},
+		}
+	case "opus":
+		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecOpus,
+			OpusSettings: &mediaconvert.OpusSettings{
+				Channels:   aws.Int64(2),
+				Bitrate:    aws.Int64(bitrate),
+				SampleRate: aws.Int64(defaultAudioSampleRate),
 			},
 		}
 	default:

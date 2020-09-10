@@ -128,6 +128,7 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 				Source: mediaconvert.TimecodeSourceZerobased,
 			},
 		},
+		Tags: p.tagsFrom(job.Labels),
 	}).Send(ctx)
 	if err != nil {
 		return nil, err
@@ -220,7 +221,7 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 					SegmentControl:         mediaconvert.HlsSegmentControlSegmentedFiles,
 				},
 			}
-		case mediaconvert.ContainerTypeMp4, mediaconvert.ContainerTypeMov:
+		case mediaconvert.ContainerTypeMp4, mediaconvert.ContainerTypeMov, mediaconvert.ContainerTypeWebm:
 			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
 				Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 				FileGroupSettings: &mediaconvert.FileGroupSettings{
@@ -377,6 +378,8 @@ func fileExtensionFromContainer(settings *mediaconvert.ContainerSettings) (strin
 		return ".mp4", nil
 	case mediaconvert.ContainerTypeMov:
 		return ".mov", nil
+	case mediaconvert.ContainerTypeWebm:
+		return ".webm", nil
 	default:
 		return "", fmt.Errorf("could not determine extension from output container %q", settings.Container)
 	}
@@ -392,6 +395,8 @@ func containerIdentifierFrom(settings *mediaconvert.ContainerSettings) (string, 
 		return "mp4", nil
 	case mediaconvert.ContainerTypeMov:
 		return "mov", nil
+	case mediaconvert.ContainerTypeWebm:
+		return "webm", nil
 	default:
 		return "", fmt.Errorf("could not determine container identifier from output container %q", settings.Container)
 	}
@@ -427,6 +432,16 @@ func (p *mcProvider) Capabilities() provider.Capabilities {
 		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf", "mov"},
 		Destinations:  []string{"s3"},
 	}
+}
+
+func (p *mcProvider) tagsFrom(labels []string) map[string]string {
+	tags := make(map[string]string)
+
+	for _, label := range labels {
+		tags[label] = "true"
+	}
+
+	return tags
 }
 
 func mediaconvertFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
