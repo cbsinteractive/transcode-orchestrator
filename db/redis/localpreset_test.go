@@ -37,8 +37,9 @@ func TestCreateLocalPreset(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectedItems := map[string]string{
-		"preset_name":    "test",
-		"preset_twopass": "false",
+		"preset_name":                "test",
+		"preset_twopass":             "false",
+		"preset_audio_normalization": "false",
 	}
 	if !reflect.DeepEqual(items, expectedItems) {
 		t.Errorf("Wrong preset hash returned from Redis. Want %#v. Got %#v", expectedItems, items)
@@ -103,8 +104,9 @@ func TestUpdateLocalPreset(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectedItems := map[string]string{
-		"preset_name":    "test-different",
-		"preset_twopass": "false",
+		"preset_name":                "test-different",
+		"preset_twopass":             "false",
+		"preset_audio_normalization": "false",
 	}
 	if !reflect.DeepEqual(items, expectedItems) {
 		t.Errorf("Wrong presetmap hash returned from Redis. Want %#v. Got %#v", expectedItems, items)

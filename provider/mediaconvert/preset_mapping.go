@@ -244,6 +244,13 @@ func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPrep
 func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 	audioPreset := mediaconvert.AudioDescription{}
 
+	if preset.Audio.Normalization {
+		audioPreset.AudioNormalizationSettings = &mediaconvert.AudioNormalizationSettings{
+			Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17701,
+			AlgorithmControl: mediaconvert.AudioNormalizationAlgorithmControlCorrectAudio,
+		}
+	}
+
 	bitrate, err := strconv.ParseInt(preset.Audio.Bitrate, 10, 64)
 	if err != nil {
 		return mediaconvert.AudioDescription{}, errors.Wrapf(err, "parsing audio bitrate %q to int64", preset.Audio.Bitrate)
