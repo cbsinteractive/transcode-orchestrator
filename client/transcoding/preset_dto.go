@@ -107,6 +107,7 @@ type DolbyVisionSettings struct {
 
 // AudioPreset defines the set of parameters for audio on a given preset
 type AudioPreset struct {
-	Codec   string `json:"codec,omitempty"`
-	Bitrate string `json:"bitrate,omitempty"`
+	Codec         string `json:"codec,omitempty"`
+	Bitrate       string `json:"bitrate,omitempty"`
+	Normalization bool   `json:"normalization,omitempty"`
 }

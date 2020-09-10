@@ -318,8 +318,9 @@ type DolbyVisionSettings struct {
 
 // AudioPreset defines the set of parameters for audio on a given preset
 type AudioPreset struct {
-	Codec   string `json:"codec,omitempty" redis-hash:"codec,omitempty"`
-	Bitrate string `json:"bitrate,omitempty" redis-hash:"bitrate,omitempty"`
+	Codec         string `json:"codec,omitempty" redis-hash:"codec,omitempty"`
+	Bitrate       string `json:"bitrate,omitempty" redis-hash:"bitrate,omitempty"`
+	Normalization bool   `json:"normalization,omitempty" redis-hash:"normalization,omitempty"`
 }
 
 // PresetMap represents the preset that is persisted in the repository of the
