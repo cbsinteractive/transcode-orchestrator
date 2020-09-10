@@ -432,7 +432,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 				Role:  aws.String("some-role"),
 				Queue: aws.String("some:default:queue:arn"),
 				Tags: map[string]string{
-					"mediahub": "bill:some-bu",
+					"bill:some-bu": "true",
 				},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{

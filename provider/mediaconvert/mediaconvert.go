@@ -21,8 +21,6 @@ const (
 	// Name identifies the MediaConvert provider by name
 	Name = "mediaconvert"
 
-	billingKey = "mediahub"
-
 	defaultAudioSampleRate     = 48000
 	defaultQueueHopTimeoutMins = 10
 )
@@ -440,8 +438,8 @@ func (p *mcProvider) billingTagsFrom(labels []string) map[string]string {
 	billing := make(map[string]string)
 
 	for _, label := range labels {
-		if strings.Contains(label, "bill") {
-			billing[billingKey] = label
+		if strings.HasPrefix(label, "bill") {
+			billing[label] = "true"
 		}
 	}
 
