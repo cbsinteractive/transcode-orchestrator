@@ -419,14 +419,14 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		vodHLSManifests = []model.ManifestResource{{ManifestId: manifestID}}
 	}
 
-	//if o := job.ExplicitKeyframeOffsets; len(o) > 0 {
-	//	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-keyframes")
-	//	if err = p.createExplicitKeyframes(enc.Id, o); err != nil {
-	//		subSeg.Close(err)
-	//		return nil, fmt.Errorf("creating keyframes: %w", err)
-	//	}
-	//	subSeg.Close(nil)
-	//}
+	if o := job.ExplicitKeyframeOffsets; len(o) > 0 {
+		subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-keyframes")
+		if err = p.createExplicitKeyframes(enc.Id, o); err != nil {
+			subSeg.Close(err)
+			return nil, fmt.Errorf("creating keyframes: %w", err)
+		}
+		subSeg.Close(nil)
+	}
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-start-encoding")
 	encResp, err := p.api.Encoding.Encodings.Start(enc.Id, model.StartEncodingRequest{VodHlsManifests: vodHLSManifests})
