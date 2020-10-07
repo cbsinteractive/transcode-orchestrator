@@ -22,7 +22,7 @@ const (
 	Name = "mediaconvert"
 
 	defaultAudioSampleRate     = 48000
-	defaultQueueHopTimeoutMins = 10
+	defaultQueueHopTimeoutMins = 1
 )
 
 func init() {
