@@ -302,11 +302,11 @@ func vbrLevel(bitrate int64) int64 {
 	case bKbps == 0:
 		level = 4
 	case bKbps <= 128:
-		level = (bKbps - 64) / 16
+		level = (bKbps / 16) - 4
 	case bKbps > 128 && bKbps <= 256:
 		level = bKbps / 32
 	case bKbps > 256:
-		level = (bKbps + 256) / 64
+		level = (bKbps / 64) + 4
 	}
 
 	if level < -1 {
