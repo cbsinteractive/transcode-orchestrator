@@ -82,26 +82,6 @@ var (
 		},
 	}
 
-	vp8Preset = db.Preset{
-		Name:        "preset_name",
-		Description: "test_desc",
-		Container:   "webm",
-		RateControl: "VBR",
-		Video: db.VideoPreset{
-			Width:   "300",
-			Height:  "400",
-			Codec:   "vp8",
-			Bitrate: "400000",
-			GopSize: "120",
-			GopUnit: "frames",
-		},
-		Audio: db.AudioPreset{
-			Codec:         "opus",
-			Bitrate:       "20000",
-			Normalization: true,
-		},
-	}
-
 	tcBurninPreset = db.Preset{
 		Name:        "preset_name",
 		Description: "test_desc",
@@ -424,6 +404,28 @@ func Test_mcProvider_DeletePreset(t *testing.T) {
 }
 
 func Test_mcProvider_Transcode(t *testing.T) {
+	vp8Preset := func(audioCodec string) db.Preset {
+		return db.Preset{
+			Name:        "preset_name",
+			Description: "test_desc",
+			Container:   "webm",
+			RateControl: "VBR",
+			Video: db.VideoPreset{
+				Width:   "300",
+				Height:  "400",
+				Codec:   "vp8",
+				Bitrate: "400000",
+				GopSize: "120",
+				GopUnit: "frames",
+			},
+			Audio: db.AudioPreset{
+				Codec:         audioCodec,
+				Bitrate:       "20000",
+				Normalization: true,
+			},
+		}
+	}
+
 	tests := []struct {
 		cfg         *config.MediaConvert
 		name        string
@@ -913,6 +915,102 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			},
 		},
 		{
+			name: "VP8/Vorbis/Webm",
+			job: &db.Job{
+				ID:           "jobID",
+				ProviderName: Name,
+				SourceMedia:  "s3://some/path.webm",
+				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.webm"}},
+			},
+			preset:      vp8Preset("vorbis"),
+			destination: "s3://some/destination",
+			wantJobReq: mediaconvert.CreateJobInput{
+				Role:  aws.String(""),
+				Queue: aws.String(""),
+				Tags:  map[string]string{},
+				Settings: &mediaconvert.JobSettings{
+					Inputs: []mediaconvert.Input{
+						{
+							AudioSelectors: map[string]mediaconvert.AudioSelector{
+								"Audio Selector 1": {
+									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+								},
+							},
+							FileInput: aws.String("s3://some/path.webm"),
+							VideoSelector: &mediaconvert.VideoSelector{
+								ColorSpace: mediaconvert.ColorSpaceFollow,
+							},
+							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+						},
+					},
+					OutputGroups: []mediaconvert.OutputGroup{
+						{
+							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+								FileGroupSettings: &mediaconvert.FileGroupSettings{
+									Destination: aws.String("s3://some/destination/jobID/m"),
+								},
+							},
+							Outputs: []mediaconvert.Output{
+								{
+									NameModifier: aws.String("file1"),
+									ContainerSettings: &mediaconvert.ContainerSettings{
+										Container: mediaconvert.ContainerTypeWebm,
+									},
+									VideoDescription: &mediaconvert.VideoDescription{
+										Height:            aws.Int64(400),
+										Width:             aws.Int64(300),
+										RespondToAfd:      mediaconvert.RespondToAfdNone,
+										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+										AntiAlias:         mediaconvert.AntiAliasEnabled,
+										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+											Deinterlacer: &mediaconvert.Deinterlacer{
+												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+												Control:   mediaconvert.DeinterlacerControlNormal,
+												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+											},
+										},
+										CodecSettings: &mediaconvert.VideoCodecSettings{
+											Codec: mediaconvert.VideoCodecVp8,
+											Vp8Settings: &mediaconvert.Vp8Settings{
+												Bitrate:          aws.Int64(400000),
+												GopSize:          aws.Float64(120),
+												RateControlMode:  mediaconvert.Vp8RateControlModeVbr,
+												FramerateControl: mediaconvert.Vp8FramerateControlInitializeFromSource,
+												ParControl:       mediaconvert.Vp8ParControlSpecified,
+												ParNumerator:     aws.Int64(1),
+												ParDenominator:   aws.Int64(1),
+											},
+										},
+									},
+									AudioDescriptions: []mediaconvert.AudioDescription{
+										{
+											AudioNormalizationSettings: &mediaconvert.AudioNormalizationSettings{
+												Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17701,
+												AlgorithmControl: mediaconvert.AudioNormalizationAlgorithmControlCorrectAudio,
+											},
+											CodecSettings: &mediaconvert.AudioCodecSettings{
+												Codec: mediaconvert.AudioCodecVorbis,
+												VorbisSettings: &mediaconvert.VorbisSettings{
+													Channels:   aws.Int64(2),
+													SampleRate: aws.Int64(defaultAudioSampleRate),
+												},
+											},
+										},
+									},
+									Extension: aws.String("webm"),
+								},
+							},
+						},
+					},
+					TimecodeConfig: &mediaconvert.TimecodeConfig{
+						Source: mediaconvert.TimecodeSourceZerobased,
+					},
+				},
+			},
+		},
+		{
 			name: "VP8/Opus/Webm",
 			job: &db.Job{
 				ID:           "jobID",
@@ -920,7 +1018,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 				SourceMedia:  "s3://some/path.webm",
 				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.webm"}},
 			},
-			preset:      vp8Preset,
+			preset:      vp8Preset("opus"),
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
 				Role:  aws.String(""),

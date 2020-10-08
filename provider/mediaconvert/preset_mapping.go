@@ -278,6 +278,20 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 				SampleRate: aws.Int64(defaultAudioSampleRate),
 			},
 		}
+	case "vorbis":
+		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecVorbis,
+			VorbisSettings: &mediaconvert.VorbisSettings{
+				Channels:   aws.Int64(2),
+				SampleRate: aws.Int64(defaultAudioSampleRate),
+				//VbrQuality:
+
+				// Optional. Specify the variable audio quality of this Vorbis output from -1
+				// (lowest quality, ~45 kbit/s) to 10 (highest quality, ~500 kbit/s). The default
+				// value is 4 (~128 kbit/s). Values 5 and 6 are approximately 160 and 192 kbit/s,
+				// respectively.
+			},
+		}
 	default:
 		return mediaconvert.AudioDescription{}, fmt.Errorf("audio codec %q is not yet supported with mediaconvert", codec)
 	}
