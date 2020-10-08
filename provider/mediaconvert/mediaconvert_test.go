@@ -485,6 +485,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 									NameModifier: aws.String("file1"),
 									ContainerSettings: &mediaconvert.ContainerSettings{
 										Container: mediaconvert.ContainerTypeMp4,
+										Mp4Settings: &mediaconvert.Mp4Settings{
+											Mp4MajorBrand: aws.String("isom"),
+										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
 										Height:            aws.Int64(400),
@@ -587,6 +590,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 									NameModifier: aws.String("file1"),
 									ContainerSettings: &mediaconvert.ContainerSettings{
 										Container: mediaconvert.ContainerTypeMp4,
+										Mp4Settings: &mediaconvert.Mp4Settings{
+											Mp4MajorBrand: aws.String("isom"),
+										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
 										Height:            aws.Int64(400),
@@ -689,6 +695,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 									NameModifier: aws.String("file1"),
 									ContainerSettings: &mediaconvert.ContainerSettings{
 										Container: mediaconvert.ContainerTypeMp4,
+										Mp4Settings: &mediaconvert.Mp4Settings{
+											Mp4MajorBrand: aws.String("isom"),
+										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
 										Height:             aws.Int64(400),
@@ -782,6 +791,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 									NameModifier: aws.String("file1"),
 									ContainerSettings: &mediaconvert.ContainerSettings{
 										Container: mediaconvert.ContainerTypeMp4,
+										Mp4Settings: &mediaconvert.Mp4Settings{
+											Mp4MajorBrand: aws.String("isom"),
+										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
 										Height:            aws.Int64(400),
@@ -875,6 +887,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 									NameModifier: aws.String("file1"),
 									ContainerSettings: &mediaconvert.ContainerSettings{
 										Container: mediaconvert.ContainerTypeMp4,
+										Mp4Settings: &mediaconvert.Mp4Settings{
+											Mp4MajorBrand: aws.String("isom"),
+										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
 										Height:            aws.Int64(400),
@@ -1155,6 +1170,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 									NameModifier: aws.String("file1"),
 									ContainerSettings: &mediaconvert.ContainerSettings{
 										Container: mediaconvert.ContainerTypeMp4,
+										Mp4Settings: &mediaconvert.Mp4Settings{
+											Mp4MajorBrand: aws.String("isom"),
+										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
 										Height:            aws.Int64(400),
@@ -1393,6 +1411,9 @@ func Test_mcProvider_Transcode(t *testing.T) {
 		//							NameModifier: aws.String("file1"),
 		//							ContainerSettings: &mediaconvert.ContainerSettings{
 		//								Container: mediaconvert.ContainerTypeMp4,
+		//								Mp4Settings: &mediaconvert.Mp4Settings{
+		//									Mp4MajorBrand: aws.String("isom"),
+		//								},
 		//							},
 		//							AudioDescriptions: []mediaconvert.AudioDescription{
 		//								{
@@ -1545,12 +1566,18 @@ func Test_mcProvider_JobStatus(t *testing.T) {
 									},
 									ContainerSettings: &mediaconvert.ContainerSettings{
 										Container: mediaconvert.ContainerTypeMp4,
+										Mp4Settings: &mediaconvert.Mp4Settings{
+											Mp4MajorBrand: aws.String("isom"),
+										},
 									},
 								},
 								{
 									NameModifier: aws.String("_another_modifier"),
 									ContainerSettings: &mediaconvert.ContainerSettings{
 										Container: mediaconvert.ContainerTypeMp4,
+										Mp4Settings: &mediaconvert.Mp4Settings{
+											Mp4MajorBrand: aws.String("isom"),
+										},
 									},
 								},
 								{
