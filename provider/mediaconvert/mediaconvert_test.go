@@ -420,7 +420,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			},
 			Audio: db.AudioPreset{
 				Codec:         audioCodec,
-				Bitrate:       "20000",
+				Bitrate:       "96000",
 				Normalization: true,
 			},
 		}
@@ -995,6 +995,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 												VorbisSettings: &mediaconvert.VorbisSettings{
 													Channels:   aws.Int64(2),
 													SampleRate: aws.Int64(defaultAudioSampleRate),
+													VbrQuality: aws.Int64(2),
 												},
 											},
 										},
@@ -1090,7 +1091,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 												Codec: mediaconvert.AudioCodecOpus,
 												OpusSettings: &mediaconvert.OpusSettings{
 													Channels:   aws.Int64(2),
-													Bitrate:    aws.Int64(20000),
+													Bitrate:    aws.Int64(96000),
 													SampleRate: aws.Int64(defaultAudioSampleRate),
 												},
 											},

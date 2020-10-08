@@ -284,12 +284,7 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 			VorbisSettings: &mediaconvert.VorbisSettings{
 				Channels:   aws.Int64(2),
 				SampleRate: aws.Int64(defaultAudioSampleRate),
-				//VbrQuality:
-
-				// Optional. Specify the variable audio quality of this Vorbis output from -1
-				// (lowest quality, ~45 kbit/s) to 10 (highest quality, ~500 kbit/s). The default
-				// value is 4 (~128 kbit/s). Values 5 and 6 are approximately 160 and 192 kbit/s,
-				// respectively.
+				VbrQuality: aws.Int64(vbrLevel(bitrate)),
 			},
 		}
 	default:
@@ -297,4 +292,28 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 	}
 
 	return audioPreset, nil
+}
+
+func vbrLevel(bitrate int64) int64 {
+	var level int64
+	bKbps := bitrate / 1000
+
+	switch {
+	case bKbps == 0:
+		level = 4
+	case bKbps <= 128:
+		level = (bKbps - 64) / 16
+	case bKbps > 128 && bKbps <= 256:
+		level = bKbps / 32
+	case bKbps > 256:
+		level = (bKbps + 256) / 64
+	}
+
+	if level < -1 {
+		level = -1
+	} else if level > 10 {
+		level = 10
+	}
+
+	return level
 }
