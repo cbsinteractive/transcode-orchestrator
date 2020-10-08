@@ -96,7 +96,13 @@ func containerSettingsFrom(container mediaconvert.ContainerType) *mediaconvert.C
 		Container: container,
 	}
 
-	if container == mediaconvert.ContainerTypeMov {
+	switch container {
+	case mediaconvert.ContainerTypeMp4:
+		cs.Mp4Settings = &mediaconvert.Mp4Settings{
+			//ISO specification for base media file format
+			Mp4MajorBrand: aws.String("isom"),
+		}
+	case mediaconvert.ContainerTypeMov:
 		cs.MovSettings = &mediaconvert.MovSettings{
 			ClapAtom:           mediaconvert.MovClapAtomExclude,
 			CslgAtom:           mediaconvert.MovCslgAtomInclude,
