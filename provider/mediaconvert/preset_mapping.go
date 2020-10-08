@@ -278,9 +278,42 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 				SampleRate: aws.Int64(defaultAudioSampleRate),
 			},
 		}
+	case "vorbis":
+		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecVorbis,
+			VorbisSettings: &mediaconvert.VorbisSettings{
+				Channels:   aws.Int64(2),
+				SampleRate: aws.Int64(defaultAudioSampleRate),
+				VbrQuality: aws.Int64(vbrLevel(bitrate)),
+			},
+		}
 	default:
 		return mediaconvert.AudioDescription{}, fmt.Errorf("audio codec %q is not yet supported with mediaconvert", codec)
 	}
 
 	return audioPreset, nil
+}
+
+func vbrLevel(bitrate int64) int64 {
+	var level int64
+	bKbps := bitrate / 1000
+
+	switch {
+	case bKbps == 0:
+		level = 4
+	case bKbps <= 128:
+		level = (bKbps / 16) - 4
+	case bKbps > 128 && bKbps <= 256:
+		level = bKbps / 32
+	case bKbps > 256:
+		level = (bKbps / 64) + 4
+	}
+
+	if level < -1 {
+		level = -1
+	} else if level > 10 {
+		level = 10
+	}
+
+	return level
 }
