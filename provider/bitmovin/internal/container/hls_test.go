@@ -241,7 +241,7 @@ func TestNewHLSAssembler(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			err := NewHLSAssembler(tt.api).Assemble(tt.cfg)
 			if shouldReturn := test.AssertWantErr(err, tt.wantErr, "Assemble()", t); shouldReturn {

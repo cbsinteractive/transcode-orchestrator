@@ -156,7 +156,7 @@ func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			p, err := tt.provider.transcodeElementFromPreset(tt.preset, tt.transcodeCfg.uid, jobCfg{
 				destination:       tt.transcodeCfg.destination,
@@ -264,7 +264,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 				}
 
 				for _, tt := range tests {
-					tt := tt
+
 					t.Run(tt.name, func(t *testing.T) {
 						if g, e := tt.got, tt.want; !reflect.DeepEqual(g, e) {
 							t.Fatalf("%s: got %q, expected %q", tt.name, g, e)
@@ -308,7 +308,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 				}
 
 				for _, tt := range tests {
-					tt := tt
+
 					t.Run(tt.name, func(t *testing.T) {
 						if g, e := tt.got, tt.want; !reflect.DeepEqual(g, e) {
 							t.Fatalf("%s: got %q, expected %q", tt.name, g, e)
@@ -342,7 +342,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 				}
 
 				for _, tt := range tests {
-					tt := tt
+
 					t.Run(tt.name, func(t *testing.T) {
 						if g, e := tt.got, tt.want; !reflect.DeepEqual(g, e) {
 							t.Fatalf("%s: got %v, expected %v", tt.name, g, e)
@@ -405,7 +405,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			p := &hybrikProvider{
 				config: &config.Hybrik{
@@ -852,7 +852,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			fakeDB, err := fakeDBWithPreset(tt.preset)
 			if err != nil {
@@ -1147,7 +1147,7 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			fakeDB, err := fakeDBWithPreset(defaultPreset)
 			if err != nil {
