@@ -252,7 +252,7 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 
 	if preset.Audio.Normalization {
 		audioPreset.AudioNormalizationSettings = &mediaconvert.AudioNormalizationSettings{
-			Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17701,
+			Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17703,
 			AlgorithmControl: mediaconvert.AudioNormalizationAlgorithmControlCorrectAudio,
 		}
 	}

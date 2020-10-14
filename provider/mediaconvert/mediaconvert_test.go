@@ -1002,7 +1002,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 									AudioDescriptions: []mediaconvert.AudioDescription{
 										{
 											AudioNormalizationSettings: &mediaconvert.AudioNormalizationSettings{
-												Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17701,
+												Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17703,
 												AlgorithmControl: mediaconvert.AudioNormalizationAlgorithmControlCorrectAudio,
 											},
 											CodecSettings: &mediaconvert.AudioCodecSettings{
@@ -1099,7 +1099,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 									AudioDescriptions: []mediaconvert.AudioDescription{
 										{
 											AudioNormalizationSettings: &mediaconvert.AudioNormalizationSettings{
-												Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17701,
+												Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17703,
 												AlgorithmControl: mediaconvert.AudioNormalizationAlgorithmControlCorrectAudio,
 											},
 											CodecSettings: &mediaconvert.AudioCodecSettings{
