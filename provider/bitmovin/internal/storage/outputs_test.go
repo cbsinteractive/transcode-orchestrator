@@ -118,7 +118,7 @@ func TestNewOutput(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			id, err := NewOutput(tt.destLoc, tt.api, &tt.cfg)
 			if shouldReturn := test.AssertWantErr(err, tt.wantErr, "NewOutput()", t); shouldReturn {

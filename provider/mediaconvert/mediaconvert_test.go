@@ -331,7 +331,7 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			client := &testMediaConvertClient{t: t}
 
@@ -1443,7 +1443,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			repo, err := fakeDBWithPresets(tt.preset)
 			if err != nil {
@@ -1620,7 +1620,7 @@ func Test_mcProvider_JobStatus(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			client := &testMediaConvertClient{
 				t:                   t,

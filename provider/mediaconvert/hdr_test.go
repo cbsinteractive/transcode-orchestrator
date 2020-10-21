@@ -57,7 +57,7 @@ func Test_parseMasterDisplay(t *testing.T) {
 	}
 
 	for _, tt := range test {
-		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			display, err := parseMasterDisplay(tt.encodedStr)
 			if (err != nil) != tt.wantErr {
