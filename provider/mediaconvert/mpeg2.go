@@ -45,7 +45,7 @@ type mpeg2 struct {
 	*/
 }
 
-func (m mpeg2) apply(p db.Preset) mpeg2 {
+func (m mpeg2) apply(p db.Preset) (mpeg2) {
 	return m //TODO
 }
 
@@ -64,7 +64,7 @@ func (m mpeg2) generate() (*mediaconvert.VideoCodecSettings, error) {
 var mpeg2default = mpeg2{
 	CodecProfile:    "PROFILE_422",
 	Bitrate:         50000000,
-	GopSize:         12,
+	GopSize:         60,
 	InterlaceMode:   "TOP_FIELD",
 	RateControlMode: "CBR",
 
