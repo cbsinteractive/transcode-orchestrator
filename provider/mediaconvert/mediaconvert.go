@@ -128,7 +128,8 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 				Source: mediaconvert.TimecodeSourceZerobased,
 			},
 		},
-		Tags: p.tagsFrom(job.Labels),
+		Tags:              p.tagsFrom(job.Labels),
+		BillingTagsSource: "JOB",
 	}).Send(ctx)
 	if err != nil {
 		return nil, err
@@ -438,7 +439,9 @@ func (p *mcProvider) tagsFrom(labels []string) map[string]string {
 	tags := make(map[string]string)
 
 	for _, label := range labels {
-		tags[label] = "true"
+		if strings.HasPrefix(label, "bill:") {
+			tags["bu"] = label
+		}
 	}
 
 	return tags
