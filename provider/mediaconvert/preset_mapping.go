@@ -202,11 +202,6 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 			Mode:      mediaconvert.DeinterlacerModeDeinterlace,
 		}
 	default:
-		videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
-			Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-			Control:   mediaconvert.DeinterlacerControlNormal,
-			Mode:      mediaconvert.DeinterlacerModeAdaptive,
-		}
 	}
 
 	return &videoPreset, nil
