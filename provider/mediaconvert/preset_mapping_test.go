@@ -1,6 +1,12 @@
 package mediaconvert
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+
+	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	"github.com/aws/aws-sdk-go/aws"
+)
 
 func Test_vbrLevel(t *testing.T) {
 	tests := []struct {
@@ -45,5 +51,64 @@ func Test_vbrLevel(t *testing.T) {
 				t.Errorf("vbrLevel() = %v, want %v", got, tt.wantLevel)
 			}
 		})
+	}
+}
+
+func TestAudioSplit(t *testing.T) {
+	input := mediaconvert.AudioDescription{
+		CodecSettings: &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecWav,
+			WavSettings: &mediaconvert.WavSettings{
+				BitDepth:   aws.Int64(24),
+				Channels:   aws.Int64(2),
+				SampleRate: aws.Int64(48000),
+				Format:     "RIFF",
+			},
+		},
+	}
+
+	want := []mediaconvert.AudioDescription{{
+		RemixSettings: &mediaconvert.RemixSettings{
+			ChannelMapping: &mediaconvert.ChannelMapping{
+				OutputChannels: []mediaconvert.OutputChannelMapping{{
+					InputChannels: []int64{0, -60},
+				},
+				}},
+			ChannelsIn:  aws.Int64(2),
+			ChannelsOut: aws.Int64(1),
+		},
+		CodecSettings: &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecWav,
+			WavSettings: &mediaconvert.WavSettings{
+				BitDepth:   aws.Int64(24),
+				Channels:   aws.Int64(1),
+				SampleRate: aws.Int64(48000),
+				Format:     "RIFF",
+			},
+		},
+	}, {
+		RemixSettings: &mediaconvert.RemixSettings{
+			ChannelMapping: &mediaconvert.ChannelMapping{
+				OutputChannels: []mediaconvert.OutputChannelMapping{{
+					InputChannels: []int64{-60, 0},
+				},
+				}},
+			ChannelsIn:  aws.Int64(2),
+			ChannelsOut: aws.Int64(1),
+		},
+		CodecSettings: &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecWav,
+			WavSettings: &mediaconvert.WavSettings{
+				BitDepth:   aws.Int64(24),
+				Channels:   aws.Int64(1),
+				SampleRate: aws.Int64(48000),
+				Format:     "RIFF",
+			},
+		},
+	}}
+
+	have := audioSplit(input)
+	if !reflect.DeepEqual(have, want) {
+		t.Fatalf("bad split:\nhave:\t\t%v\nwant:\t\t%v", have, want)
 	}
 }

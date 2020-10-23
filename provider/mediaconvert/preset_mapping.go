@@ -44,7 +44,11 @@ func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, erro
 		if err != nil {
 			return mediaconvert.Output{}, errors.Wrap(err, "generating audio preset")
 		}
-		audioPresets = append(audioPresets, audioPreset)
+		if preset.Audio.DiscreteTracks {
+			audioPresets = audioSplit(audioPreset)
+		} else {
+			audioPresets = append(audioPresets, audioPreset)
+		}
 	}
 
 	output := mediaconvert.Output{
@@ -76,6 +80,8 @@ func providerStatusFrom(status mediaconvert.JobStatus) provider.Status {
 func containerFrom(container string) (mediaconvert.ContainerType, error) {
 	container = strings.ToLower(container)
 	switch container {
+	case "mxf":
+		return mediaconvert.ContainerTypeMxf, nil
 	case "m3u8":
 		return mediaconvert.ContainerTypeM3u8, nil
 	case "cmaf":
@@ -97,6 +103,8 @@ func containerSettingsFrom(container mediaconvert.ContainerType) *mediaconvert.C
 	}
 
 	switch container {
+	case mediaconvert.ContainerTypeMxf:
+		// TODO(as)
 	case mediaconvert.ContainerTypeMp4:
 		cs.Mp4Settings = &mediaconvert.Mp4Settings{
 			//ISO specification for base media file format
@@ -141,6 +149,8 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 
 	codec := strings.ToLower(preset.Video.Codec)
 	switch codec {
+	case "xdcam":
+		// TODO(as)
 	case "h264":
 		settings, err := h264CodecSettingsFrom(preset)
 		if err != nil {
@@ -247,6 +257,43 @@ func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPrep
 	return videoPreprocessor, nil
 }
 
+func unmute(n int, channel ...int64) []int64 {
+	channel = append([]int64{}, channel...)
+	channel[n] = 0
+	return channel
+}
+
+func audioSplit(a mediaconvert.AudioDescription) (split []mediaconvert.AudioDescription) {
+	if a.CodecSettings == nil ||
+		a.CodecSettings.Codec != mediaconvert.AudioCodecWav ||
+		a.CodecSettings.WavSettings == nil ||
+		*a.CodecSettings.WavSettings.Channels < 2 {
+		return []mediaconvert.AudioDescription{a}
+	}
+
+	n := int64(*a.CodecSettings.WavSettings.Channels)
+	gain := make([]int64, n)
+	*a.CodecSettings.WavSettings.Channels = 1
+
+	for i := range gain {
+		gain[i] = -60
+	}
+	for i := range gain {
+		split = append(split, mediaconvert.AudioDescription{
+			CodecSettings: a.CodecSettings,
+			RemixSettings: &mediaconvert.RemixSettings{
+				ChannelMapping: &mediaconvert.ChannelMapping{
+					OutputChannels: []mediaconvert.OutputChannelMapping{{
+						InputChannels: unmute(i, gain...),
+					},
+					}},
+				ChannelsIn:  &n,
+				ChannelsOut: aws.Int64(1),
+			}})
+	}
+	return split
+}
+
 func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 	audioPreset := mediaconvert.AudioDescription{}
 
@@ -264,6 +311,16 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 
 	codec := strings.ToLower(preset.Audio.Codec)
 	switch codec {
+	case "pcm":
+		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecWav,
+			WavSettings: &mediaconvert.WavSettings{
+				BitDepth:   aws.Int64(24),
+				Channels:   aws.Int64(2),
+				SampleRate: aws.Int64(defaultAudioSampleRate),
+				Format:     "RIFF",
+			},
+		}
 	case "aac":
 		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
 			Codec: mediaconvert.AudioCodecAac,
