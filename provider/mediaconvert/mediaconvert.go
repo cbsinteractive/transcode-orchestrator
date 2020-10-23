@@ -440,7 +440,11 @@ func (p *mcProvider) tagsFrom(labels []string) map[string]string {
 
 	for _, label := range labels {
 		if strings.HasPrefix(label, "bill:") {
+			// in case of billing tag we need to use a Cost Allocation Tag
+			// for cost to be reported correctly by Cost Explorer API
 			tags["bu"] = label
+		} else {
+			tags[label] = "true"
 		}
 	}
 
