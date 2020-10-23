@@ -104,7 +104,7 @@ func containerSettingsFrom(container mediaconvert.ContainerType) *mediaconvert.C
 
 	switch container {
 	case mediaconvert.ContainerTypeMxf:
-		// TODO(as)
+		// NOTE(as): AWS claims to auto-detect profile
 	case mediaconvert.ContainerTypeMp4:
 		cs.Mp4Settings = &mediaconvert.Mp4Settings{
 			//ISO specification for base media file format
@@ -150,7 +150,11 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	codec := strings.ToLower(preset.Video.Codec)
 	switch codec {
 	case "xdcam":
-		// TODO(as)
+		settings, err := mpeg2XDCAM.apply(preset).generate()
+		videoPreset.CodecSettings = settings
+		if err != nil {
+			return nil, errors.Wrap(err, "building xdcam/mpeg2 codec settings")
+		}
 	case "h264":
 		settings, err := h264CodecSettingsFrom(preset)
 		if err != nil {
@@ -304,12 +308,12 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 		}
 	}
 
+	codec := strings.ToLower(preset.Audio.Codec)
 	bitrate, err := strconv.ParseInt(preset.Audio.Bitrate, 10, 64)
-	if err != nil {
+	if err != nil && codec != "pcm" {
 		return mediaconvert.AudioDescription{}, errors.Wrapf(err, "parsing audio bitrate %q to int64", preset.Audio.Bitrate)
 	}
 
-	codec := strings.ToLower(preset.Audio.Codec)
 	switch codec {
 	case "pcm":
 		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{

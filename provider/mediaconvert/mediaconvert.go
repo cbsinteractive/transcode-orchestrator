@@ -221,7 +221,7 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 					SegmentControl:         mediaconvert.HlsSegmentControlSegmentedFiles,
 				},
 			}
-		case mediaconvert.ContainerTypeMp4, mediaconvert.ContainerTypeMov, mediaconvert.ContainerTypeWebm:
+		case mediaconvert.ContainerTypeMp4, mediaconvert.ContainerTypeMov, mediaconvert.ContainerTypeWebm, mediaconvert.ContainerTypeMxf:
 			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
 				Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 				FileGroupSettings: &mediaconvert.FileGroupSettings{
