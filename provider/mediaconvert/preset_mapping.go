@@ -147,45 +147,28 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 		videoPreset.Height = aws.Int64(height)
 	}
 
+	var s *mediaconvert.VideoCodecSettings
+	var err error
+
 	codec := strings.ToLower(preset.Video.Codec)
 	switch codec {
 	case "xdcam":
-		settings, err := mpeg2XDCAM.apply(preset).generate()
-		videoPreset.CodecSettings = settings
-		if err != nil {
-			return nil, errors.Wrap(err, "building xdcam/mpeg2 codec settings")
-		}
+		s, err = mpeg2XDCAM.generate(preset)
 	case "h264":
-		settings, err := h264CodecSettingsFrom(preset)
-		if err != nil {
-			return nil, errors.Wrap(err, "building h264 codec settings")
-		}
-
-		videoPreset.CodecSettings = settings
+		s, err = h264CodecSettingsFrom(preset)
 	case "h265":
-		settings, err := h265CodecSettingsFrom(preset)
-		if err != nil {
-			return nil, errors.Wrap(err, "building h265 codec settings")
-		}
-
-		videoPreset.CodecSettings = settings
+		s, err = h265CodecSettingsFrom(preset)
 	case "vp8":
-		settings, err := vp8CodecSettingsFrom(preset)
-		if err != nil {
-			return nil, fmt.Errorf("building vp8 codec settings: %w", err)
-		}
-
-		videoPreset.CodecSettings = settings
+		s, err = vp8CodecSettingsFrom(preset)
 	case "av1":
-		settings, err := av1CodecSettingsFrom(preset)
-		if err != nil {
-			return nil, errors.Wrap(err, "building av1 codec settings")
-		}
-
-		videoPreset.CodecSettings = settings
+		s, err = av1CodecSettingsFrom(preset)
 	default:
 		return nil, fmt.Errorf("video codec %q is not yet supported with mediaconvert", codec)
 	}
+	if err != nil {
+		return nil, fmt.Errorf("building %s codec settings: %w", codec, err)
+	}
+	videoPreset.CodecSettings = s
 
 	videoPreprocessors, err := videoPreprocessorsFrom(preset.Video)
 	if err != nil {
@@ -202,6 +185,11 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 			Mode:      mediaconvert.DeinterlacerModeDeinterlace,
 		}
 	default:
+		videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
+			Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+			Control:   mediaconvert.DeinterlacerControlNormal,
+			Mode:      mediaconvert.DeinterlacerModeAdaptive,
+		}
 	}
 
 	return &videoPreset, nil

@@ -2,6 +2,9 @@ package mediaconvert
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
@@ -31,31 +34,55 @@ type mpeg2 struct {
 	ParControl                          string
 	NumberBFramesBetweenReferenceFrames int64
 	DynamicSubGop                       string
-
-	/*
-		FramerateDenominator int64
-		FramerateNumerator int64
-
-		HrdBufferInitialFillPercentage
-		HrdBufferSize int64
-		MaxBitrate int64
-		ParDenominator int64
-		ParNumerator int64
-		Softness int64
-	*/
 }
 
-func (m mpeg2) apply(p db.Preset) (mpeg2) {
-	return m //TODO
+var ErrProfileUnsupported = errors.New("unsupported profile")
+
+var mpeg2profiles = map[string]string{
+	"hd422": "PROFILE_422",
 }
 
-func (m mpeg2) generate() (*mediaconvert.VideoCodecSettings, error) {
+func atoi(a string) int64 {
+	i, _ := strconv.Atoi(a)
+	return int64(i)
+}
+
+func (m mpeg2) validate(p db.Preset) error {
+	if c := p.Video.Codec; c != "" {
+		if _, ok := mpeg2profiles[c]; !ok {
+			return fmt.Errorf("%w: %q", ErrProfileUnsupported, c)
+		}
+	}
+	return nil
+}
+
+func (m mpeg2) apply(p db.Preset) mpeg2 {
+	if p.Video.Codec != "" {
+		m.CodecProfile = mpeg2profiles[p.Video.Codec]
+	}
+	if p.Video.Bitrate != "" {
+		m.Bitrate = atoi(p.Video.Bitrate)
+	}
+	if p.Video.GopSize != "" {
+		m.GopSize = float64(atoi(p.Video.GopSize))
+	}
+	if p.RateControl != "" {
+		m.RateControlMode = p.RateControl
+	}
+	return m
+}
+
+func (m mpeg2) generate(p db.Preset) (*mediaconvert.VideoCodecSettings, error) {
 	s := &mediaconvert.VideoCodecSettings{
 		Codec:         mediaconvert.VideoCodecMpeg2,
 		Mpeg2Settings: &mediaconvert.Mpeg2Settings{},
 	}
+	if err := m.validate(p); err != nil {
+		return s, err
+	}
+	m = m.apply(p)
 	data, _ := json.Marshal(m)
-	if err := json.Unmarshal(data, s.Mpeg2Settings); err != nil{
+	if err := json.Unmarshal(data, s.Mpeg2Settings); err != nil {
 		return s, err
 	}
 	return s, s.Validate()
