@@ -7,13 +7,14 @@ import (
 	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
 var ErrProfileUnsupported = errors.New("unsupported profile")
 
-var mpeg2profiles = map[string]string{
-	"hd422": "PROFILE_422",
+var mpeg2profiles = map[string]mediaconvert.Mpeg2CodecProfile{
+	"hd422": mediaconvert.Mpeg2CodecProfileProfile422,
 }
 
 func atoi(a string) int64 {
@@ -35,13 +36,13 @@ func (m mpeg2) apply(p db.Preset) mpeg2 {
 		m.CodecProfile = mpeg2profiles[p.Video.Codec]
 	}
 	if p.Video.Bitrate != "" {
-		m.Bitrate = atoi(p.Video.Bitrate)
+		m.Bitrate = aws.Int64(atoi(p.Video.Bitrate))
 	}
 	if p.Video.GopSize != "" {
-		m.GopSize = float64(atoi(p.Video.GopSize))
+		m.GopSize = aws.Float64(float64(atoi(p.Video.GopSize)))
 	}
 	if p.RateControl != "" {
-		m.RateControlMode = p.RateControl
+		m.RateControlMode = mediaconvert.Mpeg2RateControlMode(p.RateControl)
 	}
 	return m
 }
@@ -62,57 +63,16 @@ func (m mpeg2) generate(p db.Preset) (*mediaconvert.VideoCodecSettings, error) {
 	return s, s.Validate()
 }
 
-type mpeg2 struct {
-	InterlaceMode                       string
-	Syntax                              string
-	GopClosedCadence                    int64
-	GopSize                             float64
-	SlowPal                             string
-	SpatialAdaptiveQuantization         string
-	TemporalAdaptiveQuantization        string
-	Bitrate                             int64
-	IntraDcPrecision                    string
-	FramerateControl                    string
-	RateControlMode                     string
-	CodecProfile                        string
-	Telecine                            string
-	MinIInterval                        int64
-	AdaptiveQuantization                string
-	CodecLevel                          string
-	SceneChangeDetect                   string
-	QualityTuningLevel                  string
-	FramerateConversionAlgorithm        string
-	GopSizeUnits                        string
-	ParControl                          string
-	NumberBFramesBetweenReferenceFrames int64
-	DynamicSubGop                       string
-}
+type mpeg2 mediaconvert.Mpeg2Settings
 
 var mpeg2default = mpeg2{
-	Syntax:          "DEFAULT",
-	CodecProfile:    "PROFILE_422",
-	CodecLevel:      "HIGH",
-	Bitrate:         50000000,
-	InterlaceMode:   "TOP_FIELD",
-	RateControlMode: "CBR",
-
-	GopSize:                             60,
-	GopClosedCadence:                    1,
-	GopSizeUnits:                        "FRAMES",
-	SlowPal:                             "DISABLED",
-	DynamicSubGop:                       "STATIC",
-	SpatialAdaptiveQuantization:         "ENABLED",
-	TemporalAdaptiveQuantization:        "ENABLED",
-	SceneChangeDetect:                   "ENABLED",
-	IntraDcPrecision:                    "AUTO",
-	FramerateControl:                    "INITIALIZE_FROM_SOURCE",
-	Telecine:                            "NONE",
-	MinIInterval:                        0,
-	AdaptiveQuantization:                "HIGH",
-	QualityTuningLevel:                  "SINGLE_PASS",
-	FramerateConversionAlgorithm:        "DUPLICATE_DROP",
-	ParControl:                          "INITIALIZE_FROM_SOURCE",
-	NumberBFramesBetweenReferenceFrames: 2,
+	Bitrate:         aws.Int64(50000000),
+	GopSize:         aws.Float64(60),
+	CodecProfile:    mediaconvert.Mpeg2CodecProfileProfile422,
+	CodecLevel:      mediaconvert.Mpeg2CodecLevelHigh,
+	InterlaceMode:   mediaconvert.Mpeg2InterlaceModeTopField,
+	RateControlMode: mediaconvert.Mpeg2RateControlModeCbr,
+	GopSizeUnits:    mediaconvert.Mpeg2GopSizeUnitsFrames,
 }
 
 var mpeg2XDCAM = mpeg2default
