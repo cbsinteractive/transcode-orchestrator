@@ -10,32 +10,6 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-type mpeg2 struct {
-	InterlaceMode                       string
-	Syntax                              string
-	GopClosedCadence                    int64
-	GopSize                             float64
-	SlowPal                             string
-	SpatialAdaptiveQuantization         string
-	TemporalAdaptiveQuantization        string
-	Bitrate                             int64
-	IntraDcPrecision                    string
-	FramerateControl                    string
-	RateControlMode                     string
-	CodecProfile                        string
-	Telecine                            string
-	MinIInterval                        int64
-	AdaptiveQuantization                string
-	CodecLevel                          string
-	SceneChangeDetect                   string
-	QualityTuningLevel                  string
-	FramerateConversionAlgorithm        string
-	GopSizeUnits                        string
-	ParControl                          string
-	NumberBFramesBetweenReferenceFrames int64
-	DynamicSubGop                       string
-}
-
 var ErrProfileUnsupported = errors.New("unsupported profile")
 
 var mpeg2profiles = map[string]string{
@@ -88,31 +62,57 @@ func (m mpeg2) generate(p db.Preset) (*mediaconvert.VideoCodecSettings, error) {
 	return s, s.Validate()
 }
 
+type mpeg2 struct {
+	InterlaceMode                       string
+	Syntax                              string
+	GopClosedCadence                    int64
+	GopSize                             float64
+	SlowPal                             string
+	SpatialAdaptiveQuantization         string
+	TemporalAdaptiveQuantization        string
+	Bitrate                             int64
+	IntraDcPrecision                    string
+	FramerateControl                    string
+	RateControlMode                     string
+	CodecProfile                        string
+	Telecine                            string
+	MinIInterval                        int64
+	AdaptiveQuantization                string
+	CodecLevel                          string
+	SceneChangeDetect                   string
+	QualityTuningLevel                  string
+	FramerateConversionAlgorithm        string
+	GopSizeUnits                        string
+	ParControl                          string
+	NumberBFramesBetweenReferenceFrames int64
+	DynamicSubGop                       string
+}
+
 var mpeg2default = mpeg2{
+	Syntax:          "DEFAULT",
 	CodecProfile:    "PROFILE_422",
+	CodecLevel:      "HIGH",
 	Bitrate:         50000000,
-	GopSize:         60,
 	InterlaceMode:   "TOP_FIELD",
 	RateControlMode: "CBR",
 
-	Syntax:                              "DEFAULT",
+	GopSize:                             60,
 	GopClosedCadence:                    1,
+	GopSizeUnits:                        "FRAMES",
 	SlowPal:                             "DISABLED",
+	DynamicSubGop:                       "STATIC",
 	SpatialAdaptiveQuantization:         "ENABLED",
 	TemporalAdaptiveQuantization:        "ENABLED",
+	SceneChangeDetect:                   "ENABLED",
 	IntraDcPrecision:                    "AUTO",
 	FramerateControl:                    "INITIALIZE_FROM_SOURCE",
 	Telecine:                            "NONE",
 	MinIInterval:                        0,
 	AdaptiveQuantization:                "HIGH",
-	CodecLevel:                          "HIGH",
-	SceneChangeDetect:                   "ENABLED",
 	QualityTuningLevel:                  "SINGLE_PASS",
 	FramerateConversionAlgorithm:        "DUPLICATE_DROP",
-	GopSizeUnits:                        "FRAMES",
 	ParControl:                          "INITIALIZE_FROM_SOURCE",
 	NumberBFramesBetweenReferenceFrames: 2,
-	DynamicSubGop:                       "STATIC",
 }
 
 var mpeg2XDCAM = mpeg2default

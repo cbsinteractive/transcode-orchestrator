@@ -73,8 +73,6 @@ type File struct {
 	Height     int      `json:"height,omitempty"`
 	FrameRate  float64  `json:"frameRate,omitempty"`
 	ScanType   ScanType `json:"scanType,omitempty"`
-
-	AudioChannels int `json:"audioChannels,omitempty"`
 }
 
 type (
