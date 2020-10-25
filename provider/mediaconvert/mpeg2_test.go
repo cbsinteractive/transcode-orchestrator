@@ -21,7 +21,7 @@ func TestGenerateMPEG2(t *testing.T) {
 		t.Fatalf("bad config: %+v", s)
 	}
 
-	p.Video.Codec = "hd4444444"
+	p.Video.Profile = "hd4444444"
 	s, err = mpeg2XDCAM.generate(p)
 	if !errors.Is(err, ErrProfileUnsupported) {
 		t.Fatalf("have %v want %v", err, ErrProfileUnsupported)
