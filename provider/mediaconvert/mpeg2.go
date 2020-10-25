@@ -23,17 +23,17 @@ func atoi(a string) int64 {
 }
 
 func (m mpeg2) validate(p db.Preset) error {
-	if c := p.Video.Codec; c != "" {
-		if _, ok := mpeg2profiles[c]; !ok {
-			return fmt.Errorf("%w: %q", ErrProfileUnsupported, c)
+	if profile := p.Video.Profile; profile != "" {
+		if _, ok := mpeg2profiles[profile]; !ok {
+			return fmt.Errorf("%w: %q", ErrProfileUnsupported, profile)
 		}
 	}
 	return nil
 }
 
 func (m mpeg2) apply(p db.Preset) mpeg2 {
-	if p.Video.Codec != "" {
-		m.CodecProfile = mpeg2profiles[p.Video.Codec]
+	if p.Video.Profile != "" {
+		m.CodecProfile = mpeg2profiles[p.Video.Profile]
 	}
 	if p.Video.Bitrate != "" {
 		m.Bitrate = aws.Int64(atoi(p.Video.Bitrate))
