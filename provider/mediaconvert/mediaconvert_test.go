@@ -451,10 +451,11 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				Role:  aws.String("some-role"),
-				Queue: aws.String("some:default:queue:arn"),
+				Role:              aws.String("some-role"),
+				Queue:             aws.String("some:default:queue:arn"),
+				BillingTagsSource: "JOB",
 				Tags: map[string]string{
-					"bill:some-bu":     "true",
+					"bu":               "bill:some-bu",
 					"some-more-labels": "true",
 				},
 				Settings: &mediaconvert.JobSettings{
@@ -559,9 +560,10 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				Role:  aws.String(""),
-				Queue: aws.String(""),
-				Tags:  map[string]string{},
+				Role:              aws.String(""),
+				Queue:             aws.String(""),
+				BillingTagsSource: "JOB",
+				Tags:              map[string]string{},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
 						{
@@ -664,9 +666,10 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				Role:  aws.String(""),
-				Queue: aws.String(""),
-				Tags:  map[string]string{},
+				Role:              aws.String(""),
+				Queue:             aws.String(""),
+				BillingTagsSource: "JOB",
+				Tags:              map[string]string{},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
 						{
@@ -760,9 +763,10 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      h265Preset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				Role:  aws.String(""),
-				Queue: aws.String(""),
-				Tags:  map[string]string{},
+				Role:              aws.String(""),
+				Queue:             aws.String(""),
+				BillingTagsSource: "JOB",
+				Tags:              map[string]string{},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
 						{
@@ -856,9 +860,10 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      av1Preset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				Role:  aws.String(""),
-				Queue: aws.String(""),
-				Tags:  map[string]string{},
+				Role:              aws.String(""),
+				Queue:             aws.String(""),
+				BillingTagsSource: "JOB",
+				Tags:              map[string]string{},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
 						{
@@ -940,9 +945,10 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      vp8Preset("vorbis"),
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				Role:  aws.String(""),
-				Queue: aws.String(""),
-				Tags:  map[string]string{},
+				Role:              aws.String(""),
+				Queue:             aws.String(""),
+				BillingTagsSource: "JOB",
+				Tags:              map[string]string{},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
 						{
@@ -1037,9 +1043,10 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      vp8Preset("opus"),
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				Role:  aws.String(""),
-				Queue: aws.String(""),
-				Tags:  map[string]string{},
+				Role:              aws.String(""),
+				Queue:             aws.String(""),
+				BillingTagsSource: "JOB",
+				Tags:              map[string]string{},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
 						{
@@ -1138,10 +1145,11 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				Role:            aws.String(""),
-				Queue:           aws.String("some:preferred:queue:arn"),
-				HopDestinations: []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
-				Tags:            map[string]string{},
+				Role:              aws.String(""),
+				Queue:             aws.String("some:preferred:queue:arn"),
+				HopDestinations:   []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
+				BillingTagsSource: "JOB",
+				Tags:              map[string]string{},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
 						{
@@ -1259,10 +1267,11 @@ func Test_mcProvider_Transcode(t *testing.T) {
 			preset:      tcBurninPreset,
 			destination: "s3://some/destination",
 			wantJobReq: mediaconvert.CreateJobInput{
-				Role:            aws.String(""),
-				Queue:           aws.String("some:preferred:queue:arn"),
-				HopDestinations: []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
-				Tags:            map[string]string{},
+				Role:              aws.String(""),
+				Queue:             aws.String("some:preferred:queue:arn"),
+				HopDestinations:   []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
+				BillingTagsSource: "JOB",
+				Tags:              map[string]string{},
 				Settings: &mediaconvert.JobSettings{
 					Inputs: []mediaconvert.Input{
 						{
