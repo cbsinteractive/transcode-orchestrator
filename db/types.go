@@ -321,6 +321,8 @@ type AudioPreset struct {
 	Codec         string `json:"codec,omitempty" redis-hash:"codec,omitempty"`
 	Bitrate       string `json:"bitrate,omitempty" redis-hash:"bitrate,omitempty"`
 	Normalization bool   `json:"normalization,omitempty" redis-hash:"normalization,omitempty"`
+
+	DiscreteTracks bool `json:"discreteTracks,omitempty" redis-hash:"discreteTracks,omitempty"`
 }
 
 // PresetMap represents the preset that is persisted in the repository of the

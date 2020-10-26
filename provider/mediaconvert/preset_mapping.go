@@ -44,7 +44,11 @@ func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, erro
 		if err != nil {
 			return mediaconvert.Output{}, errors.Wrap(err, "generating audio preset")
 		}
-		audioPresets = append(audioPresets, audioPreset)
+		if preset.Audio.DiscreteTracks {
+			audioPresets = audioSplit(audioPreset)
+		} else {
+			audioPresets = append(audioPresets, audioPreset)
+		}
 	}
 
 	output := mediaconvert.Output{
@@ -76,6 +80,8 @@ func providerStatusFrom(status mediaconvert.JobStatus) provider.Status {
 func containerFrom(container string) (mediaconvert.ContainerType, error) {
 	container = strings.ToLower(container)
 	switch container {
+	case "mxf":
+		return mediaconvert.ContainerTypeMxf, nil
 	case "m3u8":
 		return mediaconvert.ContainerTypeM3u8, nil
 	case "cmaf":
@@ -97,6 +103,8 @@ func containerSettingsFrom(container mediaconvert.ContainerType) *mediaconvert.C
 	}
 
 	switch container {
+	case mediaconvert.ContainerTypeMxf:
+		// NOTE(as): AWS claims to auto-detect profile
 	case mediaconvert.ContainerTypeMp4:
 		cs.Mp4Settings = &mediaconvert.Mp4Settings{
 			//ISO specification for base media file format
@@ -116,7 +124,7 @@ func containerSettingsFrom(container mediaconvert.ContainerType) *mediaconvert.C
 }
 
 func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoDescription, error) {
-	videoPreset := mediaconvert.VideoDescription{
+	videoPreset := &mediaconvert.VideoDescription{
 		ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
 		TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
 		AntiAlias:         mediaconvert.AntiAliasEnabled,
@@ -139,39 +147,31 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 		videoPreset.Height = aws.Int64(height)
 	}
 
+	var s *mediaconvert.VideoCodecSettings
+	var err error
+
 	codec := strings.ToLower(preset.Video.Codec)
 	switch codec {
+	case "xdcam":
+		s, err = mpeg2XDCAM.generate(preset)
+		defer func() {
+			videoPreset.VideoPreprocessors.Deinterlacer = nil
+		}()
 	case "h264":
-		settings, err := h264CodecSettingsFrom(preset)
-		if err != nil {
-			return nil, errors.Wrap(err, "building h264 codec settings")
-		}
-
-		videoPreset.CodecSettings = settings
+		s, err = h264CodecSettingsFrom(preset)
 	case "h265":
-		settings, err := h265CodecSettingsFrom(preset)
-		if err != nil {
-			return nil, errors.Wrap(err, "building h265 codec settings")
-		}
-
-		videoPreset.CodecSettings = settings
+		s, err = h265CodecSettingsFrom(preset)
 	case "vp8":
-		settings, err := vp8CodecSettingsFrom(preset)
-		if err != nil {
-			return nil, fmt.Errorf("building vp8 codec settings: %w", err)
-		}
-
-		videoPreset.CodecSettings = settings
+		s, err = vp8CodecSettingsFrom(preset)
 	case "av1":
-		settings, err := av1CodecSettingsFrom(preset)
-		if err != nil {
-			return nil, errors.Wrap(err, "building av1 codec settings")
-		}
-
-		videoPreset.CodecSettings = settings
+		s, err = av1CodecSettingsFrom(preset)
 	default:
 		return nil, fmt.Errorf("video codec %q is not yet supported with mediaconvert", codec)
 	}
+	if err != nil {
+		return nil, fmt.Errorf("building %s codec settings: %w", codec, err)
+	}
+	videoPreset.CodecSettings = s
 
 	videoPreprocessors, err := videoPreprocessorsFrom(preset.Video)
 	if err != nil {
@@ -179,23 +179,61 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	}
 	videoPreset.VideoPreprocessors = videoPreprocessors
 
-	switch sourceInfo.ScanType {
-	case db.ScanTypeProgressive:
-	case db.ScanTypeInterlaced:
-		videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
-			Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-			Control:   mediaconvert.DeinterlacerControlNormal,
-			Mode:      mediaconvert.DeinterlacerModeDeinterlace,
-		}
-	default:
-		videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
-			Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-			Control:   mediaconvert.DeinterlacerControlNormal,
-			Mode:      mediaconvert.DeinterlacerModeAdaptive,
-		}
+	videoPreset = setter{dst: preset, src: sourceInfo}.ScanType(videoPreset)
+
+	return videoPreset, nil
+}
+
+var (
+	deinterlacerStandard = mediaconvert.Deinterlacer{
+		Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+		Control:   mediaconvert.DeinterlacerControlNormal,
+		Mode:      mediaconvert.DeinterlacerModeDeinterlace,
+	}
+	deinterlacerAdaptive = mediaconvert.Deinterlacer{
+		Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+		Control:   mediaconvert.DeinterlacerControlNormal,
+		Mode:      mediaconvert.DeinterlacerModeAdaptive,
+	}
+)
+
+type setter struct {
+	dst db.Preset
+	src db.File
+}
+
+func (s setter) ScanType(v *mediaconvert.VideoDescription) *mediaconvert.VideoDescription {
+	const (
+		// constants have same value for src/dst, but different types...
+		progressive = string(db.ScanTypeProgressive)
+		interlaced  = string(db.ScanTypeInterlaced)
+	)
+	if v == nil {
+		v = &mediaconvert.VideoDescription{}
+	}
+	if v.VideoPreprocessors == nil {
+		v.VideoPreprocessors = &mediaconvert.VideoPreprocessor{}
 	}
 
-	return &videoPreset, nil
+	switch s.dst.Video.InterlaceMode {
+	case interlaced:
+		switch string(s.src.ScanType) {
+		case progressive:
+		case interlaced:
+		default:
+		}
+	case progressive:
+		fallthrough
+	default: // progressive
+		switch string(s.src.ScanType) {
+		case progressive:
+		case interlaced:
+			v.VideoPreprocessors.Deinterlacer = &deinterlacerStandard
+		default:
+			v.VideoPreprocessors.Deinterlacer = &deinterlacerAdaptive
+		}
+	}
+	return v
 }
 
 func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPreprocessor, error) {
@@ -247,6 +285,43 @@ func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPrep
 	return videoPreprocessor, nil
 }
 
+func unmute(n int, channel ...int64) []int64 {
+	channel = append([]int64{}, channel...)
+	channel[n] = 0
+	return channel
+}
+
+func audioSplit(a mediaconvert.AudioDescription) (split []mediaconvert.AudioDescription) {
+	if a.CodecSettings == nil ||
+		a.CodecSettings.Codec != mediaconvert.AudioCodecWav ||
+		a.CodecSettings.WavSettings == nil ||
+		*a.CodecSettings.WavSettings.Channels < 2 {
+		return []mediaconvert.AudioDescription{a}
+	}
+
+	n := int64(*a.CodecSettings.WavSettings.Channels)
+	gain := make([]int64, n)
+	*a.CodecSettings.WavSettings.Channels = 1
+
+	for i := range gain {
+		gain[i] = -60
+	}
+	for i := range gain {
+		split = append(split, mediaconvert.AudioDescription{
+			CodecSettings: a.CodecSettings,
+			RemixSettings: &mediaconvert.RemixSettings{
+				ChannelMapping: &mediaconvert.ChannelMapping{
+					OutputChannels: []mediaconvert.OutputChannelMapping{{
+						InputChannels: unmute(i, gain...),
+					},
+					}},
+				ChannelsIn:  &n,
+				ChannelsOut: aws.Int64(1),
+			}})
+	}
+	return split
+}
+
 func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 	audioPreset := mediaconvert.AudioDescription{}
 
@@ -257,13 +332,23 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 		}
 	}
 
+	codec := strings.ToLower(preset.Audio.Codec)
 	bitrate, err := strconv.ParseInt(preset.Audio.Bitrate, 10, 64)
-	if err != nil {
+	if err != nil && codec != "pcm" {
 		return mediaconvert.AudioDescription{}, errors.Wrapf(err, "parsing audio bitrate %q to int64", preset.Audio.Bitrate)
 	}
 
-	codec := strings.ToLower(preset.Audio.Codec)
 	switch codec {
+	case "pcm":
+		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecWav,
+			WavSettings: &mediaconvert.WavSettings{
+				BitDepth:   aws.Int64(24),
+				Channels:   aws.Int64(2),
+				SampleRate: aws.Int64(defaultAudioSampleRate),
+				Format:     "RIFF",
+			},
+		}
 	case "aac":
 		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
 			Codec: mediaconvert.AudioCodecAac,

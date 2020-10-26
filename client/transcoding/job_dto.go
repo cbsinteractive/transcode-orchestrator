@@ -63,15 +63,16 @@ type AudioDownmix struct {
 // CreateJobSourceInfo: Height, Width, FrameRate, File Size, ScanType
 // SourceInfo:
 type File struct {
-	Path       string        `json:"path"`
-	Size       int64         `json:"fileSize"`
-	Container  string        `json:"container"`
-	Duration   time.Duration `json:"duration,omitempty"`
-	VideoCodec string        `json:"videoCodec,omitempty"`
-	Width      int           `json:"width,omitempty"`
-	Height     int           `json:"height,omitempty"`
-	FrameRate  float64       `json:"frameRate,omitempty"`
-	ScanType   ScanType      `json:"scanType,omitempty"`
+	Path      string        `json:"path"`
+	Size      int64         `json:"fileSize"`
+	Container string        `json:"container"`
+	Duration  time.Duration `json:"duration,omitempty"`
+
+	VideoCodec string   `json:"videoCodec,omitempty"`
+	Width      int      `json:"width,omitempty"`
+	Height     int      `json:"height,omitempty"`
+	FrameRate  float64  `json:"frameRate,omitempty"`
+	ScanType   ScanType `json:"scanType,omitempty"`
 }
 
 type (

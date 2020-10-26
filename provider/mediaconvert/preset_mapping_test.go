@@ -1,6 +1,13 @@
 package mediaconvert
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+
+	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+)
 
 func Test_vbrLevel(t *testing.T) {
 	tests := []struct {
@@ -45,5 +52,90 @@ func Test_vbrLevel(t *testing.T) {
 				t.Errorf("vbrLevel() = %v, want %v", got, tt.wantLevel)
 			}
 		})
+	}
+}
+
+func TestSetterScanType(t *testing.T) {
+	dst := db.Preset{}
+	src := db.File{}
+
+	for _, tt := range []struct {
+		name, src, dst string
+		want           *mediaconvert.Deinterlacer
+	}{
+		{"i2p", "interlaced", "progressive", &deinterlacerStandard},
+		{"u2p", "unknown", "progressive", &deinterlacerAdaptive},
+		{"p2u", "progressive", "unknown", nil},
+		{"i2i", "interlaced", "interlaced", nil},
+		{"p2i", "progressive", "interlaced", nil},
+		{"p2p", "progressive", "progressive", nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			src.ScanType = db.ScanType(tt.src)
+			dst.Video.InterlaceMode = tt.dst
+			v := setter{dst, src}.ScanType(nil)
+			if have := v.VideoPreprocessors.Deinterlacer; have != tt.want {
+				t.Logf("bad deinterlacer:\n\t\thave: %#v\n\t\twant: %#v", have, tt.want)
+			}
+		})
+	}
+}
+
+func TestAudioSplit(t *testing.T) {
+	input := mediaconvert.AudioDescription{
+		CodecSettings: &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecWav,
+			WavSettings: &mediaconvert.WavSettings{
+				BitDepth:   aws.Int64(24),
+				Channels:   aws.Int64(2),
+				SampleRate: aws.Int64(48000),
+				Format:     "RIFF",
+			},
+		},
+	}
+
+	want := []mediaconvert.AudioDescription{{
+		RemixSettings: &mediaconvert.RemixSettings{
+			ChannelMapping: &mediaconvert.ChannelMapping{
+				OutputChannels: []mediaconvert.OutputChannelMapping{{
+					InputChannels: []int64{0, -60},
+				},
+				}},
+			ChannelsIn:  aws.Int64(2),
+			ChannelsOut: aws.Int64(1),
+		},
+		CodecSettings: &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecWav,
+			WavSettings: &mediaconvert.WavSettings{
+				BitDepth:   aws.Int64(24),
+				Channels:   aws.Int64(1),
+				SampleRate: aws.Int64(48000),
+				Format:     "RIFF",
+			},
+		},
+	}, {
+		RemixSettings: &mediaconvert.RemixSettings{
+			ChannelMapping: &mediaconvert.ChannelMapping{
+				OutputChannels: []mediaconvert.OutputChannelMapping{{
+					InputChannels: []int64{-60, 0},
+				},
+				}},
+			ChannelsIn:  aws.Int64(2),
+			ChannelsOut: aws.Int64(1),
+		},
+		CodecSettings: &mediaconvert.AudioCodecSettings{
+			Codec: mediaconvert.AudioCodecWav,
+			WavSettings: &mediaconvert.WavSettings{
+				BitDepth:   aws.Int64(24),
+				Channels:   aws.Int64(1),
+				SampleRate: aws.Int64(48000),
+				Format:     "RIFF",
+			},
+		},
+	}}
+
+	have := audioSplit(input)
+	if !reflect.DeepEqual(have, want) {
+		t.Fatalf("bad split:\nhave:\t\t%v\nwant:\t\t%v", have, want)
 	}
 }

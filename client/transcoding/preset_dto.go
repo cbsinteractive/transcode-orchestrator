@@ -110,4 +110,6 @@ type AudioPreset struct {
 	Codec         string `json:"codec,omitempty"`
 	Bitrate       string `json:"bitrate,omitempty"`
 	Normalization bool   `json:"normalization,omitempty"`
+
+	DiscreteTracks bool `json:"discreteTracks,omitempty"`
 }
