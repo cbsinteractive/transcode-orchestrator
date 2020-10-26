@@ -154,6 +154,9 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	switch codec {
 	case "xdcam":
 		s, err = mpeg2XDCAM.generate(preset)
+		defer func() {
+			videoPreset.VideoPreprocessors.Deinterlacer = nil
+		}()
 	case "h264":
 		s, err = h264CodecSettingsFrom(preset)
 	case "h265":
@@ -176,6 +179,9 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	}
 	videoPreset.VideoPreprocessors = videoPreprocessors
 
+	if preset.Video.InterlaceMode != "progressive" {
+		return &videoPreset, nil
+	}
 	switch sourceInfo.ScanType {
 	case db.ScanTypeProgressive:
 	case db.ScanTypeInterlaced:
