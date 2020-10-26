@@ -124,7 +124,7 @@ func containerSettingsFrom(container mediaconvert.ContainerType) *mediaconvert.C
 }
 
 func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoDescription, error) {
-	videoPreset := mediaconvert.VideoDescription{
+	videoPreset := &mediaconvert.VideoDescription{
 		ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
 		TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
 		AntiAlias:         mediaconvert.AntiAliasEnabled,
@@ -179,26 +179,61 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	}
 	videoPreset.VideoPreprocessors = videoPreprocessors
 
-	if preset.Video.InterlaceMode != "progressive" {
-		return &videoPreset, nil
+	videoPreset = setter{dst: preset, src: sourceInfo}.ScanType(videoPreset)
+
+	return videoPreset, nil
+}
+
+var (
+	deinterlacerStandard = mediaconvert.Deinterlacer{
+		Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+		Control:   mediaconvert.DeinterlacerControlNormal,
+		Mode:      mediaconvert.DeinterlacerModeDeinterlace,
 	}
-	switch sourceInfo.ScanType {
-	case db.ScanTypeProgressive:
-	case db.ScanTypeInterlaced:
-		videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
-			Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-			Control:   mediaconvert.DeinterlacerControlNormal,
-			Mode:      mediaconvert.DeinterlacerModeDeinterlace,
-		}
-	default:
-		videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
-			Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-			Control:   mediaconvert.DeinterlacerControlNormal,
-			Mode:      mediaconvert.DeinterlacerModeAdaptive,
-		}
+	deinterlacerAdaptive = mediaconvert.Deinterlacer{
+		Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+		Control:   mediaconvert.DeinterlacerControlNormal,
+		Mode:      mediaconvert.DeinterlacerModeAdaptive,
+	}
+)
+
+type setter struct {
+	dst db.Preset
+	src db.File
+}
+
+func (s setter) ScanType(v *mediaconvert.VideoDescription) *mediaconvert.VideoDescription {
+	const (
+		// constants have same value for src/dst, but different types...
+		progressive = string(db.ScanTypeProgressive)
+		interlaced  = string(db.ScanTypeInterlaced)
+	)
+	if v == nil {
+		v = &mediaconvert.VideoDescription{}
+	}
+	if v.VideoPreprocessors == nil {
+		v.VideoPreprocessors = &mediaconvert.VideoPreprocessor{}
 	}
 
-	return &videoPreset, nil
+	switch s.dst.Video.InterlaceMode {
+	case interlaced:
+		switch string(s.src.ScanType) {
+		case progressive:
+		case interlaced:
+		default:
+		}
+	case progressive:
+		fallthrough
+	default: // progressive
+		switch string(s.src.ScanType) {
+		case progressive:
+		case interlaced:
+			v.VideoPreprocessors.Deinterlacer = &deinterlacerStandard
+		default:
+			v.VideoPreprocessors.Deinterlacer = &deinterlacerAdaptive
+		}
+	}
+	return v
 }
 
 func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPreprocessor, error) {

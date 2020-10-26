@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
 func Test_vbrLevel(t *testing.T) {
@@ -49,6 +50,32 @@ func Test_vbrLevel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := vbrLevel(tt.bitrate); got != tt.wantLevel {
 				t.Errorf("vbrLevel() = %v, want %v", got, tt.wantLevel)
+			}
+		})
+	}
+}
+
+func TestSetterScanType(t *testing.T) {
+	dst := db.Preset{}
+	src := db.File{}
+
+	for _, tt := range []struct {
+		name, src, dst string
+		want           *mediaconvert.Deinterlacer
+	}{
+		{"i2p", "interlaced", "progressive", &deinterlacerStandard},
+		{"u2p", "unknown", "progressive", &deinterlacerAdaptive},
+		{"p2u", "progressive", "unknown", nil},
+		{"i2i", "interlaced", "interlaced", nil},
+		{"p2i", "progressive", "interlaced", nil},
+		{"p2p", "progressive", "progressive", nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			src.ScanType = db.ScanType(tt.src)
+			dst.Video.InterlaceMode = tt.dst
+			v := setter{dst, src}.ScanType(nil)
+			if have := v.VideoPreprocessors.Deinterlacer; have != tt.want {
+				t.Logf("bad deinterlacer:\n\t\thave: %#v\n\t\twant: %#v", have, tt.want)
 			}
 		})
 	}
