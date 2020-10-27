@@ -8,7 +8,6 @@ import (
 	"github.com/NYTimes/gziphandler"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/cbsinteractive/transcode-orchestrator/db/redis"
 	"github.com/cbsinteractive/transcode-orchestrator/service/exceptions"
 	"github.com/cbsinteractive/transcode-orchestrator/swagger"
 	"github.com/fsouza/ctxlogger"
@@ -30,12 +29,9 @@ type TranscodingService struct {
 // NewTranscodingService will instantiate a JSONService
 // with the given configuration.
 func NewTranscodingService(cfg *config.Config, logger *logrus.Logger) (*TranscodingService, error) {
-	dbRepo, err := redis.NewRepository(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing Redis client: %s", err)
-	}
 
 	var errReporter exceptions.Reporter
+	var err error
 	if cfg.SentryDSN != "" {
 		errReporter, err = exceptions.NewSentryReporter(cfg.SentryDSN, cfg.Env)
 		if err != nil {
@@ -53,7 +49,6 @@ func NewTranscodingService(cfg *config.Config, logger *logrus.Logger) (*Transcod
 
 	return &TranscodingService{
 		config:      cfg,
-		db:          dbRepo,
 		logger:      logger,
 		errReporter: errReporter,
 		tracer:      tracer,
@@ -107,12 +102,6 @@ func (s *TranscodingService) JSONEndpoints() map[string]map[string]server.JSONEn
 		},
 		"/jobs/{jobId}/cancel": {
 			"POST": swagger.HandlerToJSONEndpoint(s.cancelTranscodeJob),
-		},
-		"/presets": {
-			"POST": swagger.HandlerToJSONEndpoint(s.newPreset),
-		},
-		"/presets/{name}": {
-			"DELETE": swagger.HandlerToJSONEndpoint(s.deletePreset),
 		},
 		"/presetmaps": {
 			"POST": swagger.HandlerToJSONEndpoint(s.newPresetMap),

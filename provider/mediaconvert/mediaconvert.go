@@ -12,7 +12,6 @@ import (
 	"github.com/cbsinteractive/pkg/timecode"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/cbsinteractive/transcode-orchestrator/db/redis"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/pkg/errors"
 )
@@ -469,14 +468,8 @@ func mediaconvertFactory(cfg *config.Config) (provider.TranscodingProvider, erro
 		URL: cfg.MediaConvert.Endpoint,
 	}
 
-	dbRepo, err := redis.NewRepository(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing mediaconvert wrapper: %s", err)
-	}
-
 	return &mcProvider{
-		client:     mediaconvert.New(mcCfg),
-		cfg:        cfg.MediaConvert,
-		repository: dbRepo,
+		client: mediaconvert.New(mcCfg),
+		cfg:    cfg.MediaConvert,
 	}, nil
 }

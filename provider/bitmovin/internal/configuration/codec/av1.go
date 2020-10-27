@@ -30,40 +30,22 @@ func av1ConfigFrom(preset db.Preset) (model.Av1VideoConfiguration, error) {
 
 	cfg.Name = strings.ToLower(preset.Name)
 
-	presetWidth := preset.Video.Width
-	if presetWidth != "" {
-		width, err := dimensionFrom(presetWidth)
-		if err != nil {
-			return model.Av1VideoConfiguration{}, err
-		}
-		cfg.Width = width
+	if n := int32(preset.Video.Width); n != 0 {
+		cfg.Width = &n
+	}
+	if n := int32(preset.Video.Height); n != 0 {
+		cfg.Height = &n
 	}
 
-	presetHeight := preset.Video.Height
-	if presetHeight != "" {
-		height, err := dimensionFrom(presetHeight)
-		if err != nil {
-			return model.Av1VideoConfiguration{}, err
-		}
-		cfg.Height = height
-	}
+	bitrate := int64(preset.Video.Bitrate)
+	cfg.Bitrate = &bitrate
 
-	bitrate, err := bitrateFrom(preset.Video.Bitrate)
-	if err != nil {
-		return model.Av1VideoConfiguration{}, err
-	}
-	cfg.Bitrate = bitrate
-
-	presetGOPSize := preset.Video.GopSize
-	if presetGOPSize != "" {
+	gopSize := int32(preset.Video.GopSize)
+	if gopSize != 0 {
 		switch strings.ToLower(preset.Video.GopUnit) {
 		case db.GopUnitFrames, "":
-			gopSize, err := gopSizeFrom(presetGOPSize)
-			if err != nil {
-				return model.Av1VideoConfiguration{}, err
-			}
-			cfg.MinGfInterval = gopSize
-			cfg.MaxGfInterval = gopSize
+			cfg.MinGfInterval = &gopSize
+			cfg.MaxGfInterval = &gopSize
 		case db.GopUnitSeconds:
 			return model.Av1VideoConfiguration{}, errors.New("Gop can only be expressed in frames in AV1")
 		default:

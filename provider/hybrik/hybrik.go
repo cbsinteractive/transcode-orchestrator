@@ -5,13 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
-	"strconv"
 	"strings"
 
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/cbsinteractive/transcode-orchestrator/db/redis"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/pkg/errors"
 )
@@ -77,15 +75,9 @@ func hybrikTranscoderFactory(cfg *config.Config) (provider.TranscodingProvider, 
 		return &hybrikProvider{}, err
 	}
 
-	dbRepo, err := redis.NewRepository(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing hybrik wrapper: %s", err)
-	}
-
 	return &hybrikProvider{
-		c:          api,
-		config:     cfg.Hybrik,
-		repository: dbRepo,
+		c:      api,
+		config: cfg.Hybrik,
 	}, nil
 }
 
@@ -339,45 +331,14 @@ func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.Video
 		return nil, nil
 	}
 
-	gopSize, err := strconv.Atoi(preset.GopSize)
-	if err != nil {
-		return &hwrapper.VideoTarget{}, err
-	}
-
 	var exactGOPFrames, exactKeyFrames int
 	switch strings.ToLower(preset.GopUnit) {
 	case db.GopUnitSeconds:
-		exactKeyFrames = gopSize
+		exactKeyFrames = int(preset.GopSize)
 	case db.GopUnitFrames, "":
-		exactGOPFrames = gopSize
+		exactGOPFrames = int(preset.GopSize)
 	default:
 		return &hwrapper.VideoTarget{}, fmt.Errorf("GopUnit %v not recognized", preset.GopUnit)
-	}
-
-	bitrate, err := strconv.Atoi(preset.Bitrate)
-	if err != nil {
-		return &hwrapper.VideoTarget{}, ErrBitrateNan
-	}
-
-	var videoWidth *int
-	var videoHeight *int
-
-	if preset.Width != "" {
-		var presetWidth int
-		presetWidth, err = strconv.Atoi(preset.Width)
-		if err != nil {
-			return &hwrapper.VideoTarget{}, ErrVideoWidthNan
-		}
-		videoWidth = &presetWidth
-	}
-
-	if preset.Height != "" {
-		var presetHeight int
-		presetHeight, err = strconv.Atoi(preset.Height)
-		if err != nil {
-			return &hwrapper.VideoTarget{}, ErrVideoHeightNan
-		}
-		videoHeight = &presetHeight
 	}
 
 	videoProfile := strings.ToLower(preset.Profile)
@@ -391,10 +352,10 @@ func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.Video
 	}
 
 	return &hwrapper.VideoTarget{
-		Width:             videoWidth,
-		Height:            videoHeight,
+		Width:             &preset.Width,
+		Height:            &preset.Height,
 		BitrateMode:       strings.ToLower(rateControl),
-		BitrateKb:         bitrate / 1000,
+		BitrateKb:         preset.Bitrate / 1000,
 		Preset:            presetSlow,
 		Codec:             preset.Codec,
 		ChromaFormat:      chromaFormatYUV420P,
@@ -411,16 +372,11 @@ func audioTargetFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
 	if (preset == db.AudioPreset{}) {
 		return []hwrapper.AudioTarget{}, nil
 	}
-
-	audioBitrate, err := strconv.Atoi(preset.Bitrate)
-	if err != nil {
-		return nil, ErrBitrateNan
-	}
 	return []hwrapper.AudioTarget{
 		{
 			Codec:     preset.Codec,
 			Channels:  2,
-			BitrateKb: audioBitrate / 1000,
+			BitrateKb: preset.Bitrate / 1000,
 		},
 	}, nil
 }

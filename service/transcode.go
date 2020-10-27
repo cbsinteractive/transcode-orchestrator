@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -23,7 +24,10 @@ import (
 //       200: job
 //       400: invalidJob
 //       500: genericError
-func (s *TranscodingService) newTranscodeJob(r *http.Request) swagger.GizmoJSONResponse {
+func (s *TranscodingService) newTranscodeJob(r *http.Request) (xxx swagger.GizmoJSONResponse) {
+	defer func() {
+		log.Printf("the error: %v", xxx)
+	}()
 	defer r.Body.Close()
 	var input newTranscodeJobInput
 	providerFactory, err := input.ProviderFactory(r.Body)
@@ -69,6 +73,7 @@ func (s *TranscodingService) newTranscodeJob(r *http.Request) swagger.GizmoJSONR
 	}
 	job.Outputs = outputs
 	job.ID, err = s.genID()
+	log.Printf("job id: %v", job.ID)
 	if err != nil {
 		return swagger.NewErrorResponse(err)
 	}
@@ -137,7 +142,12 @@ func (s *TranscodingService) getTranscodeJob(r *http.Request) swagger.GizmoJSONR
 	return s.getJobStatusResponse(s.getTranscodeJobByID(r.Context(), params.JobID))
 }
 
-func (s *TranscodingService) getJobStatusResponse(job *db.Job, status *provider.JobStatus, p provider.TranscodingProvider, err error) swagger.GizmoJSONResponse {
+func (s *TranscodingService) getJobStatusResponse(job *db.Job, status *provider.JobStatus, p provider.TranscodingProvider, err error) (xxx swagger.GizmoJSONResponse) {
+	defer func() {
+		log.Printf("the error: %v", xxx)
+		log.Printf("the job: %#v", job)
+		log.Printf("the status: %#v", status)
+	}()
 	if err != nil {
 		if err == db.ErrJobNotFound {
 			return newJobNotFoundResponse(err)

@@ -50,47 +50,24 @@ func h264ConfigFrom(preset db.Preset) (model.H264VideoConfiguration, error) {
 	}
 	cfg.Level = level
 
-	presetWidth := preset.Video.Width
-	if presetWidth != "" {
-		width, err := dimensionFrom(presetWidth)
-		if err != nil {
-			return model.H264VideoConfiguration{}, err
-		}
-		cfg.Width = width
+	if n := int32(preset.Video.Width); n != 0 {
+		cfg.Width = &n
 	}
-
-	presetHeight := preset.Video.Height
-	if presetHeight != "" {
-		height, err := dimensionFrom(presetHeight)
-		if err != nil {
-			return model.H264VideoConfiguration{}, err
-		}
-		cfg.Height = height
+	if n := int32(preset.Video.Height); n != 0 {
+		cfg.Height = &n
 	}
+	bitrate := int64(preset.Video.Bitrate)
+	cfg.Bitrate = &bitrate
 
-	bitrate, err := bitrateFrom(preset.Video.Bitrate)
-	if err != nil {
-		return model.H264VideoConfiguration{}, err
-	}
-	cfg.Bitrate = bitrate
-
-	presetGOPSize := preset.Video.GopSize
-	if presetGOPSize != "" {
+	gopSize := int32(preset.Video.GopSize)
+	if gopSize != 0 {
 		switch strings.ToLower(preset.Video.GopUnit) {
 		case db.GopUnitFrames, "":
-			gopSize, err := gopSizeFrom(presetGOPSize)
-			if err != nil {
-				return model.H264VideoConfiguration{}, err
-			}
-			cfg.MinGop = gopSize
-			cfg.MaxGop = gopSize
+			cfg.MinGop = &gopSize
+			cfg.MaxGop = &gopSize
 		case db.GopUnitSeconds:
-			gopSize, err := keyIntervalFrom(presetGOPSize)
-			if err != nil {
-				return model.H264VideoConfiguration{}, err
-			}
-			cfg.MinKeyframeInterval = gopSize
-			cfg.MaxKeyframeInterval = gopSize
+			cfg.MinKeyframeInterval = &preset.Video.GopSize
+			cfg.MaxKeyframeInterval = &preset.Video.GopSize
 		default:
 			return model.H264VideoConfiguration{}, fmt.Errorf("GopUnit %v not recognized", preset.Video.GopUnit)
 		}
@@ -141,13 +118,4 @@ func gopSizeFrom(presetGOPSize string) (*int32, error) {
 	}
 
 	return int32ToPtr(int32(dim)), nil
-}
-
-func keyIntervalFrom(presetGOPSize string) (*float64, error) {
-	dim, err := strconv.ParseFloat(presetGOPSize, 64)
-	if err != nil {
-		return nil, err
-	}
-
-	return floatToPtr(dim), nil
 }

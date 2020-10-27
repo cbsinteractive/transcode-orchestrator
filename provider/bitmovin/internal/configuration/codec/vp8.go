@@ -29,29 +29,14 @@ func vp8ConfigFrom(preset db.Preset) (model.Vp8VideoConfiguration, error) {
 
 	cfg.Name = strings.ToLower(preset.Name)
 
-	presetWidth := preset.Video.Width
-	if presetWidth != "" {
-		width, err := dimensionFrom(presetWidth)
-		if err != nil {
-			return model.Vp8VideoConfiguration{}, err
-		}
-		cfg.Width = width
+	if n := int32(preset.Video.Width); n != 0 {
+		cfg.Width = &n
 	}
-
-	presetHeight := preset.Video.Height
-	if presetHeight != "" {
-		height, err := dimensionFrom(presetHeight)
-		if err != nil {
-			return model.Vp8VideoConfiguration{}, err
-		}
-		cfg.Height = height
+	if n := int32(preset.Video.Height); n != 0 {
+		cfg.Height = &n
 	}
-
-	bitrate, err := bitrateFrom(preset.Video.Bitrate)
-	if err != nil {
-		return model.Vp8VideoConfiguration{}, err
-	}
-	cfg.Bitrate = bitrate
+	bitrate := int64(preset.Video.Bitrate)
+	cfg.Bitrate = &bitrate
 
 	cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
 	if preset.TwoPass {

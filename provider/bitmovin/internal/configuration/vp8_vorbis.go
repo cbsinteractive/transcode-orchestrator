@@ -23,7 +23,7 @@ func NewVP8Vorbis(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *V
 
 // Create will create a new VP8 configuration based on a preset
 func (c *VP8Vorbis) Create(preset db.Preset) (db.PresetSummary, error) {
-	audCfgID, err := codec.NewVorbis(c.api, preset.Audio.Bitrate)
+	audCfgID, err := codec.NewVorbis(c.api, int64(preset.Audio.Bitrate))
 	if err != nil {
 		return db.PresetSummary{}, err
 	}

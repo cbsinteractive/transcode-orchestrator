@@ -209,16 +209,14 @@ type ExecutionFeatures map[string]interface{}
 
 // PresetSummary holds references to external resources that represent the configurations
 // of audio and video streams and their containers
-//
-// swagger:model
 type PresetSummary struct {
-	Name          string   `redis-hash:"-"`
-	Container     string   `redis-hash:"container"`
-	VideoCodec    string   `redis-hash:"videocodec,omitempty"`
-	VideoConfigID string   `redis-hash:"videoconfigid,omitempty"`
-	VideoFilters  []string `redis-hash:"videoFilters,omitempty"`
-	AudioCodec    string   `redis-hash:"audiocodec,omitempty"`
-	AudioConfigID string   `redis-hash:"audioconfigid,omitempty"`
+	Name          string
+	Container     string
+	VideoCodec    string
+	VideoConfigID string
+	VideoFilters  []string
+	AudioCodec    string
+	AudioConfigID string
 }
 
 func (ps PresetSummary) HasVideo() bool {
@@ -227,144 +225,101 @@ func (ps PresetSummary) HasVideo() bool {
 
 // LocalPreset is a struct to persist encoding configurations. Some providers don't have
 // the ability to store presets on it's side so we persist locally.
-//
-// swagger:model
 type LocalPreset struct {
-	// name of the local preset
-	//
-	// unique: true
-	// required: true
-	Name string `redis-hash:"-" json:"name"`
-
-	// the preset structure
-	// required: true
-	Preset Preset `redis-hash:"preset,expand" json:"preset"`
+	Name   string
+	Preset Preset
 }
 
 // Preset defines the set of parameters of a given preset
 type Preset struct {
-	Name            string      `json:"name,omitempty" redis-hash:"name"`
-	Description     string      `json:"description,omitempty" redis-hash:"description,omitempty"`
-	SourceContainer string      `json:"sourceContainer,omitempty" redis-hash:"sourcecontainer,omitempty"`
-	Container       string      `json:"container,omitempty" redis-hash:"container,omitempty"`
-	RateControl     string      `json:"rateControl,omitempty" redis-hash:"ratecontrol,omitempty"`
-	TwoPass         bool        `json:"twoPass" redis-hash:"twopass"`
-	Video           VideoPreset `json:"video" redis-hash:"video,expand"`
-	Audio           AudioPreset `json:"audio" redis-hash:"audio,expand"`
+	Name            string      `json:"name,omitempty"`
+	Description     string      `json:"description,omitempty"`
+	SourceContainer string      `json:"sourceContainer,omitempty"`
+	Container       string      `json:"container,omitempty"`
+	RateControl     string      `json:"rateControl,omitempty"`
+	TwoPass         bool        `json:"twoPass"`
+	Video           VideoPreset `json:"video"`
+	Audio           AudioPreset `json:"audio"`
 }
 
 // VideoPreset defines the set of parameters for video on a given preset
 type VideoPreset struct {
-	Profile             string              `json:"profile,omitempty" redis-hash:"profile,omitempty"`
-	ProfileLevel        string              `json:"profileLevel,omitempty" redis-hash:"profilelevel,omitempty"`
-	Width               string              `json:"width,omitempty" redis-hash:"width,omitempty"`
-	Height              string              `json:"height,omitempty" redis-hash:"height,omitempty"`
-	Codec               string              `json:"codec,omitempty" redis-hash:"codec,omitempty"`
-	Bitrate             string              `json:"bitrate,omitempty" redis-hash:"bitrate,omitempty"`
-	GopSize             string              `json:"gopSize,omitempty" redis-hash:"gopsize,omitempty"`
-	GopUnit             string              `json:"gopUnit,omitempty" redis-hash:"gopunit,omitempty"`
-	GopMode             string              `json:"gopMode,omitempty" redis-hash:"gopmode,omitempty"`
-	InterlaceMode       string              `json:"interlaceMode,omitempty" redis-hash:"interlacemode,omitempty"`
-	HDR10Settings       HDR10Settings       `json:"hdr10" redis-hash:"hdr10,expand,omitempty"`
-	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision" redis-hash:"dolbyvision,expand,omitempty"`
-	Overlays            *Overlays           `json:"overlays,omitempty" redis-hash:"overlays,expand,omitempty"`
+	Profile             string              `json:"profile,omitempty"`
+	ProfileLevel        string              `json:"profileLevel,omitempty"`
+	Codec               string              `json:"codec,omitempty"`
+	Width               int                 `json:"width,omitempty"`
+	Height              int                 `json:"height,omitempty"`
+	Bitrate             int                 `json:"bitrate,omitempty"`
+	GopSize             float64             `json:"gopSize,omitempty"`
+	GopUnit             string              `json:"gopUnit,omitempty"`
+	GopMode             string              `json:"gopMode,omitempty"`
+	InterlaceMode       string              `json:"interlaceMode,omitempty"`
+	HDR10Settings       HDR10Settings       `json:"hdr10"`
+	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision"`
+	Overlays            *Overlays           `json:"overlays,omitempty"`
 
 	// Crop contains offsets for top, bottom, left and right src cropping
-	Crop video.Crop `json:"crop" redis-hash:"crop,expand,omitempty"`
+	Crop video.Crop `json:"crop"`
 }
 
 // GopUnit defines the unit used to measure gops
 type GopUnit = string
 
 const (
-	// GopUnitFrames uses Gop Frames in transcode job
-	GopUnitFrames GopUnit = "frames"
-
-	// GopUnitSeconds uses Key Intervals in transcode job
+	GopUnitFrames  GopUnit = "frames"
 	GopUnitSeconds GopUnit = "seconds"
 )
 
 //Overlays defines all the overlay settings for a Video preset
 type Overlays struct {
-	Images         []Image         `json:"images,omitempty" redis-hash:"image,expand,omitempty"`
-	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty" redis-hash:"timecodeburnin,expand,omitempty"`
+	Images         []Image         `json:"images,omitempty"`
+	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty"`
 }
 
 //Image defines the image overlay settings
 type Image struct {
-	URL string `json:"url" redis-hash:"url"`
+	URL string `json:"url"`
 }
 
 //TimecodeBurnin defines the timecode burnin settings
 type TimecodeBurnin struct {
-	Enabled  bool   `json:"enabled" redis-hash:"enabled"`
-	FontSize int    `json:"fontSize,omitempty" redis-hash:"fontsize,omitempty"`
-	Position int    `json:"position,omitempty" redis-hash:"position,omitempty"`
-	Prefix   string `json:"prefix,omitempty" redis-hash:"prefix,omitempty"`
+	Enabled  bool   `json:"enabled"`
+	FontSize int    `json:"fontSize,omitempty"`
+	Position int    `json:"position,omitempty"`
+	Prefix   string `json:"prefix,omitempty"`
 }
 
 // HDR10Settings defines a set of configurations for defining HDR10 metadata
 type HDR10Settings struct {
-	Enabled       bool   `json:"enabled" redis-hash:"enabled"`
-	MaxCLL        uint   `json:"maxCLL,omitempty" redis-hash:"maxcll,omitempty"`
-	MaxFALL       uint   `json:"maxFALL,omitempty" redis-hash:"maxfll,omitempty"`
-	MasterDisplay string `json:"masterDisplay,omitempty" redis-hash:"masterdisplay,omitempty"`
+	Enabled       bool   `json:"enabled"`
+	MaxCLL        uint   `json:"maxCLL,omitempty"`
+	MaxFALL       uint   `json:"maxFALL,omitempty"`
+	MasterDisplay string `json:"masterDisplay,omitempty"`
 }
 
 // DolbyVisionSettings defines a set of configurations for setting DolbyVision metadata
 type DolbyVisionSettings struct {
-	Enabled bool `json:"enabled" redis-hash:"enabled"`
+	Enabled bool `json:"enabled"`
 }
 
 // AudioPreset defines the set of parameters for audio on a given preset
 type AudioPreset struct {
-	Codec         string `json:"codec,omitempty" redis-hash:"codec,omitempty"`
-	Bitrate       string `json:"bitrate,omitempty" redis-hash:"bitrate,omitempty"`
-	Normalization bool   `json:"normalization,omitempty" redis-hash:"normalization,omitempty"`
-
-	DiscreteTracks bool `json:"discreteTracks,omitempty" redis-hash:"discreteTracks,omitempty"`
+	Codec          string `json:"codec,omitempty"`
+	Bitrate        int    `json:"bitrate,omitempty"`
+	Normalization  bool   `json:"normalization,omitempty"`
+	DiscreteTracks bool   `json:"discreteTracks,omitempty"`
 }
 
 // PresetMap represents the preset that is persisted in the repository of the
 // Transcoding API
-//
-// Each presetmap is just an aggregator of provider presets, where each preset in
-// the API maps to a preset on each provider
-//
-// swagger:model
 type PresetMap struct {
-	// name of the presetmap
-	//
-	// unique: true
-	// required: true
-	Name string `redis-hash:"presetmap_name" json:"name"`
-
-	// mapping of provider name to provider's internal preset id.
-	//
-	// required: true
-	ProviderMapping map[string]string `redis-hash:"pmapping,expand" json:"providerMapping"`
-
-	// set of options in the output file for this preset.
-	//
-	// required: true
-	OutputOpts OutputOptions `redis-hash:"output,expand" json:"output"`
+	Name            string
+	ProviderMapping map[string]string
+	OutputOpts      OutputOptions
 }
 
-// OutputOptions is the set of options for the output file.
-//
-// This type includes only configuration parameters that are not defined in
-// providers (like the extension of the output file).
-//
-// swagger:model
 type OutputOptions struct {
-	// extension for the output file, it's usually attached to the
-	// container (for example, webm for VP, mp4 for MPEG-4 and ts for HLS).
-	//
-	// The dot should not be part of the extension, i.e. use "webm" instead
-	// of ".webm".
-	//
-	// required: true
-	Extension string `redis-hash:"extension" json:"extension"`
+	Extension string
 }
 
 // Validate checks that the OutputOptions object is properly defined.

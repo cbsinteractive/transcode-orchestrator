@@ -23,7 +23,7 @@ func NewAAC(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *AAC {
 
 // Create will create a new AAC configuration based on a preset
 func (c *AAC) Create(preset db.Preset) (db.PresetSummary, error) {
-	audCfgID, err := codec.NewAAC(c.api, preset.Audio.Bitrate)
+	audCfgID, err := codec.NewAAC(c.api, int64(preset.Audio.Bitrate))
 	if err != nil {
 		return db.PresetSummary{}, err
 	}

@@ -35,11 +35,11 @@ func (m mpeg2) apply(p db.Preset) mpeg2 {
 	if p.Video.Profile != "" {
 		m.CodecProfile = mpeg2profiles[p.Video.Profile]
 	}
-	if p.Video.Bitrate != "" {
-		m.Bitrate = aws.Int64(atoi(p.Video.Bitrate))
+	if p.Video.Bitrate != 0 {
+		m.Bitrate = aws.Int64(int64(p.Video.Bitrate))
 	}
-	if p.Video.GopSize != "" {
-		m.GopSize = aws.Float64(float64(atoi(p.Video.GopSize)))
+	if p.Video.GopSize != 0 {
+		m.GopSize = &p.Video.GopSize
 	}
 	if p.RateControl != "" {
 		m.RateControlMode = mediaconvert.Mpeg2RateControlMode(p.RateControl)

@@ -34,7 +34,7 @@ type TranscodingProvider interface {
 	Transcode(context.Context, *db.Job) (*JobStatus, error)
 	JobStatus(context.Context, *db.Job) (*JobStatus, error)
 	CancelJob(ctx context.Context, id string) error
-	CreatePreset(context.Context, db.Preset) (string, error)
+	//CreatePreset(context.Context, db.Preset) (string, error)
 	DeletePreset(ctx context.Context, presetID string) error
 	GetPreset(ctx context.Context, presetID string) (interface{}, error)
 
@@ -137,13 +137,10 @@ const (
 	StatusUnknown = Status("unknown")
 )
 
-var providers map[string]Factory
+var providers = map[string]Factory{}
 
 // Register register a new provider in the internal list of providers.
 func Register(name string, provider Factory) error {
-	if providers == nil {
-		providers = make(map[string]Factory)
-	}
 	if _, ok := providers[name]; ok {
 		return ErrProviderAlreadyRegistered
 	}

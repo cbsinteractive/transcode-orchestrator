@@ -2,25 +2,16 @@ package mediaconvert
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/pkg/errors"
 )
 
 func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, error) {
-	bitrate, err := strconv.ParseInt(preset.Video.Bitrate, 10, 64)
-	if err != nil {
-		return nil, errors.Wrapf(err, "parsing video bitrate %q to int64", preset.Video.Bitrate)
-	}
-
-	gopSize, err := strconv.ParseFloat(preset.Video.GopSize, 64)
-	if err != nil {
-		return nil, errors.Wrapf(err, "parsing gop size %q to float64", preset.Video.GopSize)
-	}
+	bitrate := preset.Video.Bitrate
+	gopSize := preset.Video.GopSize
 
 	gopUnit, err := h265GopUnitFrom(preset.Video.GopUnit)
 	if err != nil {
@@ -50,7 +41,7 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 	return &mediaconvert.VideoCodecSettings{
 		Codec: mediaconvert.VideoCodecH265,
 		H265Settings: &mediaconvert.H265Settings{
-			Bitrate:                        aws.Int64(bitrate),
+			Bitrate:                        aws.Int64(int64(bitrate)),
 			GopSize:                        aws.Float64(gopSize),
 			GopSizeUnits:                   gopUnit,
 			RateControlMode:                rateControl,

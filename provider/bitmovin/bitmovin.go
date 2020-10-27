@@ -16,9 +16,9 @@ import (
 	"github.com/bitmovin/bitmovin-api-sdk-go/query"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/cbsinteractive/transcode-orchestrator/db/redis"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/configuration"
+	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/configuration/codec"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/container"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/status"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/storage"
@@ -134,11 +134,6 @@ func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 		return nil, err
 	}
 
-	dbRepo, err := redis.NewRepository(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing bitmovin wrapper: %s", err)
-	}
-
 	tracer := cfg.Tracer
 	if tracer == nil {
 		tracer = tracing.NoopTracer{}
@@ -146,19 +141,8 @@ func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 
 	return &bitmovinProvider{
 		api:         api,
-		repo:        dbRepo,
 		providerCfg: cfg.Bitmovin,
 		tracer:      tracer,
-		cfgStores: map[cfgStore]configuration.Store{
-			cfgStoreH264:      configuration.NewH264(api, dbRepo),
-			cfgStoreH265:      configuration.NewH265(api, dbRepo),
-			cfgStoreAV1:       configuration.NewAV1(api, dbRepo),
-			cfgStoreH264AAC:   configuration.NewH264AAC(api, dbRepo),
-			cfgStoreH265AAC:   configuration.NewH265AAC(api, dbRepo),
-			cfgStoreVP8Vorbis: configuration.NewVP8Vorbis(api, dbRepo),
-			cfgStoreAAC:       configuration.NewAAC(api, dbRepo),
-			cfgStoreOpus:      configuration.NewOpus(api, dbRepo),
-		},
 		containerSvcs: map[mediaContainer]containerSvc{
 			containerHLS: {
 				assembler: container.NewHLSAssembler(container.HLSContainerAPI{
@@ -197,20 +181,19 @@ type bitmovinProvider struct {
 	providerCfg   *config.Bitmovin
 	cfgStores     map[cfgStore]configuration.Store
 	containerSvcs map[mediaContainer]containerSvc
-	repo          db.Repository
 	tracer        tracing.Tracer
 	presetMutex   sync.Mutex
 }
 
 func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
 	presets := make([]db.PresetSummary, len(job.Outputs))
-	for idx, output := range job.Outputs {
-		summary, err := p.repo.GetPresetSummary(output.Preset.Name)
-		if err != nil {
-			return nil, err
-		}
+	for i, output := range job.Outputs {
+		// get preset summary ?
+		// summary, err := p.repo.GetPresetSummary(output.Preset.Name)
 
-		presets[idx] = summary
+		//	presets[idx] = summary
+		i = i
+		output = output
 	}
 
 	inputID, mediaPath, err := p.inputFrom(ctx, job)
@@ -711,13 +694,22 @@ func (p *bitmovinProvider) CancelJob(ctx context.Context, id string) error {
 	return err
 }
 
-func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (string, error) {
-	p.presetMutex.Lock()
-	defer p.presetMutex.Unlock()
+type codecs struct {
+	video, audio string
+}
 
-	if existing, err := p.repo.GetPresetSummary(preset.Name); err == nil {
-		return existing.Name, nil
-	}
+var cfgStores = map[cfgStore](func(api *bitmovin.BitmovinApi, preset db.Preset) (string, error)){
+	cfgStoreH264:      codec.NewH264,
+	cfgStoreH265:      codec.NewH265,
+	cfgStoreAV1:       codec.NewAV1,
+	cfgStoreH264AAC:   codec.NewH264AAC,
+	cfgStoreH265AAC:   codec.NewH265AAC,
+	cfgStoreVP8Vorbis: codec.NewVP8Vorbis,
+	cfgStoreAAC:       codec.NewAAC,
+	cfgStoreOpus:      codec.NewOpus,
+}
+
+func (p *bitmovinProvider) xCreatePreset(_ context.Context, preset db.Preset) (string, error) {
 
 	svc, err := p.cfgServiceFrom(preset.Video.Codec, preset.Audio.Codec)
 	if err != nil {
@@ -772,27 +764,17 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 		}
 	}
 
-	return preset.Name, p.repo.CreatePresetSummary(&presetSummary)
+	return preset.Name, nil // p.repo.CreatePresetSummary(&presetSummary)
 }
 
 // DeletePreset loops over registered cfg services and attempts to delete them
 func (p *bitmovinProvider) DeletePreset(_ context.Context, presetName string) error {
-	summary, err := p.repo.GetPresetSummary(presetName)
-	if err != nil {
-		return err
-	}
-
-	svc, err := p.cfgServiceFrom(summary.VideoCodec, summary.AudioCodec)
-	if err != nil {
-		return err
-	}
-
-	return svc.Delete(presetName)
+	panic("DeletePreset")
 }
 
 // GetPreset searches for a preset from the registered cfg services
 func (p *bitmovinProvider) GetPreset(_ context.Context, presetName string) (interface{}, error) {
-	return p.repo.GetPresetSummary(presetName)
+	panic("GetPreset")
 }
 
 func (p *bitmovinProvider) destinationForJob(job *db.Job) string {

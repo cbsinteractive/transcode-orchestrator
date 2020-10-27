@@ -23,7 +23,7 @@ func NewOpus(api *bitmovin.BitmovinApi, repo db.PresetSummaryRepository) *Opus {
 
 // Create will create a new Opus configuration based on a preset
 func (c *Opus) Create(preset db.Preset) (db.PresetSummary, error) {
-	audCfgID, err := codec.NewOpus(c.api, preset.Audio.Bitrate)
+	audCfgID, err := codec.NewOpus(c.api, int64(preset.Audio.Bitrate))
 	if err != nil {
 		return db.PresetSummary{}, err
 	}

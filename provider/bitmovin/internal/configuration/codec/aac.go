@@ -2,7 +2,6 @@ package codec
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
@@ -12,7 +11,7 @@ import (
 const defaultAACSampleRate = 48000
 
 // NewAAC creates an AAC codec configuration and returns its ID
-func NewAAC(api *bitmovin.BitmovinApi, bitrate string) (string, error) {
+func NewAAC(api *bitmovin.BitmovinApi, bitrate int64) (string, error) {
 	createCfg, err := aacConfigFrom(bitrate)
 	if err != nil {
 		return "", err
@@ -26,15 +25,10 @@ func NewAAC(api *bitmovin.BitmovinApi, bitrate string) (string, error) {
 	return cfg.Id, nil
 }
 
-func aacConfigFrom(bitrate string) (model.AacAudioConfiguration, error) {
-	convertedBitrate, err := strconv.ParseInt(bitrate, 10, 64)
-	if err != nil {
-		return model.AacAudioConfiguration{}, errors.Wrapf(err, "parsing audio bitrate %q to int64", bitrate)
-	}
-
+func aacConfigFrom(bitrate int64) (model.AacAudioConfiguration, error) {
 	return model.AacAudioConfiguration{
 		Name:    fmt.Sprintf("aac_%s_%d", bitrate, defaultAACSampleRate),
-		Bitrate: &convertedBitrate,
+		Bitrate: &bitrate,
 		Rate:    floatToPtr(defaultAACSampleRate),
 	}, nil
 }

@@ -8,13 +8,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/cbsinteractive/transcode-orchestrator/db/redis"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 )
 
@@ -173,62 +171,24 @@ func (p *flock) flockJobRequestFrom(ctx context.Context, job *db.Job) (*JobReque
 		if jobOut.VideoCodec == "hevc" {
 			jobOut.Tag = "hvc1"
 		}
-
-		if presets[i].Video.GopSize != "" {
-			gopSize, err := strconv.Atoi(presets[i].Video.GopSize)
-			if err != nil {
-				return nil, fmt.Errorf("setting keyframes_sec for flock job request: %w", err)
-			}
-
-			units := presets[i].Video.GopUnit
-			if units == db.GopUnitSeconds {
-				jobOut.KeyframesPerSecond = gopSize
-			} else {
-				jobOut.KeyframeInterval = gopSize
-			}
+		if presets[i].Video.GopUnit == db.GopUnitSeconds {
+			jobOut.KeyframesPerSecond = int(presets[i].Video.GopSize)
+		} else {
+			jobOut.KeyframeInterval = int(presets[i].Video.GopSize)
 		}
-
-		if presets[i].Video.Bitrate != "" {
-			bitrate, err := strconv.Atoi(presets[i].Video.Bitrate)
-			if err != nil {
-				return nil, fmt.Errorf("setting video bitrate for flock job request: %w", err)
-			}
-			if bitrate > 0 {
-				jobOut.VideoBitrateKbps = bitrate / 1000
-			}
+		if br := presets[i].Video.Bitrate; br > 0 {
+			jobOut.VideoBitrateKbps = br / 1000
 		}
-
-		if presets[i].Audio.Bitrate != "" {
-			bitrate, err := strconv.Atoi(presets[i].Audio.Bitrate)
-			if err != nil {
-				return nil, fmt.Errorf("setting audio bitrate for flock job request: %w", err)
-			}
-			if bitrate > 0 {
-				jobOut.AudioBitrateKbps = bitrate / 1000
-				jobOut.AudioChannels = 2
-			}
+		if br := presets[i].Audio.Bitrate; br > 0 {
+			jobOut.AudioBitrateKbps = br / 1000
+			jobOut.AudioChannels = 2
 		}
-
-		if presets[i].Video.Width != "" {
-			w, err := strconv.Atoi(presets[i].Video.Width)
-			if err != nil {
-				return nil, fmt.Errorf("setting width for flock job request: %w", err)
-			}
-			if w > 0 {
-				jobOut.Width = w
-			}
+		if w := presets[i].Video.Width; w > 0 {
+			jobOut.Width = presets[i].Video.Width
 		}
-
-		if presets[i].Video.Height != "" {
-			h, err := strconv.Atoi(presets[i].Video.Height)
-			if err != nil {
-				return nil, fmt.Errorf("setting height for flock job request: %w", err)
-			}
-			if h > 0 {
-				jobOut.Height = h
-			}
+		if h := presets[i].Video.Height; h > 0 {
+			jobOut.Height = h
 		}
-
 		jobOuts = append(jobOuts, jobOut)
 	}
 
@@ -410,14 +370,8 @@ func flockFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 		return nil, errors.New("incomplete Flock config")
 	}
 
-	dbRepo, err := redis.NewRepository(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing flock wrapper: %s", err)
-	}
-
 	return &flock{
-		cfg:        cfg.Flock,
-		repository: dbRepo,
-		client:     &http.Client{Timeout: time.Second * 30},
+		cfg:    cfg.Flock,
+		client: &http.Client{Timeout: time.Second * 30},
 	}, nil
 }

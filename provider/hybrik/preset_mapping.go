@@ -2,7 +2,6 @@ package hybrik
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
@@ -197,11 +196,6 @@ func (p *hybrikProvider) transcodeAudioElementFromPreset(target db.AudioPreset, 
 		transcodeComputeTags = append(transcodeComputeTags, tag)
 	}
 
-	bitrate, err := strconv.Atoi(target.Bitrate)
-	if err != nil {
-		return hybrik.Element{}, ErrBitrateNan
-	}
-
 	return hybrik.Element{
 		UID:  fmt.Sprintf("audio_%d", idx),
 		Kind: elementKindTranscode,
@@ -219,7 +213,7 @@ func (p *hybrikProvider) transcodeAudioElementFromPreset(target db.AudioPreset, 
 				},
 				Audio: []hybrik.AudioTarget{{
 					Codec:     target.Codec,
-					BitrateKb: bitrate / 1000,
+					BitrateKb: target.Bitrate / 1000,
 					Channels:  2,
 					Source:    []hybrik.AudioTargetSource{{TrackNum: 0}},
 				}},
