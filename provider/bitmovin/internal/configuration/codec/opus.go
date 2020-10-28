@@ -5,20 +5,34 @@ import (
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/pkg/errors"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-const defaultOpusSampleRate = 48000
+type CodecOpus struct {
+	Codec
+	cfg *model.OpusAudioConfiguration
+}
 
-// NewOpus creates an Opus codec configuration and returns its ID
-func NewOpus(api *bitmovin.BitmovinApi, bitrate int64) (string, error) {
-	cfg, err := api.Encoding.Configurations.Audio.Opus.Create(model.OpusAudioConfiguration{
-		Name:    fmt.Sprintf("opus_%d_%d", bitrate, defaultOpusSampleRate),
-		Bitrate: &bitrate,
-		Rate:    floatToPtr(defaultOpusSampleRate),
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "creating audio cfg")
+func (c CodecOpus) New(dst db.Preset) CodecOpus {
+	c.set(dst)
+	return c
+}
+
+func (c *CodecOpus) Create(api *bitmovin.BitmovinApi) (ok bool) {
+	create := api.Encoding.Configurations.Audio.Opus.Create
+	if c.ok() {
+		c.cfg, c.err = create(*c.cfg)
 	}
-	return cfg.Id, nil
+	if c.ok() {
+		c.id = c.cfg.Id
+	}
+	return c.ok()
+}
+
+func (c *CodecOpus) set(p db.Preset) (ok bool) {
+	abr := int64(p.Audio.Bitrate)
+	c.cfg.Name = fmt.Sprintf("opus_%d_%d", abr, int(defaultSampleRate))
+	c.cfg.Bitrate = &abr
+	c.cfg.Rate = &defaultSampleRate
+	return c.ok()
 }

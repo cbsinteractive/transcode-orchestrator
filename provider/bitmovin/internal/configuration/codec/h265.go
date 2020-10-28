@@ -16,22 +16,13 @@ var h265Levels = []model.LevelH265{
 	model.LevelH265_L6, model.LevelH265_L6_1, model.LevelH265_L6_2,
 }
 
-type Codec struct {
-	id  string
-	err error
-}
-
-func (c Codec) ok() bool   { return c.err == nil }
-func (c Codec) Err() error { return c.err }
-func (c Codec) ID() string { return c.id }
-
 type CodecH265 struct {
 	Codec
 	cfg *model.H265VideoConfiguration
 }
 
 func (c CodecH265) New(dst db.Preset) CodecH265 {
-	c.configFrom(dst)
+	c.set(dst)
 	return c
 }
 
@@ -46,8 +37,21 @@ func (c *CodecH265) Create(api *bitmovin.BitmovinApi) (ok bool) {
 	return c.ok()
 }
 
-func (c *CodecH265) configFrom(preset db.Preset) (ok bool) {
-	c.cfg.Name = strings.ToLower(preset.Name)
+func (c *CodecH265) set(preset db.Preset) (ok bool) {
+	if !c.setCommon(ConfigPTR{
+		Name:                &c.cfg.Name,
+		Width:               &c.cfg.Width,
+		Height:              &c.cfg.Height,
+		Bitrate:             &c.cfg.Bitrate,
+		MinGop:              &c.cfg.MinGop,
+		MaxGop:              &c.cfg.MaxGop,
+		MinKeyframeInterval: &c.cfg.MinKeyframeInterval,
+		MaxKeyframeInterval: &c.cfg.MaxKeyframeInterval,
+		EncodingMode:        &c.cfg.EncodingMode,
+	}, preset) {
+		return false
+	}
+
 	c.cfg.Profile, c.err = h265ProfileFrom(preset.Video.Profile)
 	if !c.ok() {
 		return false
@@ -57,28 +61,7 @@ func (c *CodecH265) configFrom(preset db.Preset) (ok bool) {
 		return false
 	}
 
-	if n := int32(preset.Video.Width); n != 0 {
-		c.cfg.Width = &n
-	}
-	if n := int32(preset.Video.Height); n != 0 {
-		c.cfg.Height = &n
-	}
-	bitrate := int64(preset.Video.Bitrate)
-	c.cfg.Bitrate = &bitrate
-
-	gopSize := int32(preset.Video.GopSize)
-	if gopSize != 0 {
-		switch strings.ToLower(preset.Video.GopUnit) {
-		case db.GopUnitFrames, "":
-			c.cfg.MinGop = &gopSize
-			c.cfg.MaxGop = &gopSize
-		case db.GopUnitSeconds:
-			c.cfg.MinKeyframeInterval = &preset.Video.GopSize
-			c.cfg.MaxKeyframeInterval = &preset.Video.GopSize
-		default:
-			c.err = fmt.Errorf("GopUnit %v not recognized", preset.Video.GopUnit)
-			return false
-		}
+	if preset.Video.GopSize != 0 {
 		c.cfg.SceneCutThreshold = int32ToPtr(int32(0))
 	}
 
@@ -86,11 +69,6 @@ func (c *CodecH265) configFrom(preset db.Preset) (ok bool) {
 		if !c.setHDR10(hdr10, preset.Video.Profile) {
 			return false
 		}
-	}
-
-	c.cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
-	if preset.TwoPass {
-		c.cfg.EncodingMode = model.EncodingMode_TWO_PASS
 	}
 
 	return c.ok()
@@ -120,7 +98,6 @@ func (c *CodecH265) setHDR10(hdr10 db.HDR10Settings, requestedProfile string) bo
 	if requestedProfile == "" {
 		c.cfg.Profile = model.ProfileH265_MAIN10
 	}
-
 	if c.cfg.Profile != model.ProfileH265_MAIN10 {
 		c.err = errors.New("for HDR10 jobs outputting HEVC, profile must be main10")
 	}

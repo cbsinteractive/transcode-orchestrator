@@ -5,20 +5,36 @@ import (
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/pkg/errors"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-const defaultVorbisSampleRate = 48000
+var defaultSampleRate = 48000.
 
-// NewVorbis creates a Vorbis codec configuration and returns its ID
-func NewVorbis(api *bitmovin.BitmovinApi, bitrate int64) (string, error) {
-	cfg, err := api.Encoding.Configurations.Audio.Vorbis.Create(model.VorbisAudioConfiguration{
-		Name:    fmt.Sprintf("vorbis_%d_%d", bitrate, defaultVorbisSampleRate),
-		Bitrate: &bitrate,
-		Rate:    floatToPtr(defaultVorbisSampleRate),
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "creating audio config")
+type CodecVorbis struct {
+	Codec
+	cfg *model.VorbisAudioConfiguration
+}
+
+func (c CodecVorbis) New(dst db.Preset) CodecVorbis {
+	c.set(dst)
+	return c
+}
+
+func (c *CodecVorbis) Create(api *bitmovin.BitmovinApi) (ok bool) {
+	create := api.Encoding.Configurations.Audio.Vorbis.Create
+	if c.ok() {
+		c.cfg, c.err = create(*c.cfg)
 	}
-	return cfg.Id, nil
+	if c.ok() {
+		c.id = c.cfg.Id
+	}
+	return c.ok()
+}
+
+func (c *CodecVorbis) set(p db.Preset) (ok bool) {
+	abr := int64(p.Audio.Bitrate)
+	c.cfg.Name = fmt.Sprintf("vorbis_%d_%d", abr, int(defaultSampleRate))
+	c.cfg.Bitrate = &abr
+	c.cfg.Rate = &defaultSampleRate
+	return c.ok()
 }

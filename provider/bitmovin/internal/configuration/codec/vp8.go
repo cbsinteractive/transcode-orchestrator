@@ -1,47 +1,38 @@
 package codec
 
 import (
-	"strings"
-
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/pkg/errors"
 )
 
-// NewVP8 creates a VP8 codec configuration and returns its ID
-func NewVP8(api *bitmovin.BitmovinApi, preset db.Preset) (string, error) {
-	newVidCfg, err := vp8ConfigFrom(preset)
-	if err != nil {
-		return "", errors.Wrap(err, "creating vp8 config object")
-	}
-
-	vidCfg, err := api.Encoding.Configurations.Video.Vp8.Create(newVidCfg)
-	if err != nil {
-		return "", errors.Wrap(err, "creating vp8 config with the API")
-	}
-
-	return vidCfg.Id, nil
+type CodecVP8 struct {
+	Codec
+	cfg *model.Vp8VideoConfiguration
 }
 
-func vp8ConfigFrom(preset db.Preset) (model.Vp8VideoConfiguration, error) {
-	cfg := model.Vp8VideoConfiguration{}
+func (c CodecVP8) New(dst db.Preset) CodecVP8 {
+	c.set(dst)
+	return c
+}
 
-	cfg.Name = strings.ToLower(preset.Name)
-
-	if n := int32(preset.Video.Width); n != 0 {
-		cfg.Width = &n
+func (c *CodecVP8) Create(api *bitmovin.BitmovinApi) (ok bool) {
+	create := api.Encoding.Configurations.Video.Vp8.Create
+	if c.ok() {
+		c.cfg, c.err = create(*c.cfg)
 	}
-	if n := int32(preset.Video.Height); n != 0 {
-		cfg.Height = &n
+	if c.ok() {
+		c.id = c.cfg.Id
 	}
-	bitrate := int64(preset.Video.Bitrate)
-	cfg.Bitrate = &bitrate
+	return c.ok()
+}
 
-	cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
-	if preset.TwoPass {
-		cfg.EncodingMode = model.EncodingMode_TWO_PASS
-	}
-
-	return cfg, nil
+func (c *CodecVP8) set(preset db.Preset) (ok bool) {
+	return c.setCommon(ConfigPTR{
+		Name:         &c.cfg.Name,
+		Width:        &c.cfg.Width,
+		Height:       &c.cfg.Height,
+		Bitrate:      &c.cfg.Bitrate,
+		EncodingMode: &c.cfg.EncodingMode,
+	}, preset)
 }

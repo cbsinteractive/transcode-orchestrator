@@ -5,30 +5,34 @@ import (
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/pkg/errors"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-const defaultAACSampleRate = 48000
-
-// NewAAC creates an AAC codec configuration and returns its ID
-func NewAAC(api *bitmovin.BitmovinApi, bitrate int64) (string, error) {
-	createCfg, err := aacConfigFrom(bitrate)
-	if err != nil {
-		return "", err
-	}
-
-	cfg, err := api.Encoding.Configurations.Audio.Aac.Create(createCfg)
-	if err != nil {
-		return "", errors.Wrap(err, "creating audio cfg")
-	}
-
-	return cfg.Id, nil
+type CodecAAC struct {
+	Codec
+	cfg *model.AacAudioConfiguration
 }
 
-func aacConfigFrom(bitrate int64) (model.AacAudioConfiguration, error) {
-	return model.AacAudioConfiguration{
-		Name:    fmt.Sprintf("aac_%d_%d", bitrate, defaultAACSampleRate),
-		Bitrate: &bitrate,
-		Rate:    floatToPtr(defaultAACSampleRate),
-	}, nil
+func (c CodecAAC) New(dst db.Preset) CodecAAC {
+	c.set(dst)
+	return c
+}
+
+func (c *CodecAAC) Create(api *bitmovin.BitmovinApi) (ok bool) {
+	create := api.Encoding.Configurations.Audio.Aac.Create
+	if c.ok() {
+		c.cfg, c.err = create(*c.cfg)
+	}
+	if c.ok() {
+		c.id = c.cfg.Id
+	}
+	return c.ok()
+}
+
+func (c *CodecAAC) set(p db.Preset) (ok bool) {
+	abr := int64(p.Audio.Bitrate)
+	c.cfg.Name = fmt.Sprintf("aac_%d_%d", abr, int(defaultSampleRate))
+	c.cfg.Bitrate = &abr
+	c.cfg.Rate = &defaultSampleRate
+	return c.ok()
 }
