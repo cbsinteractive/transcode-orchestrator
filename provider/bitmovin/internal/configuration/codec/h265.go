@@ -16,110 +16,116 @@ var h265Levels = []model.LevelH265{
 	model.LevelH265_L6, model.LevelH265_L6_1, model.LevelH265_L6_2,
 }
 
-// NewH265 creates a H.265 codec configuration and returns its ID
-func NewH265(api *bitmovin.BitmovinApi, preset db.Preset) (string, error) {
-	newVidCfg, err := h265ConfigFrom(preset)
-	if err != nil {
-		return "", errors.Wrap(err, "creating h265 config object")
-	}
-
-	vidCfg, err := api.Encoding.Configurations.Video.H265.Create(newVidCfg)
-	if err != nil {
-		return "", errors.Wrap(err, "creating h265 config with the API")
-	}
-
-	return vidCfg.Id, nil
+type Codec struct {
+	id  string
+	err error
 }
 
-func h265ConfigFrom(preset db.Preset) (model.H265VideoConfiguration, error) {
-	cfg := model.H265VideoConfiguration{}
+func (c Codec) ok() bool   { return c.err == nil }
+func (c Codec) Err() error { return c.err }
+func (c Codec) ID() string { return c.id }
 
-	cfg.Name = strings.ToLower(preset.Name)
+type CodecH265 struct {
+	Codec
+	cfg *model.H265VideoConfiguration
+}
 
-	profile, err := h265ProfileFrom(preset.Video.Profile)
-	if err != nil {
-		return model.H265VideoConfiguration{}, err
+func (c CodecH265) New(dst db.Preset) CodecH265 {
+	c.configFrom(dst)
+	return c
+}
+
+func (c *CodecH265) Create(api *bitmovin.BitmovinApi) (ok bool) {
+	create := api.Encoding.Configurations.Video.H265.Create
+	if c.ok() {
+		c.cfg, c.err = create(*c.cfg)
 	}
-	cfg.Profile = profile
-
-	level, err := h265LevelFrom(preset.Video.ProfileLevel)
-	if err != nil {
-		return model.H265VideoConfiguration{}, err
+	if c.ok() {
+		c.id = c.cfg.Id
 	}
-	cfg.Level = level
+	return c.ok()
+}
+
+func (c *CodecH265) configFrom(preset db.Preset) (ok bool) {
+	c.cfg.Name = strings.ToLower(preset.Name)
+	c.cfg.Profile, c.err = h265ProfileFrom(preset.Video.Profile)
+	if !c.ok() {
+		return false
+	}
+	c.cfg.Level, c.err = h265LevelFrom(preset.Video.ProfileLevel)
+	if !c.ok() {
+		return false
+	}
 
 	if n := int32(preset.Video.Width); n != 0 {
-		cfg.Width = &n
+		c.cfg.Width = &n
 	}
 	if n := int32(preset.Video.Height); n != 0 {
-		cfg.Height = &n
+		c.cfg.Height = &n
 	}
 	bitrate := int64(preset.Video.Bitrate)
-	cfg.Bitrate = &bitrate
+	c.cfg.Bitrate = &bitrate
 
 	gopSize := int32(preset.Video.GopSize)
 	if gopSize != 0 {
 		switch strings.ToLower(preset.Video.GopUnit) {
 		case db.GopUnitFrames, "":
-			cfg.MinGop = &gopSize
-			cfg.MaxGop = &gopSize
+			c.cfg.MinGop = &gopSize
+			c.cfg.MaxGop = &gopSize
 		case db.GopUnitSeconds:
-			cfg.MinKeyframeInterval = &preset.Video.GopSize
-			cfg.MaxKeyframeInterval = &preset.Video.GopSize
+			c.cfg.MinKeyframeInterval = &preset.Video.GopSize
+			c.cfg.MaxKeyframeInterval = &preset.Video.GopSize
 		default:
-			return model.H265VideoConfiguration{}, fmt.Errorf("GopUnit %v not recognized", preset.Video.GopUnit)
+			c.err = fmt.Errorf("GopUnit %v not recognized", preset.Video.GopUnit)
+			return false
 		}
-
-		cfg.SceneCutThreshold = int32ToPtr(int32(0))
+		c.cfg.SceneCutThreshold = int32ToPtr(int32(0))
 	}
 
 	if hdr10 := preset.Video.HDR10Settings; hdr10.Enabled {
-		cfg, err = enrichH265CfgWithHDR10Settings(cfg, hdr10, preset.Video.Profile)
-		if err != nil {
-			return model.H265VideoConfiguration{}, errors.Wrap(err, "setting HDR10 configs to HEVC codec")
+		if !c.setHDR10(hdr10, preset.Video.Profile) {
+			return false
 		}
 	}
 
-	cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
+	c.cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
 	if preset.TwoPass {
-		cfg.EncodingMode = model.EncodingMode_TWO_PASS
+		c.cfg.EncodingMode = model.EncodingMode_TWO_PASS
 	}
 
-	return cfg, nil
+	return c.ok()
 }
 
-func enrichH265CfgWithHDR10Settings(cfg model.H265VideoConfiguration, hdr10 db.HDR10Settings,
-	requestedProfile string) (model.H265VideoConfiguration, error) {
-	cfg.ColorConfig = &model.ColorConfig{
+func (c *CodecH265) setHDR10(hdr10 db.HDR10Settings, requestedProfile string) bool {
+	c.cfg.ColorConfig = &model.ColorConfig{
 		ColorTransfer:  model.ColorTransfer_SMPTE2084,
 		ColorPrimaries: model.ColorPrimaries_BT2020,
 		ColorSpace:     model.ColorSpace_BT2020_NCL,
 	}
 
 	if hdr10.MasterDisplay != "" {
-		cfg.MasterDisplay = hdr10.MasterDisplay
+		c.cfg.MasterDisplay = hdr10.MasterDisplay
 	}
 
 	if hdr10.MaxCLL != 0 {
-		cfg.MaxContentLightLevel = int32ToPtr(int32(hdr10.MaxCLL))
+		c.cfg.MaxContentLightLevel = int32ToPtr(int32(hdr10.MaxCLL))
 	}
 
 	if hdr10.MaxFALL != 0 {
-		cfg.MaxPictureAverageLightLevel = int32ToPtr(int32(hdr10.MaxFALL))
+		c.cfg.MaxPictureAverageLightLevel = int32ToPtr(int32(hdr10.MaxFALL))
 	}
 
-	cfg.PixelFormat = model.PixelFormat_YUV420P10LE
+	c.cfg.PixelFormat = model.PixelFormat_YUV420P10LE
 
 	if requestedProfile == "" {
-		cfg.Profile = model.ProfileH265_MAIN10
+		c.cfg.Profile = model.ProfileH265_MAIN10
 	}
 
-	if cfg.Profile != model.ProfileH265_MAIN10 {
-		return model.H265VideoConfiguration{}, errors.New("for HDR10 jobs outputting HEVC, " +
-			"profile must be main10")
+	if c.cfg.Profile != model.ProfileH265_MAIN10 {
+		c.err = errors.New("for HDR10 jobs outputting HEVC, profile must be main10")
 	}
+	return c.ok()
 
-	return cfg, nil
 }
 
 func h265ProfileFrom(presetProfile string) (model.ProfileH265, error) {

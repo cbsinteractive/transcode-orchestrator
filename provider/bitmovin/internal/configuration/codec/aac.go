@@ -27,7 +27,7 @@ func NewAAC(api *bitmovin.BitmovinApi, bitrate int64) (string, error) {
 
 func aacConfigFrom(bitrate int64) (model.AacAudioConfiguration, error) {
 	return model.AacAudioConfiguration{
-		Name:    fmt.Sprintf("aac_%s_%d", bitrate, defaultAACSampleRate),
+		Name:    fmt.Sprintf("aac_%d_%d", bitrate, defaultAACSampleRate),
 		Bitrate: &bitrate,
 		Rate:    floatToPtr(defaultAACSampleRate),
 	}, nil

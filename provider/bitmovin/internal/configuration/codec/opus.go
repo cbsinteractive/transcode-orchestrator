@@ -13,7 +13,7 @@ const defaultOpusSampleRate = 48000
 // NewOpus creates an Opus codec configuration and returns its ID
 func NewOpus(api *bitmovin.BitmovinApi, bitrate int64) (string, error) {
 	cfg, err := api.Encoding.Configurations.Audio.Opus.Create(model.OpusAudioConfiguration{
-		Name:    fmt.Sprintf("opus_%s_%d", bitrate, defaultOpusSampleRate),
+		Name:    fmt.Sprintf("opus_%d_%d", bitrate, defaultOpusSampleRate),
 		Bitrate: &bitrate,
 		Rate:    floatToPtr(defaultOpusSampleRate),
 	})
