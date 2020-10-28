@@ -8,8 +8,6 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-var defaultSampleRate = 48000.
-
 type CodecVorbis struct {
 	Codec
 	cfg *model.VorbisAudioConfiguration

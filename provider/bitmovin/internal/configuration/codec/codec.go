@@ -1,6 +1,8 @@
 package codec
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -8,9 +10,42 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
+var ErrUnsupportedValue = errors.New("unsupported value")
+var ErrEmptyList = errors.New("empty list")
+
+var defaultSampleRate = 48000.
+
+type enum []string
+
+func (e enum) Set(src string, dst interface{}) error {
+	if len(e) == 0 {
+		return ErrEmptyList
+	}
+	if src == "" && len(e) > 0 {
+		src = e[0]
+	}
+	for _, v := range e {
+		if strings.EqualFold(v, src) {
+			if err := json.Unmarshal([]byte(v), dst); err != nil {
+				return err
+			}
+		}
+	}
+	return ErrUnsupportedValue
+}
+
+func list(v ...interface{}) (s enum) {
+	for _, v := range v {
+		s = append(s, v.(string))
+	}
+	return s
+}
+
 type Codec struct {
-	id  string
-	err error
+	Profiles enum
+	Levels   enum
+	id       string
+	err      error
 }
 
 type ConfigPTR struct {
@@ -20,6 +55,8 @@ type ConfigPTR struct {
 	MinGop, MaxGop                           **int32
 	MinKeyframeInterval, MaxKeyframeInterval **float64
 	EncodingMode                             *model.EncodingMode
+
+	Profile, Level interface{}
 }
 
 func (c Codec) setCommon(cfg ConfigPTR, p db.Preset) bool {
@@ -60,6 +97,18 @@ func (c Codec) setCommon(cfg ConfigPTR, p db.Preset) bool {
 			*cfg.EncodingMode = model.EncodingMode_TWO_PASS
 		}
 	}
+
+	if cfg.Profile != nil {
+		if err := c.Profiles.Set(p.Video.Profile, cfg.Profile); err != nil {
+			return c.errorf("%s: profile: %w", *cfg.Name, err)
+		}
+	}
+	if cfg.Level != nil {
+		if err := c.Levels.Set(p.Video.ProfileLevel, cfg.Level); err != nil {
+			return c.errorf("%s: level: %w", *cfg.Name, err)
+		}
+	}
+
 	return c.ok()
 }
 
@@ -72,4 +121,11 @@ func (c *Codec) error(err error) bool {
 }
 func (c *Codec) errorf(fm string, a ...interface{}) bool {
 	return c.error(fmt.Errorf(fm, a...))
+}
+
+var zero = int32(0)
+
+func ptr(n uint) *int32 {
+	i := int32(n)
+	return &i
 }
