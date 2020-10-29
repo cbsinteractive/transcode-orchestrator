@@ -18,7 +18,6 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/configuration"
-	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/configuration/codec"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/container"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/status"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/storage"
@@ -727,17 +726,6 @@ func (p *bitmovinProvider) CancelJob(ctx context.Context, id string) error {
 
 type codecs struct {
 	video, audio string
-}
-
-var cfgStores = map[cfgStore](func(api *bitmovin.BitmovinApi, preset db.Preset) (string, error)){
-	cfgStoreH264:      codec.NewH264,
-	cfgStoreH265:      codec.NewH265,
-	cfgStoreAV1:       codec.NewAV1,
-	cfgStoreH264AAC:   codec.NewH264AAC,
-	cfgStoreH265AAC:   codec.NewH265AAC,
-	cfgStoreVP8Vorbis: codec.NewVP8Vorbis,
-	cfgStoreAAC:       codec.NewAAC,
-	cfgStoreOpus:      codec.NewOpus,
 }
 
 func (p *bitmovinProvider) xCreatePreset(_ context.Context, preset db.Preset) (string, error) {
