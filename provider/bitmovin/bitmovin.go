@@ -17,7 +17,6 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
-	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/configuration"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/container"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/status"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/storage"
@@ -25,14 +24,10 @@ import (
 	"github.com/zsiec/pkg/tracing"
 )
 
-type containerSvc struct {
-	assembler      container.Assembler
-	statusEnricher container.StatusEnricher
+type containerSvc interface {
+	Assemble(*bitmovin.BitmovinApi, container.AssemblerCfg) error
+	Enrich(*bitmovin.BitmovinApi, provider.JobStatus) (provider.JobStatus, error)
 }
-
-type cfgStore string
-
-type mediaContainer = string
 
 const (
 	// Name is the name used for registering the bitmovin provider in the
@@ -47,20 +42,11 @@ const (
 	codecH265   = "h265"
 	codecAV1    = "av1"
 
-	containerWebM    mediaContainer = "webm"
-	containerHLS     mediaContainer = "m3u8"
-	containerMP4     mediaContainer = "mp4"
-	containerMOV     mediaContainer = "mov"
-	containerCMAFHLS mediaContainer = "cmafhls"
-
-	cfgStoreH264AAC   cfgStore = "h264aac"
-	cfgStoreH265AAC   cfgStore = "h265aac"
-	cfgStoreVP8Vorbis cfgStore = "vp8vorbis"
-	cfgStoreH264      cfgStore = "h264"
-	cfgStoreH265      cfgStore = "h265"
-	cfgStoreAV1       cfgStore = "av1"
-	cfgStoreAAC       cfgStore = "aac"
-	cfgStoreOpus      cfgStore = "opus"
+	containerWebM    = "webm"
+	containerHLS     = "m3u8"
+	containerMP4     = "mp4"
+	containerMOV     = "mov"
+	containerCMAFHLS = "cmafhls"
 )
 
 func init() {
@@ -133,6 +119,21 @@ var regionByCloud = map[string]map[string]model.CloudRegion{
 	},
 }
 
+var containers = map[string]containerSvc{
+	containerWebM: {
+		assembler:      container.NewProgressiveWebMAssembler(api),
+		statusEnricher: container.NewProgressiveWebMStatusEnricher(api),
+	},
+	containerMP4: {
+		assembler:      container.NewMP4Assembler(api),
+		statusEnricher: container.NewMP4StatusEnricher(api),
+	},
+	containerMOV: {
+		assembler:      container.NewMOVAssembler(api),
+		statusEnricher: container.NewMOVStatusEnricher(api),
+	},
+}
+
 var awsCloudRegions = map[model.AwsCloudRegion]struct{}{
 	model.AwsCloudRegion_US_EAST_1: {}, model.AwsCloudRegion_US_EAST_2: {}, model.AwsCloudRegion_US_WEST_1: {},
 	model.AwsCloudRegion_US_WEST_2: {}, model.AwsCloudRegion_EU_WEST_1: {}, model.AwsCloudRegion_EU_CENTRAL_1: {},
@@ -173,46 +174,13 @@ func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
 		api:         api,
 		providerCfg: cfg.Bitmovin,
 		tracer:      tracer,
-		containerSvcs: map[mediaContainer]containerSvc{
-			containerHLS: {
-				assembler: container.NewHLSAssembler(container.HLSContainerAPI{
-					HLSAudioMedia: api.Encoding.Manifests.Hls.Media.Audio,
-					TSMuxing:      api.Encoding.Encodings.Muxings.Ts,
-					HLSStreams:    api.Encoding.Manifests.Hls.Streams,
-				}),
-				statusEnricher: container.NewHLSStatusEnricher(api),
-			},
-			containerCMAFHLS: {
-				assembler: container.NewCMAFAssembler(container.CMAFContainerAPI{
-					HLSAudioMedia: api.Encoding.Manifests.Hls.Media.Audio,
-					CMAFMuxing:    api.Encoding.Encodings.Muxings.Cmaf,
-					HLSStreams:    api.Encoding.Manifests.Hls.Streams,
-				}),
-				statusEnricher: container.NewCMAFStatusEnricher(api),
-			},
-			containerWebM: {
-				assembler:      container.NewProgressiveWebMAssembler(api),
-				statusEnricher: container.NewProgressiveWebMStatusEnricher(api),
-			},
-			containerMP4: {
-				assembler:      container.NewMP4Assembler(api),
-				statusEnricher: container.NewMP4StatusEnricher(api),
-			},
-			containerMOV: {
-				assembler:      container.NewMOVAssembler(api),
-				statusEnricher: container.NewMOVStatusEnricher(api),
-			},
-		},
 	}, nil
 }
 
 type bitmovinProvider struct {
-	api           *bitmovin.BitmovinApi
-	providerCfg   *config.Bitmovin
-	cfgStores     map[cfgStore]configuration.Store
-	containerSvcs map[mediaContainer]containerSvc
-	tracer        tracing.Tracer
-	presetMutex   sync.Mutex
+	api         *bitmovin.BitmovinApi
+	providerCfg *config.Bitmovin
+	tracer      tracing.Tracer
 }
 
 func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
@@ -825,6 +793,7 @@ func (p *bitmovinProvider) Capabilities() provider.Capabilities {
 	}
 }
 
+/*
 func (p *bitmovinProvider) cfgServiceFrom(vcodec, acodec string) (configuration.Store, error) {
 	vcodec, acodec = strings.ToLower(vcodec), strings.ToLower(acodec)
 
@@ -849,3 +818,4 @@ func (p *bitmovinProvider) cfgServiceFrom(vcodec, acodec string) (configuration.
 
 	return nil, fmt.Errorf("the pair of vcodec: %q and acodec: %q is not yet supported", vcodec, acodec)
 }
+*/
