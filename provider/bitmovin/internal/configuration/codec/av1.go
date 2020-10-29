@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"errors"
-	"github.com/bitmovin/bitmovin-api-sdk-go"
+
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
@@ -12,28 +12,12 @@ import (
 var ErrGopFramesOnly = errors.New("gop unit must be frames")
 
 type CodecAV1 struct {
-	Codec
-	cfg *model.Av1VideoConfiguration
+	codec
+	cfg model.Av1VideoConfiguration
 }
 
-func (c CodecAV1) New(dst db.Preset) CodecAV1 {
-	c.set(dst)
-	return c
-}
-
-func (c *CodecAV1) Create(api *bitmovin.BitmovinApi) (ok bool) {
-	create := api.Encoding.Configurations.Video.Av1.Create
-	if c.ok() {
-		c.cfg, c.err = create(*c.cfg)
-	}
-	if c.ok() {
-		c.id = c.cfg.Id
-	}
-	return c.ok()
-}
-
-func (c *CodecAV1) set(preset db.Preset) (ok bool) {
-	if !c.setCommon(ConfigPTR{
+func (c *CodecAV1) set(preset db.Preset) bool {
+	if !c.setVideo(VideoPTR{
 		Name:    &c.cfg.Name,
 		Width:   &c.cfg.Width,
 		Height:  &c.cfg.Height,

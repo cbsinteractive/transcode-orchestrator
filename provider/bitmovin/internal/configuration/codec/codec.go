@@ -13,7 +13,7 @@ import (
 var ErrUnsupportedValue = errors.New("unsupported value")
 var ErrEmptyList = errors.New("empty list")
 
-var defaultSampleRate = 48000.
+var AudioSampleRate = 48000.
 
 type enum []string
 
@@ -41,14 +41,7 @@ func list(v ...interface{}) (s enum) {
 	return s
 }
 
-type Codec struct {
-	Profiles enum
-	Levels   enum
-	id       string
-	err      error
-}
-
-type ConfigPTR struct {
+type VideoPTR struct {
 	Name                                     *string
 	Width, Height                            **int32
 	Bitrate                                  **int64
@@ -59,7 +52,14 @@ type ConfigPTR struct {
 	Profile, Level interface{}
 }
 
-func (c Codec) setCommon(cfg ConfigPTR, p db.Preset) bool {
+type codec struct {
+	Profiles enum
+	Levels   enum
+	id       string
+	err      error
+}
+
+func (c codec) setVideo(cfg VideoPTR, p db.Preset) bool {
 	*cfg.Name = strings.ToLower(p.Name)
 	if n := int32(p.Video.Width); n != 0 && cfg.Width != nil {
 		*cfg.Width = &n
@@ -112,14 +112,14 @@ func (c Codec) setCommon(cfg ConfigPTR, p db.Preset) bool {
 	return c.ok()
 }
 
-func (c Codec) ok() bool   { return c.err == nil }
-func (c Codec) Err() error { return c.err }
-func (c Codec) ID() string { return c.id }
-func (c *Codec) error(err error) bool {
+func (c codec) ok() bool   { return c.err == nil }
+func (c codec) Err() error { return c.err }
+func (c codec) ID() string { return c.id }
+func (c *codec) error(err error) bool {
 	c.err = err
 	return c.ok()
 }
-func (c *Codec) errorf(fm string, a ...interface{}) bool {
+func (c *codec) errorf(fm string, a ...interface{}) bool {
 	return c.error(fmt.Errorf(fm, a...))
 }
 

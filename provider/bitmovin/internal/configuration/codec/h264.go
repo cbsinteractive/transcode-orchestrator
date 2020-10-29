@@ -1,7 +1,6 @@
 package codec
 
 import (
-	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
@@ -20,30 +19,14 @@ var h264Levels = list(
 )
 
 type CodecH264 struct {
-	Codec
-	cfg *model.H264VideoConfiguration
-}
-
-func (c CodecH264) New(dst db.Preset) CodecH264 {
-	c.set(dst)
-	return c
-}
-
-func (c *CodecH264) Create(api *bitmovin.BitmovinApi) (ok bool) {
-	create := api.Encoding.Configurations.Video.H264.Create
-	if c.ok() {
-		c.cfg, c.err = create(*c.cfg)
-	}
-	if c.ok() {
-		c.id = c.cfg.Id
-	}
-	return c.ok()
+	codec
+	cfg model.H264VideoConfiguration
 }
 
 func (c *CodecH264) set(preset db.Preset) (ok bool) {
 	c.Profiles = h264Profiles
 	c.Levels = h264Levels
-	if !c.setCommon(ConfigPTR{
+	if !c.setVideo(VideoPTR{
 		Name:                &c.cfg.Name,
 		Width:               &c.cfg.Width,
 		Height:              &c.cfg.Height,
