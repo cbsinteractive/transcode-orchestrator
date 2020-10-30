@@ -42,9 +42,8 @@ type mediaconvertClient interface {
 }
 
 type mcProvider struct {
-	client     mediaconvertClient
-	cfg        *config.MediaConvert
-	repository db.Repository
+	client mediaconvertClient
+	cfg    *config.MediaConvert
 }
 
 type outputCfg struct {
@@ -143,21 +142,10 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]mediaconvert.OutputGroup, error) {
 	outputGroups := map[mediaconvert.ContainerType][]outputCfg{}
 	for _, output := range job.Outputs {
-		presetName := output.Preset.Name
-		presetResponse, err := p.GetPreset(ctx, presetName)
-		if err != nil {
-			return nil, err
-		}
-
-		localPreset, ok := presetResponse.(*db.LocalPreset)
-		if !ok {
-			return nil, fmt.Errorf("could not convert preset response into a db.LocalPreset")
-		}
-
-		mcOutput, err := outputFrom(localPreset.Preset, job.SourceInfo)
+		mcOutput, err := outputFrom(output.FullPreset, job.SourceInfo)
 		if err != nil {
 			return nil, fmt.Errorf("could not determine output settings from db.Preset %v: %w",
-				localPreset.Preset, err)
+				output.FullPreset, err)
 		}
 
 		cSettings := mcOutput.ContainerSettings
@@ -245,31 +233,6 @@ func (p *mcProvider) destinationPathFrom(job *db.Job) string {
 		basePath = p.cfg.Destination
 	}
 	return fmt.Sprintf("%s/%s/", strings.TrimRight(basePath, "/"), job.RootFolder())
-}
-
-func (p *mcProvider) CreatePreset(_ context.Context, preset db.Preset) (string, error) {
-	err := p.repository.CreateLocalPreset(&db.LocalPreset{
-		Name:   preset.Name,
-		Preset: preset,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return preset.Name, nil
-}
-
-func (p *mcProvider) GetPreset(_ context.Context, presetID string) (interface{}, error) {
-	return p.repository.GetLocalPreset(presetID)
-}
-
-func (p *mcProvider) DeletePreset(ctx context.Context, presetID string) error {
-	preset, err := p.GetPreset(ctx, presetID)
-	if err != nil {
-		return err
-	}
-
-	return p.repository.DeleteLocalPreset(preset.(*db.LocalPreset))
 }
 
 func (p *mcProvider) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {

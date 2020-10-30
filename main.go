@@ -6,6 +6,7 @@ import (
 
 	"github.com/NYTimes/gizmo/server"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 	_ "github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin"
 	_ "github.com/cbsinteractive/transcode-orchestrator/provider/flock"
 	_ "github.com/cbsinteractive/transcode-orchestrator/provider/hybrik"
@@ -41,8 +42,11 @@ func main() {
 	if err != nil {
 		logger.Fatalf("initializing tracer: %v", err)
 	}
-
-	service, err := service.NewTranscodingService(cfg, logger)
+	store, err := db.NewClient(nil)
+	if err != nil {
+		logger.Fatalf("initializing db: %v", err)
+	}
+	service, err := service.NewTranscodingService(cfg, logger, store)
 	if err != nil {
 		logger.Fatal("unable to initialize service: ", err)
 	}

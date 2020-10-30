@@ -26,8 +26,8 @@ type NewTranscodeJobInputPayload struct {
 
 	// list of outputs in this job
 	Outputs []struct {
-		FileName string `json:"fileName"`
-		Preset   string `json:"preset"`
+		FileName string    `json:"fileName"`
+		Preset   db.Preset `json:"preset"`
 	} `json:"outputs"`
 
 	// provider to use in this job

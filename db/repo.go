@@ -1,89 +1,58 @@
 package db
 
 import (
+	"encoding/json"
 	"errors"
+	"net"
 	"time"
+
+	"github.com/go-redis/redis"
 )
 
 var (
-	// ErrJobNotFound is the error returned when the job is not found on GetJob or
-	// DeleteJob.
 	ErrJobNotFound = errors.New("job not found")
-
-	// ErrPresetMapNotFound is the error returned when the presetmap is not found
-	// on GetPresetMap, UpdatePresetMap or DeletePresetMap.
-	ErrPresetMapNotFound = errors.New("presetmap not found")
-
-	// ErrPresetMapAlreadyExists is the error returned when the presetmap already
-	// exists.
-	ErrPresetMapAlreadyExists = errors.New("presetmap already exists")
-
-	// ErrLocalPresetNotFound is the error returned when the local preset is not found
-	// on GetPresetMap, UpdatePresetMap or DeletePresetMap.
-	ErrLocalPresetNotFound = errors.New("local preset not found")
-
-	// ErrLocalPresetAlreadyExists is the error returned when the local preset already
-	// exists.
-	ErrLocalPresetAlreadyExists = errors.New("local preset already exists")
-
-	// ErrPresetSummaryAlreadyExists is the error returned when the preset summary already
-	// exists.
-	ErrPresetSummaryAlreadyExists = errors.New("preset summary already exists")
-
-	// ErrPresetSummaryNotFound is the error returned when the preset summary is not found
-	ErrPresetSummaryNotFound = errors.New("preset summary not found")
 )
 
-// Repository represents the repository for persisting types of the API.
-type Repository interface {
-	JobRepository
-	PresetMapRepository
-	LocalPresetRepository
-	PresetSummaryRepository
+type Options struct {
+	Addr string
+	DB   int
 }
 
-// JobRepository is the interface that defines the set of methods for managing Job
-// persistence.
-type JobRepository interface {
-	CreateJob(*Job) error
-	DeleteJob(*Job) error
-	GetJob(id string) (*Job, error)
-	ListJobs(JobFilter) ([]Job, error)
+func NewClient(opt *Options) (*Client, error) {
+	if opt == nil {
+		opt = &Options{}
+	}
+	_, _, err := net.SplitHostPort(opt.Addr)
+	if err != nil {
+		opt.Addr = net.JoinHostPort(opt.Addr, "6379")
+	}
+	f := &Client{
+		rc: redis.NewClient(&redis.Options{
+			Addr:     opt.Addr,
+			DB:       opt.DB,
+			Password: "",
+		}),
+	}
+	return f, nil
 }
 
-// JobFilter contains a set of parameters for filtering the list of jobs in
-// JobRepository.
-type JobFilter struct {
-	// Filter jobs since the given time.
-	Since time.Time
-
-	// Limit the number of jobs in the result. 0 means no limit.
-	Limit uint
+type Client struct {
+	rc *redis.Client
 }
 
-// PresetMapRepository is the interface that defines the set of methods for
-// managing PresetMap persistence.
-type PresetMapRepository interface {
-	CreatePresetMap(*PresetMap) error
-	UpdatePresetMap(*PresetMap) error
-	DeletePresetMap(*PresetMap) error
-	GetPresetMap(name string) (*PresetMap, error)
-	ListPresetMaps() ([]PresetMap, error)
+func (c *Client) Get(key string, dst interface{}) error {
+	val, err := c.rc.Get(key).Result()
+	if err == redis.Nil {
+		return ErrJobNotFound
+	} else if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(val), dst)
 }
 
-// LocalPresetRepository provides an interface that defines the set of methods for
-// managing presets when the provider don't have the ability to store/manage it.
-type LocalPresetRepository interface {
-	CreateLocalPreset(*LocalPreset) error
-	UpdateLocalPreset(*LocalPreset) error
-	DeleteLocalPreset(*LocalPreset) error
-	GetLocalPreset(name string) (*LocalPreset, error)
+func (c *Client) Put(key string, val interface{}) error {
+	data, _ := json.Marshal(val)
+	return c.rc.Set(key, string(data), exp).Err()
 }
 
-// PresetSummaryRepository provides an interface that defines the set of methods for
-// managing preset summaries when storing remote reference state is hard to do externally
-type PresetSummaryRepository interface {
-	CreatePresetSummary(*PresetSummary) error
-	DeletePresetSummary(name string) error
-	GetPresetSummary(name string) (PresetSummary, error)
-}
+var exp = 24 * time.Hour * 365 * 10

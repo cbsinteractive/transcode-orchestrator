@@ -36,7 +36,7 @@ func (e enum) Set(src string, dst interface{}) error {
 
 func list(v ...interface{}) (s enum) {
 	for _, v := range v {
-		s = append(s, v.(string))
+		s = append(s, fmt.Sprint(v))
 	}
 	return s
 }

@@ -53,9 +53,8 @@ func init() {
 }
 
 type hybrikProvider struct {
-	c          hwrapper.ClientInterface
-	config     *config.Hybrik
-	repository db.Repository
+	c      hwrapper.ClientInterface
+	config *config.Hybrik
 }
 
 func (p hybrikProvider) String() string {
@@ -314,18 +313,6 @@ func (p *hybrikProvider) CancelJob(_ context.Context, id string) error {
 	return p.c.StopJob(id)
 }
 
-func (p *hybrikProvider) CreatePreset(_ context.Context, preset db.Preset) (string, error) {
-	err := p.repository.CreateLocalPreset(&db.LocalPreset{
-		Name:   preset.Name,
-		Preset: preset,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return preset.Name, nil
-}
-
 func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.VideoTarget, error) {
 	if (preset == db.VideoPreset{}) {
 		return nil, nil
@@ -379,19 +366,6 @@ func audioTargetFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
 			BitrateKb: preset.Bitrate / 1000,
 		},
 	}, nil
-}
-
-func (p *hybrikProvider) DeletePreset(ctx context.Context, presetID string) error {
-	preset, err := p.GetPreset(ctx, presetID)
-	if err != nil {
-		return err
-	}
-
-	return p.repository.DeleteLocalPreset(preset.(*db.LocalPreset))
-}
-
-func (p *hybrikProvider) GetPreset(_ context.Context, presetID string) (interface{}, error) {
-	return p.repository.GetLocalPreset(presetID)
 }
 
 // Healthcheck should return nil if the provider is currently available

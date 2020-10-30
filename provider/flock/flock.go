@@ -29,9 +29,8 @@ func init() {
 }
 
 type flock struct {
-	cfg        *config.Flock
-	repository db.Repository
-	client     *http.Client
+	cfg    *config.Flock
+	client *http.Client
 }
 
 type JobRequest struct {
@@ -138,18 +137,7 @@ func (p *flock) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus
 func (p *flock) flockJobRequestFrom(ctx context.Context, job *db.Job) (*JobRequest, error) {
 	presets := []db.Preset{}
 	for _, output := range job.Outputs {
-		presetName := output.Preset.Name
-		presetResponse, err := p.GetPreset(ctx, presetName)
-		if err != nil {
-			return nil, err
-		}
-
-		localPreset, ok := presetResponse.(*db.LocalPreset)
-		if !ok {
-			return nil, fmt.Errorf("could not convert preset response into a db.LocalPreset")
-		}
-
-		presets = append(presets, localPreset.Preset)
+		presets = append(presets, output.FullPreset)
 	}
 
 	var jobReq JobRequest
@@ -292,31 +280,6 @@ func statusFrom(job *JobResponse) provider.Status {
 		return provider.StatusFailed
 	}
 	return provider.StatusUnknown
-}
-
-func (p *flock) CreatePreset(_ context.Context, preset db.Preset) (string, error) {
-	err := p.repository.CreateLocalPreset(&db.LocalPreset{
-		Name:   preset.Name,
-		Preset: preset,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return preset.Name, nil
-}
-
-func (p *flock) GetPreset(_ context.Context, presetID string) (interface{}, error) {
-	return p.repository.GetLocalPreset(presetID)
-}
-
-func (p *flock) DeletePreset(ctx context.Context, presetID string) error {
-	preset, err := p.GetPreset(ctx, presetID)
-	if err != nil {
-		return err
-	}
-
-	return p.repository.DeleteLocalPreset(preset.(*db.LocalPreset))
 }
 
 func (p *flock) CancelJob(ctx context.Context, providerID string) error {

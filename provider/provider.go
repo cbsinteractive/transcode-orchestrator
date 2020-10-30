@@ -34,9 +34,6 @@ type TranscodingProvider interface {
 	Transcode(context.Context, *db.Job) (*JobStatus, error)
 	JobStatus(context.Context, *db.Job) (*JobStatus, error)
 	CancelJob(ctx context.Context, id string) error
-	//CreatePreset(context.Context, db.Preset) (string, error)
-	DeletePreset(ctx context.Context, presetID string) error
-	GetPreset(ctx context.Context, presetID string) (interface{}, error)
 
 	// Healthcheck should return nil if the provider is currently available
 	// for transcoding videos, otherwise it should return an error

@@ -19,11 +19,14 @@ func New(codec string, preset db.Preset) (Codec, error) {
 	return c, c.Err()
 }
 
-func Summary(c Codec, src db.Preset, dst db.PresetSummary) db.PresetSummary{
+func Summary(c Codec, src db.Preset, dst db.PresetSummary) db.PresetSummary {
+	if c.Err() != nil {
+		return dst
+	}
 	dst.Name = src.Name
 	dst.Container = src.Container
 
-	switch c.(type){
+	switch c.(type) {
 	case interface{ video() }:
 		dst.VideoCodec = c.Kind()
 		dst.VideoConfigID = c.ID()
@@ -31,7 +34,7 @@ func Summary(c Codec, src db.Preset, dst db.PresetSummary) db.PresetSummary{
 		dst.AudioCodec = c.Kind()
 		dst.AudioConfigID = c.ID()
 	}
-	
+
 	return dst
 }
 
@@ -79,10 +82,10 @@ func (c CodecOpus) ID() string   { return c.cfg.Id }
 func (c CodecVorbis) ID() string { return c.cfg.Id }
 func (c CodecVP8) ID() string    { return c.cfg.Id }
 
-func (c CodecAV1) video()     {}
-func (c CodecH264) video()    {}
-func (c CodecH265) video()    {}
-func (c CodecVP8) video()     {}
+func (c CodecAV1) video()  {}
+func (c CodecH264) video() {}
+func (c CodecH265) video() {}
+func (c CodecVP8) video()  {}
 
 func (c CodecAAC) New(p db.Preset) Codec    { c.set(p); return &c }
 func (c CodecAV1) New(p db.Preset) Codec    { c.set(p); return &c }

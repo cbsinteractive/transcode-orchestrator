@@ -20,7 +20,7 @@ import (
 // to the server.
 type TranscodingService struct {
 	config      *config.Config
-	db          db.Repository
+	db          *db.Client
 	logger      *logrus.Logger
 	errReporter exceptions.Reporter
 	tracer      tracing.Tracer
@@ -28,7 +28,7 @@ type TranscodingService struct {
 
 // NewTranscodingService will instantiate a JSONService
 // with the given configuration.
-func NewTranscodingService(cfg *config.Config, logger *logrus.Logger) (*TranscodingService, error) {
+func NewTranscodingService(cfg *config.Config, logger *logrus.Logger, db *db.Client) (*TranscodingService, error) {
 
 	var errReporter exceptions.Reporter
 	var err error
@@ -103,15 +103,6 @@ func (s *TranscodingService) JSONEndpoints() map[string]map[string]server.JSONEn
 		"/jobs/{jobId}/cancel": {
 			"POST": swagger.HandlerToJSONEndpoint(s.cancelTranscodeJob),
 		},
-		"/presetmaps": {
-			"POST": swagger.HandlerToJSONEndpoint(s.newPresetMap),
-			"GET":  swagger.HandlerToJSONEndpoint(s.listPresetMaps),
-		},
-		"/presetmaps/{name}": {
-			"GET":    swagger.HandlerToJSONEndpoint(s.getPresetMap),
-			"PUT":    swagger.HandlerToJSONEndpoint(s.updatePresetMap),
-			"DELETE": swagger.HandlerToJSONEndpoint(s.deletePresetMap),
-		},
 		"/providers": {
 			"GET": swagger.HandlerToJSONEndpoint(s.listProviders),
 		},
@@ -128,22 +119,4 @@ func (s *TranscodingService) Endpoints() map[string]map[string]http.HandlerFunc 
 			"GET": s.swaggerManifest,
 		},
 	}
-}
-
-func (s *TranscodingService) updatePresetMapResolvingConflicts(presetMap *db.PresetMap) error {
-	m, err := s.db.GetPresetMap(presetMap.Name)
-	if err != nil {
-		return fmt.Errorf("fetching presetMap when attempting to resolve conflicts: %w", err)
-	}
-
-	for k, v := range m.ProviderMapping {
-		presetMap.ProviderMapping[k] = v
-	}
-
-	err = s.db.UpdatePresetMap(presetMap)
-	if err != nil {
-		return fmt.Errorf("updating presetMap after resolving conflicts: %w", err)
-	}
-
-	return nil
 }

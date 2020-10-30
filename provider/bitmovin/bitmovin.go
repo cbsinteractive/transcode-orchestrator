@@ -17,7 +17,7 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
-	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/container"
+	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/codec"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/status"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/storage"
 	"github.com/pkg/errors"
@@ -25,7 +25,7 @@ import (
 )
 
 type containerSvc interface {
-	Assemble(*bitmovin.BitmovinApi, container.AssemblerCfg) error
+	Assemble(*bitmovin.BitmovinApi, AssemblerCfg) error
 	Enrich(*bitmovin.BitmovinApi, provider.JobStatus) (provider.JobStatus, error)
 }
 
@@ -42,11 +42,9 @@ const (
 	codecH265   = "h265"
 	codecAV1    = "av1"
 
-	containerWebM    = "webm"
-	containerHLS     = "m3u8"
-	containerMP4     = "mp4"
-	containerMOV     = "mov"
-	containerCMAFHLS = "cmafhls"
+	containerWebM = "webm"
+	containerMP4  = "mp4"
+	containerMOV  = "mov"
 )
 
 func init() {
@@ -120,18 +118,9 @@ var regionByCloud = map[string]map[string]model.CloudRegion{
 }
 
 var containers = map[string]containerSvc{
-	containerWebM: {
-		assembler:      container.NewProgressiveWebMAssembler(api),
-		statusEnricher: container.NewProgressiveWebMStatusEnricher(api),
-	},
-	containerMP4: {
-		assembler:      container.NewMP4Assembler(api),
-		statusEnricher: container.NewMP4StatusEnricher(api),
-	},
-	containerMOV: {
-		assembler:      container.NewMOVAssembler(api),
-		statusEnricher: container.NewMOVStatusEnricher(api),
-	},
+	containerWebM: &WEBM{},
+	containerMP4:  &MP4{},
+	containerMOV:  &MOV{},
 }
 
 var awsCloudRegions = map[model.AwsCloudRegion]struct{}{
@@ -204,38 +193,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		return nil, err
 	}
 
-	var generatingHLS bool
-	for _, preset := range presets {
-		if preset.Container == containerHLS {
-			generatingHLS = true
-		}
-	}
-
-	var manifestID, manifestMasterPath, manifestMasterFilename string
-	if generatingHLS {
-		manifestMasterPath = path.Dir(path.Join(destPath, job.StreamingParams.PlaylistFileName))
-		manifestMasterFilename = path.Base(job.StreamingParams.PlaylistFileName)
-
-		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-hls-manifest")
-		hlsManifest, err := p.api.Encoding.Manifests.Hls.Create(model.HlsManifest{
-			ManifestName: manifestMasterFilename,
-			Outputs:      []model.EncodingOutput{storage.EncodingOutputFrom(outputID, manifestMasterPath)},
-		})
-		if err != nil {
-			subSeg.Close(err)
-			return nil, errors.Wrap(err, "creating master manifest")
-		}
-		subSeg.Close(nil)
-
-		manifestID = hlsManifest.Id
-	}
-
 	encCustomData := make(map[string]map[string]interface{})
-	if manifestID != "" {
-		encCustomData[container.CustomDataKeyManifest] = map[string]interface{}{
-			container.CustomDataKeyManifestID: manifestID,
-		}
-	}
 
 	infrastructureSettings, encodingCloudRegion, err := p.encodingInfrastructureFrom(job)
 	if err != nil {
@@ -369,16 +327,14 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	for idx, o := range job.Outputs {
 		wg.Add(1)
 		go p.createOutput(outputCfg{
-			preset:             presets[idx],
-			encodingID:         enc.Id,
-			audioIn:            inputID,
-			videoIn:            inputID,
-			outputID:           outputID,
-			outputFilename:     o.FileName,
-			destPath:           destPath,
-			manifestID:         manifestID,
-			manifestMasterPath: manifestMasterPath,
-			job:                job,
+			preset:         presets[idx],
+			encodingID:     enc.Id,
+			audioIn:        inputID,
+			videoIn:        inputID,
+			outputID:       outputID,
+			outputFilename: o.FileName,
+			destPath:       destPath,
+			job:            job,
 		}, &wg, errorc)
 	}
 
@@ -395,11 +351,6 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	}
 	subSeg.Close(nil)
 
-	var vodHLSManifests []model.ManifestResource
-	if generatingHLS && manifestID != "" {
-		vodHLSManifests = []model.ManifestResource{{ManifestId: manifestID}}
-	}
-
 	if o := job.ExplicitKeyframeOffsets; len(o) > 0 {
 		subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-keyframes")
 		if err = p.createExplicitKeyframes(enc.Id, o); err != nil {
@@ -410,7 +361,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	}
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-start-encoding")
-	encResp, err := p.api.Encoding.Encodings.Start(enc.Id, model.StartEncodingRequest{VodHlsManifests: vodHLSManifests})
+	encResp, err := p.api.Encoding.Encodings.Start(enc.Id, model.StartEncodingRequest{})
 	if err != nil {
 		subSeg.Close(err)
 		return nil, errors.Wrap(err, "starting encoding job")
@@ -478,13 +429,13 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 		videoMuxingStream = model.MuxingStream{StreamId: vidStream.Id}
 	}
 
-	contnrSvcs, err := p.containerServicesFrom(cfg.preset.Container, model.CodecConfigType(cfg.preset.VideoCodec))
-	if err != nil {
-		errorc <- err
+	container := containers[strings.ToUpper(cfg.preset.Container)]
+	if container == nil {
+		errorc <- fmt.Errorf("unknown container format %q", cfg.preset.Container)
 		return
 	}
 
-	if err = contnrSvcs.assembler.Assemble(container.AssemblerCfg{
+	if err := container.Assemble(p.api, AssemblerCfg{
 		EncID:              cfg.encodingID,
 		OutputID:           cfg.outputID,
 		DestPath:           cfg.destPath,
@@ -554,19 +505,6 @@ func (p *bitmovinProvider) outputFrom(ctx context.Context, job *db.Job) (inputID
 	}
 
 	return outputID, destPath, nil
-}
-
-func (p *bitmovinProvider) containerServicesFrom(mediaContainer string, cfgType model.CodecConfigType) (containerSvc, error) {
-	if cfgType == model.CodecConfigType_H265 && mediaContainer == containerHLS {
-		mediaContainer = containerCMAFHLS
-	}
-
-	containerSvcs, ok := p.containerSvcs[mediaContainer]
-	if !ok {
-		return containerSvc{}, fmt.Errorf("unknown container format %q", mediaContainer)
-	}
-
-	return containerSvcs, nil
 }
 
 func (p *bitmovinProvider) encodingCloudRegionFrom(job *db.Job) (model.CloudRegion, error) {
@@ -671,8 +609,8 @@ func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provide
 
 		// TODO: it would be better to know which containers to include in this fetch
 		// rather than iterating over all supported containers
-		for _, svcs := range p.containerSvcs {
-			s, err = svcs.statusEnricher.Enrich(s)
+		for _, c := range containers {
+			s, err = c.Enrich(p.api, s)
 			if err != nil {
 				subSeg.Close(err)
 				return nil, err
@@ -692,19 +630,15 @@ func (p *bitmovinProvider) CancelJob(ctx context.Context, id string) error {
 	return err
 }
 
-type codecs struct {
-	video, audio string
-}
-
-func (p *bitmovinProvider) xCreatePreset(_ context.Context, preset db.Preset) (string, error) {
-	svc, err := p.cfgServiceFrom(preset.Video.Codec, preset.Audio.Codec)
-	if err != nil {
-		return "", err
-	}
-
-	presetSummary, err := svc.Create(preset)
-	if err != nil {
-		return "", err
+func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (string, error) {
+	vc, _ := codec.New(preset.Video.Codec, preset)
+	ac, _ := codec.New(preset.Video.Codec, preset)
+	presetSummary := db.PresetSummary{}
+	for _, c := range []codec.Codec{vc, ac} {
+		if c.Err() != nil {
+			return "", c.Err()
+		}
+		presetSummary = codec.Summary(c, preset, presetSummary)
 	}
 
 	if presetSummary.HasVideo() {
@@ -788,34 +722,7 @@ func (p *bitmovinProvider) Healthcheck() error {
 func (p *bitmovinProvider) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
 		InputFormats:  []string{"prores", "h264"},
-		OutputFormats: []string{containerMP4, containerMOV, containerHLS, containerWebM},
+		OutputFormats: []string{containerMP4, containerMOV, containerWebM},
 		Destinations:  []string{"s3", "gcs"},
 	}
 }
-
-/*
-func (p *bitmovinProvider) cfgServiceFrom(vcodec, acodec string) (configuration.Store, error) {
-	vcodec, acodec = strings.ToLower(vcodec), strings.ToLower(acodec)
-
-	switch vcodec + acodec {
-	case codecH264 + codecAAC:
-		return p.cfgStores[cfgStoreH264AAC], nil
-	case codecH265 + codecAAC:
-		return p.cfgStores[cfgStoreH265AAC], nil
-	case codecVP8 + codecVorbis:
-		return p.cfgStores[cfgStoreVP8Vorbis], nil
-	case codecH264:
-		return p.cfgStores[cfgStoreH264], nil
-	case codecH265:
-		return p.cfgStores[cfgStoreH265], nil
-	case codecAV1:
-		return p.cfgStores[cfgStoreAV1], nil
-	case codecAAC:
-		return p.cfgStores[cfgStoreAAC], nil
-	case codecOpus:
-		return p.cfgStores[cfgStoreOpus], nil
-	}
-
-	return nil, fmt.Errorf("the pair of vcodec: %q and acodec: %q is not yet supported", vcodec, acodec)
-}
-*/

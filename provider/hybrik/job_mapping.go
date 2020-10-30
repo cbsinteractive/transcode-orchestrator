@@ -2,7 +2,6 @@ package hybrik
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -23,10 +22,7 @@ type jobCfg struct {
 	computeTags          map[db.ComputeClass]string
 }
 
-type outputCfg struct {
-	localPreset db.Preset
-	filename    string
-}
+type outputCfg = db.TranscodeOutput
 
 const (
 	assetContentsKindMetadata = "metadata"
@@ -77,21 +73,7 @@ func (p *hybrikProvider) outputCfgsFrom(ctx context.Context, job *db.Job) (map[s
 	presets := map[string]outputCfg{}
 
 	for _, output := range job.Outputs {
-		presetName := output.Preset.Name
-		presetResponse, err := p.GetPreset(ctx, presetName)
-		if err != nil {
-			return nil, err
-		}
-
-		localPreset, ok := presetResponse.(*db.LocalPreset)
-		if !ok {
-			return nil, fmt.Errorf("could not convert preset response into a db.LocalPreset")
-		}
-
-		presets[presetName] = outputCfg{
-			localPreset: localPreset.Preset,
-			filename:    output.FileName,
-		}
+		presets[output.Preset.Name] = output
 	}
 
 	return presets, nil

@@ -58,18 +58,8 @@ func (s *TranscodingService) newTranscodeJob(r *http.Request) (xxx swagger.Gizmo
 	}
 	outputs := make([]db.TranscodeOutput, len(input.Payload.Outputs))
 	for i, output := range input.Payload.Outputs {
-		presetMap, presetErr := s.db.GetPresetMap(output.Preset)
-		if presetErr != nil {
-			if presetErr == db.ErrPresetMapNotFound {
-				return newInvalidJobResponse(presetErr)
-			}
-			return swagger.NewErrorResponse(presetErr)
-		}
 		fileName := output.FileName
-		if fileName == "" {
-			fileName = s.defaultFileName(input.Payload.Source, presetMap)
-		}
-		outputs[i] = db.TranscodeOutput{FileName: fileName, Preset: *presetMap}
+		outputs[i] = db.TranscodeOutput{FileName: fileName, FullPreset: output.Preset}
 	}
 	job.Outputs = outputs
 	job.ID, err = s.genID()
@@ -77,14 +67,7 @@ func (s *TranscodingService) newTranscodeJob(r *http.Request) (xxx swagger.Gizmo
 	if err != nil {
 		return swagger.NewErrorResponse(err)
 	}
-	if job.StreamingParams.Protocol == "hls" {
-		if job.StreamingParams.PlaylistFileName == "" {
-			job.StreamingParams.PlaylistFileName = "hls/index.m3u8"
-		}
-		if job.StreamingParams.SegmentDuration == 0 {
-			job.StreamingParams.SegmentDuration = s.config.DefaultSegmentDuration
-		}
-	}
+
 	jobStatus, err := providerObj.Transcode(r.Context(), &job)
 	if err == provider.ErrPresetMapNotFound {
 		return newInvalidJobResponse(err)
@@ -96,7 +79,7 @@ func (s *TranscodingService) newTranscodeJob(r *http.Request) (xxx swagger.Gizmo
 	jobStatus.ProviderName = input.Payload.Provider
 	job.ProviderName = jobStatus.ProviderName
 	job.ProviderJobID = jobStatus.ProviderJobID
-	err = s.db.CreateJob(&job)
+	err = s.db.Put(job.ID, &job)
 	if err != nil {
 		return swagger.NewErrorResponse(err)
 	}
@@ -165,8 +148,8 @@ func (s *TranscodingService) getJobStatusResponse(job *db.Job, status *provider.
 }
 
 func (s *TranscodingService) getTranscodeJobByID(ctx context.Context, jobID string) (*db.Job, *provider.JobStatus, provider.TranscodingProvider, error) {
-	job, err := s.db.GetJob(jobID)
-	if err != nil {
+	job := &db.Job{}
+	if err := s.db.Get(jobID, &job); err != nil {
 		if err == db.ErrJobNotFound {
 			return nil, nil, nil, err
 		}
