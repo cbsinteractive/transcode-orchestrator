@@ -69,6 +69,7 @@ func (err JobNotFoundError) Error() string {
 //
 // swagger:model
 type JobStatus struct {
+	ID             string                 `json:"jobID,omitempty"`
 	ProviderJobID  string                 `json:"providerJobId,omitempty"`
 	Status         Status                 `json:"status,omitempty"`
 	ProviderName   string                 `json:"providerName,omitempty"`

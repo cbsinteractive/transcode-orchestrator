@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
@@ -85,7 +86,9 @@ func (s *Server) putJob0(job *db.Job) (*transcoding.JobStatus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrProvider, err)
 	}
+	stat.ID = job.ID
 	job.ProviderJobID = stat.ProviderJobID
+	job.CreationTime = time.Now()
 	if err = s.DB.Put(job.ID, &job); err != nil {
 		return stat, fmt.Errorf("%w: %v", ErrStorage, err)
 	}

@@ -3,7 +3,6 @@ package db
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net"
 
 	"github.com/go-redis/redis"
