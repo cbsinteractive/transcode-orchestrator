@@ -44,8 +44,6 @@ type Client struct {
 }
 
 func (c *Client) Get(key string, dst interface{}) (err error) {
-	log.Printf("get key: %q", key)
-	defer func() { log.Printf("get key: %q err: %v", key, err) }()
 	val, err := c.rc.Get(key).Result()
 	if err == redis.Nil {
 		return ErrJobNotFound
@@ -56,8 +54,6 @@ func (c *Client) Get(key string, dst interface{}) (err error) {
 }
 
 func (c *Client) Put(key string, val interface{}) (err error) {
-	log.Printf("put key: %q", key)
 	data, _ := json.Marshal(val)
-	defer func() { log.Printf("put key: %q data: %q err: %v", key, data, err) }()
 	return c.rc.Set(key, string(data), 0).Err()
 }

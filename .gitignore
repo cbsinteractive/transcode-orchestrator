@@ -1,9 +1,0 @@
-access.log
-transcode-orchestrator
-secrets.yml
-coverage.txt
-.DS_Store
-.idea/
-set_vars.sh
-dump.rdb
-
