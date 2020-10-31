@@ -142,10 +142,10 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]mediaconvert.OutputGroup, error) {
 	outputGroups := map[mediaconvert.ContainerType][]outputCfg{}
 	for _, output := range job.Outputs {
-		mcOutput, err := outputFrom(output.FullPreset, job.SourceInfo)
+		mcOutput, err := outputFrom(output.Preset, job.SourceInfo)
 		if err != nil {
 			return nil, fmt.Errorf("could not determine output settings from db.Preset %v: %w",
-				output.FullPreset, err)
+				output.Preset, err)
 		}
 
 		cSettings := mcOutput.ContainerSettings
@@ -406,7 +406,7 @@ func (p *mcProvider) tagsFrom(labels []string) map[string]string {
 	return tags
 }
 
-func mediaconvertFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
+func mediaconvertFactory(cfg *config.Config) (provider.Provider, error) {
 	if cfg.MediaConvert.Endpoint == "" || cfg.MediaConvert.DefaultQueueARN == "" || cfg.MediaConvert.Role == "" {
 		return nil, errors.New("incomplete MediaConvert config")
 	}

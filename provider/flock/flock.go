@@ -137,7 +137,7 @@ func (p *flock) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus
 func (p *flock) flockJobRequestFrom(ctx context.Context, job *db.Job) (*JobRequest, error) {
 	presets := []db.Preset{}
 	for _, output := range job.Outputs {
-		presets = append(presets, output.FullPreset)
+		presets = append(presets, output.Preset)
 	}
 
 	var jobReq JobRequest
@@ -328,7 +328,7 @@ func (*flock) Capabilities() provider.Capabilities {
 	}
 }
 
-func flockFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
+func flockFactory(cfg *config.Config) (provider.Provider, error) {
 	if cfg.Flock.Endpoint == "" || cfg.Flock.Credential == "" {
 		return nil, errors.New("incomplete Flock config")
 	}

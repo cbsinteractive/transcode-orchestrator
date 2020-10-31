@@ -61,7 +61,7 @@ func (p hybrikProvider) String() string {
 	return "Hybrik"
 }
 
-func hybrikTranscoderFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
+func hybrikTranscoderFactory(cfg *config.Config) (provider.Provider, error) {
 	api, err := hwrapper.NewClient(hwrapper.Config{
 		URL:            cfg.Hybrik.URL,
 		ComplianceDate: cfg.Hybrik.ComplianceDate,

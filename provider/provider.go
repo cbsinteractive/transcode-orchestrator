@@ -30,7 +30,7 @@ var (
 // It defines a basic API for transcoding a media and query the status of a
 // Job. The underlying provider should handle the profileSpec as desired (it
 // might be a JSON, or an XML, or anything else.
-type TranscodingProvider interface {
+type Provider interface {
 	Transcode(context.Context, *db.Job) (*JobStatus, error)
 	JobStatus(context.Context, *db.Job) (*JobStatus, error)
 	CancelJob(ctx context.Context, id string) error
@@ -46,7 +46,7 @@ type TranscodingProvider interface {
 
 // Factory is the function responsible for creating the instance of a
 // provider.
-type Factory func(cfg *config.Config) (TranscodingProvider, error)
+type Factory func(cfg *config.Config) (Provider, error)
 
 // InvalidConfigError is returned if a provider could not be configured properly
 type InvalidConfigError string

@@ -2,7 +2,6 @@ package config
 
 import (
 	"github.com/NYTimes/gizmo/server"
-	"github.com/cbsinteractive/transcode-orchestrator/db/redis/storage"
 	logging "github.com/fsouza/gizmo-stackdriver-logging"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/zsiec/pkg/tracing"
@@ -12,13 +11,11 @@ import (
 // Transcoding API.
 type Config struct {
 	Server                 *server.Config
-	SwaggerManifest        string `envconfig:"SWAGGER_MANIFEST_PATH"`
 	DefaultSegmentDuration uint   `envconfig:"DEFAULT_SEGMENT_DURATION" default:"5"`
 	SentryDSN              string `envconfig:"SENTRY_DSN"`
 	Env                    string `envconfig:"ENV" default:"dev"`
 	EnableXray             bool   `envconfig:"ENABLE_XRAY"`
 	EnableXrayAWSPlugins   bool   `envconfig:"ENABLE_XRAYAWSPLUGINS"`
-	Redis                  *storage.Config
 	EncodingCom            *EncodingCom
 	ElasticTranscoder      *ElasticTranscoder
 	ElementalConductor     *ElementalConductor

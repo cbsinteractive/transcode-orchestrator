@@ -8,8 +8,17 @@ import (
 	"github.com/bitmovin/bitmovin-api-sdk-go/query"
 	"github.com/bitmovin/bitmovin-api-sdk-go/serialization"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
-	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/storage"
+	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/storage"
 )
+
+var containers = map[string]interface {
+	Assemble(*bitmovin.BitmovinApi, AssemblerCfg) error
+	Enrich(*bitmovin.BitmovinApi, provider.JobStatus) (provider.JobStatus, error)
+}{
+	"webm": &WEBM{},
+	"mp4":  &MP4{},
+	"mov":  &MOV{},
+}
 
 // AssemblerCfg holds properties any individual assembler might need when creating resources
 type AssemblerCfg struct {
@@ -34,7 +43,7 @@ func (a AssemblerCfg) Streams() (s []model.MuxingStream) {
 		s = append(s, a.VidMuxingStream)
 	}
 	if a.AudMuxingStream != empty {
-		s = append(s, a.VidMuxingStream)
+		s = append(s, a.AudMuxingStream)
 	}
 	return s
 }

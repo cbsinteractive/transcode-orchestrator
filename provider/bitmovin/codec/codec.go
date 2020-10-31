@@ -1,7 +1,6 @@
 package codec
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -26,9 +25,8 @@ func (e enum) Set(src string, dst interface{}) error {
 	}
 	for _, v := range e {
 		if strings.EqualFold(v, src) {
-			if err := json.Unmarshal([]byte(v), dst); err != nil {
-				return err
-			}
+			_, err := fmt.Sscan(v, dst)
+			return err
 		}
 	}
 	return ErrUnsupportedValue
@@ -59,7 +57,7 @@ type codec struct {
 	err      error
 }
 
-func (c codec) setVideo(cfg VideoPTR, p db.Preset) bool {
+func (c *codec) setVideo(cfg VideoPTR, p db.Preset) bool {
 	*cfg.Name = strings.ToLower(p.Name)
 	if n := int32(p.Video.Width); n != 0 && cfg.Width != nil {
 		*cfg.Width = &n

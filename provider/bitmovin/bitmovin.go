@@ -3,30 +3,30 @@ package bitmovin
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"net/url"
 	"path"
-	"sort"
 	"strings"
 	"sync"
+
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/codec"
+	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/storage"
+
+	"github.com/pkg/errors"
+	"github.com/zsiec/pkg/tracing"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
 	"github.com/bitmovin/bitmovin-api-sdk-go/common"
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/bitmovin/bitmovin-api-sdk-go/query"
-	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/cbsinteractive/transcode-orchestrator/provider"
-	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/codec"
-	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/status"
-	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/internal/storage"
-	"github.com/pkg/errors"
-	"github.com/zsiec/pkg/tracing"
 )
 
-type containerSvc interface {
-	Assemble(*bitmovin.BitmovinApi, AssemblerCfg) error
-	Enrich(*bitmovin.BitmovinApi, provider.JobStatus) (provider.JobStatus, error)
+func init() {
+	_ = provider.Register(Name, bitmovinFactory)
 }
 
 const (
@@ -47,93 +47,9 @@ const (
 	containerMOV  = "mov"
 )
 
-func init() {
-	_ = provider.Register(Name, bitmovinFactory)
-}
-
-var cloudRegions = map[model.CloudRegion]struct{}{
-	model.CloudRegion_AWS_US_EAST_1:                   {},
-	model.CloudRegion_AWS_US_EAST_2:                   {},
-	model.CloudRegion_AWS_US_WEST_1:                   {},
-	model.CloudRegion_AWS_US_WEST_2:                   {},
-	model.CloudRegion_AWS_EU_WEST_1:                   {},
-	model.CloudRegion_AWS_EU_CENTRAL_1:                {},
-	model.CloudRegion_AWS_AP_SOUTHEAST_1:              {},
-	model.CloudRegion_AWS_AP_SOUTHEAST_2:              {},
-	model.CloudRegion_AWS_AP_NORTHEAST_1:              {},
-	model.CloudRegion_AWS_AP_NORTHEAST_2:              {},
-	model.CloudRegion_AWS_AP_SOUTH_1:                  {},
-	model.CloudRegion_AWS_SA_EAST_1:                   {},
-	model.CloudRegion_AWS_EU_WEST_2:                   {},
-	model.CloudRegion_AWS_EU_WEST_3:                   {},
-	model.CloudRegion_AWS_CA_CENTRAL_1:                {},
-	model.CloudRegion_GOOGLE_US_CENTRAL_1:             {},
-	model.CloudRegion_GOOGLE_US_EAST_1:                {},
-	model.CloudRegion_GOOGLE_ASIA_EAST_1:              {},
-	model.CloudRegion_GOOGLE_EUROPE_WEST_1:            {},
-	model.CloudRegion_GOOGLE_US_WEST_1:                {},
-	model.CloudRegion_GOOGLE_ASIA_EAST_2:              {},
-	model.CloudRegion_GOOGLE_ASIA_NORTHEAST_1:         {},
-	model.CloudRegion_GOOGLE_ASIA_SOUTH_1:             {},
-	model.CloudRegion_GOOGLE_ASIA_SOUTHEAST_1:         {},
-	model.CloudRegion_GOOGLE_AUSTRALIA_SOUTHEAST_1:    {},
-	model.CloudRegion_GOOGLE_EUROPE_NORTH_1:           {},
-	model.CloudRegion_GOOGLE_EUROPE_WEST_2:            {},
-	model.CloudRegion_GOOGLE_EUROPE_WEST_4:            {},
-	model.CloudRegion_GOOGLE_NORTHAMERICA_NORTHEAST_1: {},
-	model.CloudRegion_GOOGLE_SOUTHAMERICA_EAST_1:      {},
-	model.CloudRegion_GOOGLE_US_EAST_4:                {},
-	model.CloudRegion_GOOGLE_US_WEST_2:                {},
-	model.CloudRegion_AZURE_EUROPE_WEST:               {},
-	model.CloudRegion_AZURE_US_WEST2:                  {},
-	model.CloudRegion_AZURE_US_EAST:                   {},
-	model.CloudRegion_AZURE_AUSTRALIA_SOUTHEAST:       {},
-	model.CloudRegion_NORTH_AMERICA:                   {},
-	model.CloudRegion_SOUTH_AMERICA:                   {},
-	model.CloudRegion_EUROPE:                          {},
-	model.CloudRegion_AFRICA:                          {},
-	model.CloudRegion_ASIA:                            {},
-	model.CloudRegion_AUSTRALIA:                       {},
-	model.CloudRegion_AWS:                             {},
-	model.CloudRegion_GOOGLE:                          {},
-	model.CloudRegion_KUBERNETES:                      {},
-	model.CloudRegion_EXTERNAL:                        {},
-	model.CloudRegion_AUTO:                            {},
-}
-
-var regionByCloud = map[string]map[string]model.CloudRegion{
-	provider.CloudAWS: {
-		provider.AWSRegionUSEast1: model.CloudRegion_AWS_US_EAST_1,
-		provider.AWSRegionUSEast2: model.CloudRegion_AWS_US_EAST_2,
-		provider.AWSRegionUSWest1: model.CloudRegion_AWS_US_WEST_1,
-		provider.AWSRegionUSWest2: model.CloudRegion_AWS_US_WEST_2,
-	},
-	provider.CloudGCP: {
-		provider.GCPRegionUSEast1:    model.CloudRegion_GOOGLE_US_EAST_1,
-		provider.GCPRegionUSEast4:    model.CloudRegion_GOOGLE_US_EAST_4,
-		provider.GCPRegionUSWest1:    model.CloudRegion_GOOGLE_US_WEST_1,
-		provider.GCPRegionUSWest2:    model.CloudRegion_GOOGLE_US_WEST_2,
-		provider.GCPRegionUSCentral1: model.CloudRegion_GOOGLE_US_CENTRAL_1,
-	},
-}
-
-var containers = map[string]containerSvc{
-	containerWebM: &WEBM{},
-	containerMP4:  &MP4{},
-	containerMOV:  &MOV{},
-}
-
-var awsCloudRegions = map[model.AwsCloudRegion]struct{}{
-	model.AwsCloudRegion_US_EAST_1: {}, model.AwsCloudRegion_US_EAST_2: {}, model.AwsCloudRegion_US_WEST_1: {},
-	model.AwsCloudRegion_US_WEST_2: {}, model.AwsCloudRegion_EU_WEST_1: {}, model.AwsCloudRegion_EU_CENTRAL_1: {},
-	model.AwsCloudRegion_AP_SOUTHEAST_1: {}, model.AwsCloudRegion_AP_SOUTHEAST_2: {}, model.AwsCloudRegion_AP_NORTHEAST_1: {},
-	model.AwsCloudRegion_AP_NORTHEAST_2: {}, model.AwsCloudRegion_AP_SOUTH_1: {}, model.AwsCloudRegion_SA_EAST_1: {},
-	model.AwsCloudRegion_EU_WEST_2: {}, model.AwsCloudRegion_EU_WEST_3: {}, model.AwsCloudRegion_CA_CENTRAL_1: {},
-}
-
 var errBitmovinInvalidConfig = provider.InvalidConfigError("Invalid configuration")
 
-func bitmovinFactory(cfg *config.Config) (provider.TranscodingProvider, error) {
+func bitmovinFactory(cfg *config.Config) (provider.Provider, error) {
 	if cfg.Bitmovin.APIKey == "" {
 		return nil, errBitmovinInvalidConfig
 	}
@@ -175,12 +91,9 @@ type bitmovinProvider struct {
 func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
 	presets := make([]db.PresetSummary, len(job.Outputs))
 	for i, output := range job.Outputs {
-		// get preset summary ?
-		// summary, err := p.repo.GetPresetSummary(output.Preset.Name)
-
-		//	presets[idx] = summary
-		i = i
-		output = output
+		if err := p.createPreset(ctx, output.Preset, &presets[i]); err != nil {
+			return nil, fmt.Errorf("output[%d]: preset: %w", i, err)
+		}
 	}
 
 	inputID, mediaPath, err := p.inputFrom(ctx, job)
@@ -237,85 +150,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		return nil, fmt.Errorf("ingest: %v", err)
 	}
 
-	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-concatenated-splice")
-	inputID, err = func(inputID string) (string, error) {
-		if len(job.SourceSplice) == 0 {
-			return inputID, nil
-		}
-
-		type work struct {
-			pos        int32
-			start, dur float64
-			id         string
-			err        error
-		}
-		workc := make(chan work, len(job.SourceSplice))
-
-		// splice each range concurrently
-		for i, r := range job.SourceSplice {
-			w := work{
-				pos:   int32(i),
-				start: r[0],
-				dur:   r[1] - r[0],
-			}
-			go func() {
-				// NOTE(as): don't use the timecode "api", it seems to look for a real
-				// timecode track in the source. If it doesn't find it, it just doesn't trim
-				// the clip and provides no logging or errors. For this "api", it wants
-				// start, duration; not start, end, and it also wants pointers
-				splice, err := p.api.Encoding.Encodings.InputStreams.Trimming.TimeBased.Create(enc.Id, model.TimeBasedTrimmingInputStream{
-					InputStreamId: inputID,
-					Offset:        &w.start,
-					Duration:      &w.dur,
-				})
-				if splice != nil {
-					w.id = splice.Id
-				}
-				w.err = err
-				workc <- w
-			}()
-		}
-
-		if cap(workc) == 1 {
-			// NOTE(as): turns out bitmovin complains if you run the equivalent of:
-			// 'cat input0.mp4 > input.mp4'  because there's only one input0.mp4
-			w := <-workc
-			if w.err != nil {
-				return inputID, fmt.Errorf("trim: range#%d: %w", 1, w.err)
-			}
-			// can't concatenate, need special case for one input splice
-			return w.id, nil
-		}
-
-		// collect the results serially
-		cat := []model.ConcatenationInputConfiguration{}
-		for i := 0; i < cap(workc); i++ {
-			w := <-workc
-			if w.err != nil {
-				return inputID, fmt.Errorf("trim: range#%d: %w", w.pos, w.err)
-			}
-			main := i == 0
-			cat = append(cat, model.ConcatenationInputConfiguration{
-				IsMain:        &main,
-				InputStreamId: w.id,
-				Position:      &w.pos,
-			})
-		}
-
-		// although there are position markers in the struct,
-		// sort it just in case, this makes the logging consistent too
-		sort.Slice(cat, func(i, j int) bool {
-			return *cat[i].Position < *cat[j].Position
-		})
-		c, err := p.api.Encoding.Encodings.InputStreams.Concatenation.Create(enc.Id, model.ConcatenationInputStream{
-			Concatenation: cat,
-		})
-		if err != nil {
-			return inputID, fmt.Errorf("concatenation: %v", err)
-		}
-		return c.Id, nil
-	}(inputID)
-	subSeg.Close(err)
+	inputID, err = p.splice(ctx, enc.Id, inputID, job.SourceSplice)
 	if err != nil {
 		return nil, fmt.Errorf("splice: %w", err)
 	}
@@ -375,6 +210,63 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	}, nil
 }
 
+func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
+	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-get-encoding-status")
+	task, err := p.api.Encoding.Encodings.Status(job.ProviderJobID)
+	if err != nil {
+		subSeg.Close(err)
+		return nil, errors.Wrap(err, "retrieving encoding status")
+	}
+	subSeg.Close(nil)
+
+	var progress float64
+	if task.Progress != nil {
+		progress = float64(*task.Progress)
+	}
+
+	s := provider.JobStatus{
+		ProviderName:  Name,
+		ProviderJobID: job.ProviderJobID,
+		Status:        status(task.Status),
+		Progress:      progress,
+		ProviderStatus: map[string]interface{}{
+			"messages":       task.Messages,
+			"originalStatus": task.Status,
+		},
+		Output: provider.JobOutput{
+			Destination: strings.TrimRight(p.destinationForJob(job), "/") + "/" + job.RootFolder() + "/",
+		},
+	}
+
+	if s.Status == provider.StatusFinished {
+		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-get-output-info")
+		s, err = p.enrichStreams(s)
+		if err != nil {
+			subSeg.Close(err)
+			return nil, errors.Wrap(err, "enriching status with source info")
+		}
+
+		// TODO: it would be better to know which containers to include in this fetch
+		// rather than iterating over all supported containers
+		for _, c := range containers {
+			s, err = c.Enrich(p.api, s)
+			if err != nil {
+				subSeg.Close(err)
+				return nil, err
+			}
+		}
+		subSeg.Close(nil)
+	}
+
+	return &s, nil
+}
+
+func (p *bitmovinProvider) CancelJob(ctx context.Context, id string) (err error) {
+	defer p.trace(ctx, "bitmovin-delete-job", &err)()
+	_, err = p.api.Encoding.Encodings.Stop(id)
+	return err
+}
+
 type outputCfg struct {
 	preset             db.PresetSummary
 	encodingID         string
@@ -429,7 +321,7 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 		videoMuxingStream = model.MuxingStream{StreamId: vidStream.Id}
 	}
 
-	container := containers[strings.ToUpper(cfg.preset.Container)]
+	container := containers[strings.ToLower(cfg.preset.Container)]
 	if container == nil {
 		errorc <- fmt.Errorf("unknown container format %q", cfg.preset.Container)
 		return
@@ -454,6 +346,8 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 }
 
 func (p *bitmovinProvider) inputFrom(ctx context.Context, job *db.Job) (inputID string, srcPath string, err error) {
+	defer p.trace(ctx, "bitmovin-create-input", &err)()
+
 	srcPath, err = storage.PathFrom(job.SourceMedia)
 	if err != nil {
 		return "", "", err
@@ -463,8 +357,6 @@ func (p *bitmovinProvider) inputFrom(ctx context.Context, job *db.Job) (inputID 
 		return alias, srcPath, nil
 	}
 
-	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-input")
-
 	inputID, err = storage.NewInput(job.SourceMedia, storage.InputAPI{
 		S3:    p.api.Encoding.Inputs.S3,
 		GCS:   p.api.Encoding.Inputs.Gcs,
@@ -472,15 +364,15 @@ func (p *bitmovinProvider) inputFrom(ctx context.Context, job *db.Job) (inputID 
 		HTTPS: p.api.Encoding.Inputs.Https,
 	}, p.providerCfg)
 	if err != nil {
-		subSeg.Close(err)
 		return "", srcPath, err
 	}
-	subSeg.Close(nil)
 
 	return inputID, srcPath, nil
 }
 
 func (p *bitmovinProvider) outputFrom(ctx context.Context, job *db.Job) (inputID string, destPath string, err error) {
+	defer p.trace(ctx, "bitmovin-create-output", &err)()
+
 	destBasePath := p.destinationForJob(job)
 	destURL, err := url.Parse(destBasePath)
 	if err != nil {
@@ -492,9 +384,6 @@ func (p *bitmovinProvider) outputFrom(ctx context.Context, job *db.Job) (inputID
 	if alias := job.ExecutionEnv.OutputAlias; alias != "" {
 		return alias, destPath, nil
 	}
-
-	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-output")
-	defer subSeg.Close(nil)
 
 	outputID, err := storage.NewOutput(destBasePath, storage.OutputAPI{
 		S3:  p.api.Encoding.Outputs.S3,
@@ -571,86 +460,34 @@ func (p *bitmovinProvider) createExplicitKeyframes(encodingID string, offsets []
 	return nil
 }
 
-func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
-	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-get-encoding-status")
-	task, err := p.api.Encoding.Encodings.Status(job.ProviderJobID)
-	if err != nil {
-		subSeg.Close(err)
-		return nil, errors.Wrap(err, "retrieving encoding status")
-	}
-	subSeg.Close(nil)
-
-	var progress float64
-	if task.Progress != nil {
-		progress = float64(*task.Progress)
-	}
-
-	s := provider.JobStatus{
-		ProviderName:  Name,
-		ProviderJobID: job.ProviderJobID,
-		Status:        status.ToProviderStatus(task.Status),
-		Progress:      progress,
-		ProviderStatus: map[string]interface{}{
-			"messages":       task.Messages,
-			"originalStatus": task.Status,
-		},
-		Output: provider.JobOutput{
-			Destination: strings.TrimRight(p.destinationForJob(job), "/") + "/" + job.RootFolder() + "/",
-		},
-	}
-
-	if s.Status == provider.StatusFinished {
-		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-get-output-info")
-		s, err = status.EnrichSourceInfo(p.api, s)
-		if err != nil {
-			subSeg.Close(err)
-			return nil, errors.Wrap(err, "enriching status with source info")
-		}
-
-		// TODO: it would be better to know which containers to include in this fetch
-		// rather than iterating over all supported containers
-		for _, c := range containers {
-			s, err = c.Enrich(p.api, s)
-			if err != nil {
-				subSeg.Close(err)
-				return nil, err
-			}
-		}
-		subSeg.Close(nil)
-	}
-
-	return &s, nil
-}
-
-func (p *bitmovinProvider) CancelJob(ctx context.Context, id string) error {
-	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-delete-job")
-	_, err := p.api.Encoding.Encodings.Stop(id)
-	subSeg.Close(err)
-
-	return err
-}
-
-func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (string, error) {
+func (p *bitmovinProvider) createPreset(_ context.Context, preset db.Preset, summary *db.PresetSummary) error {
 	vc, _ := codec.New(preset.Video.Codec, preset)
-	ac, _ := codec.New(preset.Video.Codec, preset)
-	presetSummary := db.PresetSummary{}
-	for _, c := range []codec.Codec{vc, ac} {
+	ac, _ := codec.New(preset.Audio.Codec, preset)
+	c := []codec.Codec{}
+	if preset.Video.Codec != "" {
+		c = append(c, vc)
+	}
+	if preset.Audio.Codec != "" {
+		c = append(c, ac)
+	}
+	for _, c := range c {
+		c.Create(p.api)
 		if c.Err() != nil {
-			return "", c.Err()
+			return c.Err()
 		}
-		presetSummary = codec.Summary(c, preset, presetSummary)
+		*summary = codec.Summary(c, preset, *summary)
 	}
 
-	if presetSummary.HasVideo() {
+	if summary.HasVideo() {
 		deInterlace, err := p.api.Encoding.Filters.Deinterlace.Create(model.DeinterlaceFilter{
 			Name:       "deinterlace",
 			AutoEnable: model.DeinterlaceAutoEnable_META_DATA_AND_CONTENT_BASED,
 		})
 		if err != nil {
-			return "", fmt.Errorf("creating deinterlace filter: %w", err)
+			return fmt.Errorf("creating deinterlace filter: %w", err)
 		}
 
-		presetSummary.VideoFilters = append(presetSummary.VideoFilters, deInterlace.Id)
+		summary.VideoFilters = append(summary.VideoFilters, deInterlace.Id)
 
 		if c := preset.Video.Crop; !c.Empty() {
 			f, err := p.api.Encoding.Filters.Crop.Create(model.CropFilter{
@@ -660,10 +497,10 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 				Bottom: bitmovin.Int32Ptr(int32(c.Bottom)),
 			})
 			if err != nil {
-				return "", fmt.Errorf("creating crop filter: %w", err)
+				return fmt.Errorf("creating crop filter: %w", err)
 			}
 
-			presetSummary.VideoFilters = append(presetSummary.VideoFilters, f.Id)
+			summary.VideoFilters = append(summary.VideoFilters, f.Id)
 		}
 
 		if overlays := preset.Video.Overlays; overlays != nil && overlays.Images != nil {
@@ -676,32 +513,61 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 					Image: image.URL,
 				})
 				if err != nil {
-					return "", fmt.Errorf("creating watermark filter: %w", err)
+					return fmt.Errorf("creating watermark filter: %w", err)
 				}
 
-				presetSummary.VideoFilters = append(presetSummary.VideoFilters, watermark.Id)
+				summary.VideoFilters = append(summary.VideoFilters, watermark.Id)
 			}
 		}
 	}
 
-	return preset.Name, nil // p.repo.CreatePresetSummary(&presetSummary)
+	return nil
 }
 
-// DeletePreset loops over registered cfg services and attempts to delete them
-func (p *bitmovinProvider) DeletePreset(_ context.Context, presetName string) error {
-	panic("DeletePreset")
-}
+func (p *bitmovinProvider) enrichStreams(s provider.JobStatus) (provider.JobStatus, error) {
+	inStreams, err := p.api.Encoding.Encodings.Streams.List(s.ProviderJobID, func(params *query.StreamListQueryParams) {
+		params.Limit = 1
+		params.Offset = 0
+	})
+	if err != nil {
+		return s, errors.Wrap(err, "retrieving input streams from the Bitmovin API")
+	}
+	if len(inStreams.Items) == 0 {
+		return s, fmt.Errorf("no streams found for encodingID %s", s.ProviderJobID)
+	}
 
-// GetPreset searches for a preset from the registered cfg services
-func (p *bitmovinProvider) GetPreset(_ context.Context, presetName string) (interface{}, error) {
-	panic("GetPreset")
+	inStream := inStreams.Items[0]
+	streamInput, err := p.api.Encoding.Encodings.Streams.Input.Get(s.ProviderJobID, inStream.Id)
+	if err != nil {
+		return s, errors.Wrap(err, "retrieving stream input details from the Bitmovin API")
+	}
+
+	var (
+		vidCodec      string
+		width, height int64
+	)
+	if len(streamInput.VideoStreams) > 0 {
+		vidStreamInput := streamInput.VideoStreams[0]
+		vidCodec = vidStreamInput.Codec
+		width = int64(int32Value(vidStreamInput.Width))
+		height = int64(int32Value(vidStreamInput.Height))
+	}
+
+	s.SourceInfo = provider.SourceInfo{
+		Duration:   time.Duration(floatValue(streamInput.Duration) * float64(time.Second)),
+		Width:      width,
+		Height:     height,
+		VideoCodec: vidCodec,
+	}
+
+	return s, nil
+
 }
 
 func (p *bitmovinProvider) destinationForJob(job *db.Job) string {
 	if path := job.DestinationBasePath; path != "" {
 		return path
 	}
-
 	return p.providerCfg.Destination
 }
 
@@ -725,4 +591,18 @@ func (p *bitmovinProvider) Capabilities() provider.Capabilities {
 		OutputFormats: []string{containerMP4, containerMOV, containerWebM},
 		Destinations:  []string{"s3", "gcs"},
 	}
+}
+
+func floatValue(f *float64) float64 {
+	if f == nil {
+		return 0
+	}
+	return *f
+}
+
+func int32Value(i *int32) int32 {
+	if i == nil {
+		return 0
+	}
+	return *i
 }

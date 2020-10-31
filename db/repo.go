@@ -3,8 +3,8 @@ package db
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net"
-	"time"
 
 	"github.com/go-redis/redis"
 )
@@ -21,6 +21,9 @@ type Options struct {
 func NewClient(opt *Options) (*Client, error) {
 	if opt == nil {
 		opt = &Options{}
+	}
+	if opt.Addr == "" {
+		opt.Addr = "localhost:6379"
 	}
 	_, _, err := net.SplitHostPort(opt.Addr)
 	if err != nil {
@@ -40,7 +43,9 @@ type Client struct {
 	rc *redis.Client
 }
 
-func (c *Client) Get(key string, dst interface{}) error {
+func (c *Client) Get(key string, dst interface{}) (err error) {
+	log.Printf("get key: %q", key)
+	defer func() { log.Printf("get key: %q err: %v", key, err) }()
 	val, err := c.rc.Get(key).Result()
 	if err == redis.Nil {
 		return ErrJobNotFound
@@ -50,9 +55,9 @@ func (c *Client) Get(key string, dst interface{}) error {
 	return json.Unmarshal([]byte(val), dst)
 }
 
-func (c *Client) Put(key string, val interface{}) error {
+func (c *Client) Put(key string, val interface{}) (err error) {
+	log.Printf("put key: %q", key)
 	data, _ := json.Marshal(val)
-	return c.rc.Set(key, string(data), exp).Err()
+	defer func() { log.Printf("put key: %q data: %q err: %v", key, data, err) }()
+	return c.rc.Set(key, string(data), 0).Err()
 }
-
-var exp = 24 * time.Hour * 365 * 10

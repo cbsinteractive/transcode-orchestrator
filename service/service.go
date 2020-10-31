@@ -1,122 +1,166 @@
 package service
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
-	"github.com/NYTimes/gizmo/server"
-	"github.com/NYTimes/gziphandler"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
+	transcoding "github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/cbsinteractive/transcode-orchestrator/service/exceptions"
-	"github.com/cbsinteractive/transcode-orchestrator/swagger"
-	"github.com/fsouza/ctxlogger"
-	"github.com/gorilla/handlers"
 	"github.com/sirupsen/logrus"
 	"github.com/zsiec/pkg/tracing"
 )
 
-// TranscodingService will implement server.JSONService and handle all requests
-// to the server.
-type TranscodingService struct {
-	config      *config.Config
-	db          *db.Client
+var ErrProvider = errors.New("provider error")
+var ErrStorage = errors.New("storage error")
+
+type Server struct {
+	Config      *config.Config
+	DB          *db.Client
 	logger      *logrus.Logger
 	errReporter exceptions.Reporter
 	tracer      tracing.Tracer
+
+	request
 }
 
-// NewTranscodingService will instantiate a JSONService
-// with the given configuration.
-func NewTranscodingService(cfg *config.Config, logger *logrus.Logger, db *db.Client) (*TranscodingService, error) {
-
-	var errReporter exceptions.Reporter
-	var err error
-	if cfg.SentryDSN != "" {
-		errReporter, err = exceptions.NewSentryReporter(cfg.SentryDSN, cfg.Env)
-		if err != nil {
-			return nil, fmt.Errorf("error initializing Sentry exceptions reporter: %v", err)
-		}
-	} else {
-		errReporter = &exceptions.NoopReporter{}
-		logger.Info("no sentry config detected, disabling sentry integration")
-	}
-
-	tracer := cfg.Tracer
-	if tracer == nil {
-		tracer = tracing.NoopTracer{}
-	}
-
-	return &TranscodingService{
-		config:      cfg,
-		logger:      logger,
-		errReporter: errReporter,
-		tracer:      tracer,
-	}, nil
+func (s Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	s.request = newRequest(rw, r)
+	s.serve()
+	defer s.request.finalize()
 }
 
-// Prefix returns the string prefix used for all endpoints within
-// this service.
-func (s *TranscodingService) Prefix() string {
-	return ""
-}
-
-// Middleware provides an http.Handler hook wrapped around all requests.
-// In this implementation, we're using a GzipHandler middleware to
-// compress our responses.
-func (s *TranscodingService) Middleware(h http.Handler) http.Handler {
-	logMiddleware := ctxlogger.ContextLogger(s.logger)
-	h = logMiddleware(h)
-	if s.config.Server.HTTPAccessLog == nil {
-		h = handlers.LoggingHandler(s.logger.Writer(), h)
-	}
-	return s.tracer.Handle(
-		tracing.FixedNamer("transcode-orchestrator"),
-		gziphandler.GzipHandler(server.CORSHandler(h, "")),
-	)
-}
-
-// JSONMiddleware provides a JSONEndpoint hook wrapped around all requests.
-func (s *TranscodingService) JSONMiddleware(j server.JSONEndpoint) server.JSONEndpoint {
-	return func(r *http.Request) (int, interface{}, error) {
-		status, res, err := j(r)
-		if err != nil {
-			if s.errReporter != nil {
-				s.errReporter.ReportException(fmt.Errorf("req err url=%s method=%s status=%d result=%v err=%v",
-					r.URL.String(), r.Method, status, res, err))
+func (s *Server) serve() bool {
+	switch s.chop() {
+	case "jobs":
+		job := &db.Job{ID: s.chop()}
+		switch s.method() {
+		case "POST":
+			if !s.request.UnmarshalJSON(job) {
+				return false
 			}
-			return swagger.NewErrorResponse(err).WithStatus(status).Result()
+			stat, err := s.putJob0(job)
+			if err != nil {
+				return s.writeerror("put job failed", 400, err)
+			}
+			return s.writebody(stat)
+		case "GET":
+			stat, err := s.getJob0(job, false)
+			if err != nil {
+				return s.writeerror("get job failed", 400, err)
+			}
+			return s.writebody(stat)
+		case "DELETE":
+			stat, err := s.getJob0(job, false)
+			if err != nil {
+				return s.writeerror("del job failed", 400, err)
+			}
+			return s.writebody(stat)
 		}
-		return status, res, nil
+	case "providers":
+	default:
+		s.writeerror("bad request path", 400, nil)
 	}
+	return false
 }
 
-// JSONEndpoints is a listing of all endpoints available in the JSONService.
-func (s *TranscodingService) JSONEndpoints() map[string]map[string]server.JSONEndpoint {
-	return map[string]map[string]server.JSONEndpoint{
-		"/jobs": {
-			"POST": swagger.HandlerToJSONEndpoint(s.newTranscodeJob),
-		},
-		"/jobs/{jobId}": {
-			"GET": swagger.HandlerToJSONEndpoint(s.getTranscodeJob),
-		},
-		"/jobs/{jobId}/cancel": {
-			"POST": swagger.HandlerToJSONEndpoint(s.cancelTranscodeJob),
-		},
-		"/providers": {
-			"GET": swagger.HandlerToJSONEndpoint(s.listProviders),
-		},
-		"/providers/{name}": {
-			"GET": swagger.HandlerToJSONEndpoint(s.getProvider),
-		},
+func (s *Server) provider0(job *db.Job) (transcoding.Provider, error) {
+	fn, err := transcoding.GetProviderFactory(job.ProviderName)
+	if err != nil {
+		return nil, err
 	}
+	return fn(s.Config)
 }
 
-// Endpoints is a list of all non-json endpoints.
-func (s *TranscodingService) Endpoints() map[string]map[string]http.HandlerFunc {
-	return map[string]map[string]http.HandlerFunc{
-		"/swagger.json": {
-			"GET": s.swaggerManifest,
-		},
+func (s *Server) putJob0(job *db.Job) (*transcoding.JobStatus, error) {
+	p, err := s.provider0(job)
+	if err != nil {
+		return nil, err
 	}
+	stat, err := p.Transcode(s.request.ctx, job)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrProvider, err)
+	}
+	job.ProviderJobID = stat.ProviderJobID
+	if err = s.DB.Put(job.ID, &job); err != nil {
+		return stat, fmt.Errorf("%w: %v", ErrStorage, err)
+	}
+	return stat, nil
+}
+
+func (s *Server) getJob0(job *db.Job, del bool) (*transcoding.JobStatus, error) {
+	if err := s.DB.Get(job.ID, &job); err != nil {
+		return nil, err
+	}
+	p, err := s.provider0(job)
+	if err != nil {
+		return nil, err
+	}
+	if del {
+		if err = p.CancelJob(s.request.ctx, job.ProviderJobID); err != nil {
+			return nil, err
+		}
+	}
+	//TODO(as): provider name
+	return p.JobStatus(s.request.ctx, job)
+}
+
+func (s *Server) method() string {
+	return s.request.r.Method
+}
+
+// PlatformError implements a well-known error response for http clients
+// encountering an error when using the service.
+type PlatformError struct {
+	Ok     bool   `json:"ok"`
+	Status int    `json:"status"`
+	Rid    uint64 `json:"rid"`
+	Msg    string `json:"msg,omitempty"`
+}
+
+// String returns the json-formatted platform response
+func (p PlatformError) String() string {
+	data, _ := json.Marshal(p)
+	return string(data)
+}
+
+type StatusError struct {
+	Code int
+	Msg  string
+	body string
+}
+
+func (e StatusError) NotFound() bool {
+	return e.Code == 404
+}
+func (e StatusError) Error() string {
+	return fmt.Sprintf("http status: %d: %q", e.Code, e.body)
+}
+
+func logkv(kv ...interface{}) bool {
+	msg := `{`
+	sep := " "
+	for i := 0; i+1 < len(kv); i += 2 {
+		v := kv[i+1]
+		if v == nil {
+			v = ""
+		} else {
+			switch v.(type) {
+			case fmt.Stringer:
+				v = fmt.Sprint(v)
+			case error:
+				v = fmt.Sprint(v)
+			}
+		}
+		value, _ := json.Marshal(v)
+		msg += fmt.Sprintf(`%s%q:%s`, sep, kv[i], string(value))
+		sep = ", "
+	}
+	msg += `}`
+	log.Println(msg)
+	return true
 }
