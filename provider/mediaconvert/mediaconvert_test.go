@@ -478,7 +478,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
+									Destination:         aws.String("s3://some/destination/jobID/m"),
+									DestinationSettings: &defaultDestinationSettings,
 								},
 							},
 							Outputs: []mediaconvert.Output{
@@ -584,7 +585,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
+									Destination:         aws.String("s3://some/destination/jobID/m"),
+									DestinationSettings: &defaultDestinationSettings,
 								},
 							},
 							Outputs: []mediaconvert.Output{
@@ -690,7 +692,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
+									Destination:         aws.String("s3://some/destination/jobID/m"),
+									DestinationSettings: &defaultDestinationSettings,
 								},
 							},
 							Outputs: []mediaconvert.Output{
@@ -787,7 +790,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
+									Destination:         aws.String("s3://some/destination/jobID/m"),
+									DestinationSettings: &defaultDestinationSettings,
 								},
 							},
 							Outputs: []mediaconvert.Output{
@@ -884,7 +888,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
+									Destination:         aws.String("s3://some/destination/jobID/m"),
+									DestinationSettings: &defaultDestinationSettings,
 								},
 							},
 							Outputs: []mediaconvert.Output{
@@ -969,7 +974,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
+									Destination:         aws.String("s3://some/destination/jobID/m"),
+									DestinationSettings: &defaultDestinationSettings,
 								},
 							},
 							Outputs: []mediaconvert.Output{
@@ -1067,7 +1073,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
+									Destination:         aws.String("s3://some/destination/jobID/m"),
+									DestinationSettings: &defaultDestinationSettings,
 								},
 							},
 							Outputs: []mediaconvert.Output{
@@ -1170,7 +1177,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
+									Destination:         aws.String("s3://some/destination/jobID/m"),
+									DestinationSettings: &defaultDestinationSettings,
 								},
 							},
 							Outputs: []mediaconvert.Output{
@@ -1293,7 +1301,8 @@ func Test_mcProvider_Transcode(t *testing.T) {
 							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
 								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
+									Destination:         aws.String("s3://some/destination/jobID/m"),
+									DestinationSettings: &defaultDestinationSettings,
 								},
 							},
 							Outputs: []mediaconvert.Output{
