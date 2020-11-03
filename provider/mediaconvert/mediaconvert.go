@@ -142,6 +142,14 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 	}, nil
 }
 
+var defaultDestinationSettings = mediaconvert.DestinationSettings{
+	S3Settings: &mediaconvert.S3DestinationSettings{
+		AccessControl: &mediaconvert.S3DestinationAccessControl{
+			CannedAcl: mediaconvert.S3ObjectCannedAclBucketOwnerFullControl,
+		},
+	},
+}
+
 func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]mediaconvert.OutputGroup, error) {
 	outputGroups := map[mediaconvert.ContainerType][]outputCfg{}
 	for _, output := range job.Outputs {
@@ -201,6 +209,7 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 				Type: mediaconvert.OutputGroupTypeCmafGroupSettings,
 				CmafGroupSettings: &mediaconvert.CmafGroupSettings{
 					Destination:            aws.String(destination),
+					DestinationSettings:    &defaultDestinationSettings,
 					FragmentLength:         aws.Int64(int64(job.StreamingParams.SegmentDuration)),
 					ManifestDurationFormat: mediaconvert.CmafManifestDurationFormatFloatingPoint,
 					SegmentControl:         mediaconvert.CmafSegmentControlSegmentedFiles,
@@ -214,6 +223,7 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 				Type: mediaconvert.OutputGroupTypeHlsGroupSettings,
 				HlsGroupSettings: &mediaconvert.HlsGroupSettings{
 					Destination:            aws.String(destination),
+					DestinationSettings:    &defaultDestinationSettings,
 					SegmentLength:          aws.Int64(int64(job.StreamingParams.SegmentDuration)),
 					MinSegmentLength:       aws.Int64(0),
 					DirectoryStructure:     mediaconvert.HlsDirectoryStructureSingleDirectory,
@@ -226,7 +236,8 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
 				Type: mediaconvert.OutputGroupTypeFileGroupSettings,
 				FileGroupSettings: &mediaconvert.FileGroupSettings{
-					Destination: aws.String(destination + "m"),
+					Destination:         aws.String(destination + "m"),
+					DestinationSettings: &defaultDestinationSettings,
 				},
 			}
 		default:
