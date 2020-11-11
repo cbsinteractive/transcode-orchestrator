@@ -470,6 +470,16 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 			return
 		}
 
+		for i, filter := range cfg.preset.AudioFilters {
+			_, err = p.api.Encoding.Encodings.Streams.Filters.Create(cfg.encodingID, audStream.Id, []model.StreamFilter{
+				{Id: filter, Position: bitmovin.Int32Ptr(int32(i))},
+			})
+			if err != nil {
+				errorc <- fmt.Errorf("adding filter %s to audio stream: %w", filter, err)
+				return
+			}
+		}
+
 		audioMuxingStream = model.MuxingStream{StreamId: audStream.Id}
 	}
 
@@ -483,15 +493,13 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 			return
 		}
 
-		if videoFilters := cfg.preset.VideoFilters; videoFilters != nil {
-			for i, filter := range videoFilters {
-				_, err = p.api.Encoding.Encodings.Streams.Filters.Create(cfg.encodingID, vidStream.Id, []model.StreamFilter{
-					{Id: filter, Position: bitmovin.Int32Ptr(int32(i))},
-				})
-				if err != nil {
-					errorc <- fmt.Errorf("adding filter %s to video stream: %w", filter, err)
-					return
-				}
+		for i, filter := range cfg.preset.VideoFilters {
+			_, err = p.api.Encoding.Encodings.Streams.Filters.Create(cfg.encodingID, vidStream.Id, []model.StreamFilter{
+				{Id: filter, Position: bitmovin.Int32Ptr(int32(i))},
+			})
+			if err != nil {
+				errorc <- fmt.Errorf("adding filter %s to video stream: %w", filter, err)
+				return
 			}
 		}
 
@@ -770,6 +778,21 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 
 				presetSummary.VideoFilters = append(presetSummary.VideoFilters, watermark.Id)
 			}
+		}
+	}
+
+	if presetSummary.HasAudio() {
+		if preset.Audio.Normalization {
+			norm, err := p.api.Encoding.Filters.EbuR128SinglePass.Create(model.EbuR128SinglePassFilter{
+				Name:                 "normalization",
+				IntegratedLoudness:   bitmovin.Float64Ptr(-23),
+				MaximumTruePeakLevel: bitmovin.Float64Ptr(-6.5),
+			})
+			if err != nil {
+				return "", fmt.Errorf("creating audio normalization filter: %w", err)
+			}
+
+			presetSummary.AudioFilters = append(presetSummary.AudioFilters, norm.Id)
 		}
 	}
 

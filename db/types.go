@@ -219,10 +219,15 @@ type PresetSummary struct {
 	VideoFilters  []string `redis-hash:"videoFilters,omitempty"`
 	AudioCodec    string   `redis-hash:"audiocodec,omitempty"`
 	AudioConfigID string   `redis-hash:"audioconfigid,omitempty"`
+	AudioFilters  []string `redis-hash:"audioFilters,omitempty"`
 }
 
 func (ps PresetSummary) HasVideo() bool {
 	return ps.VideoConfigID != ""
+}
+
+func (ps PresetSummary) HasAudio() bool {
+	return ps.AudioConfigID != ""
 }
 
 // LocalPreset is a struct to persist encoding configurations. Some providers don't have
