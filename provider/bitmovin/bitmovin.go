@@ -785,7 +785,7 @@ func (p *bitmovinProvider) CreatePreset(_ context.Context, preset db.Preset) (st
 		if preset.Audio.Normalization {
 			norm, err := p.api.Encoding.Filters.EbuR128SinglePass.Create(model.EbuR128SinglePassFilter{
 				Name:                 "normalization",
-				IntegratedLoudness:   bitmovin.Float64Ptr(-23),
+				IntegratedLoudness:   bitmovin.Float64Ptr(-24),
 				MaximumTruePeakLevel: bitmovin.Float64Ptr(-6.5),
 			})
 			if err != nil {
