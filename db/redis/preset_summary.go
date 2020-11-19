@@ -12,7 +12,7 @@ const presetSummarySetKey = "presetsummaries"
 
 func (r *redisRepository) CreatePresetSummary(summary *db.PresetSummary) error {
 	if _, err := r.GetPresetSummary(summary.Name); err == nil {
-		return db.ErrPresetSummaryAlreadyExists
+		return nil
 	}
 
 	return r.savePresetSummary(summary)
