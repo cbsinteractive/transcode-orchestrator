@@ -91,6 +91,7 @@ type (
 		Provider          string                      `json:"provider"`
 		ExecutionFeatures ExecutionFeatures           `json:"executionFeatures,omitempty"`
 		ExecutionEnv      ExecutionEnvironment        `json:"executionEnv,omitempty"`
+		ArchiveParams     ArchiveParams               `json:"archiveParams,omitempty"`
 		StreamingParams   StreamingParams             `json:"streamingParams,omitempty"`
 		SidecarAssets     map[SidecarAssetKind]string `json:"sidecarAssets,omitempty"`
 
@@ -109,6 +110,11 @@ type (
 	}
 	CancelJobResponse struct{ JobStatus }
 )
+
+// ArchiveParams contains the configuration for enabling frame analysis (crop)
+type ArchiveParams struct {
+	Crop string `json:"crop"`
+}
 
 // StreamingParams contains the configuration for media packaging
 type StreamingParams struct {
