@@ -82,18 +82,20 @@ func TestSetterScanType(t *testing.T) {
 	}
 }
 
-func TestVideoMapping(t *testing.T) {
+func TestVideo(t *testing.T) {
 	i64 := func(i int64) *int64 { return &i }
 
 	for _, tt := range []struct {
 		name   string
+		src    db.File
 		video  db.VideoPreset
 		assert func(t *testing.T, desc *mediaconvert.VideoDescription)
 	}{
 		{
 			name: "Crop",
+			src:  db.File{Height: 150, Width: 300},
 			video: db.VideoPreset{
-				Bitrate: "12000", GopSize: "2", Width: "300", Height: "150", Codec: "h264",
+				Bitrate: "12000", GopSize: "2", Width: "30", Height: "15", Codec: "h264",
 				Crop: video.Crop{
 					Top:    10,
 					Bottom: 20,
@@ -115,8 +117,9 @@ func TestVideoMapping(t *testing.T) {
 		},
 		{
 			name: "CropOddToEven",
+			src:  db.File{Height: 150, Width: 300},
 			video: db.VideoPreset{
-				Bitrate: "12000", GopSize: "2", Width: "300", Height: "150", Codec: "h264",
+				Bitrate: "12000", GopSize: "2", Width: "30", Height: "15", Codec: "h264",
 				Crop: video.Crop{
 					Top:    11,
 					Bottom: 25,
@@ -138,7 +141,7 @@ func TestVideoMapping(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			have, err := videoPresetFrom(db.Preset{Video: tt.video}, db.File{})
+			have, err := videoPresetFrom(db.Preset{Video: tt.video}, tt.src)
 			if err != nil {
 				t.Fatal(err)
 			}
