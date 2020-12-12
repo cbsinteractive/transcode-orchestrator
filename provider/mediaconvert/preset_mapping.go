@@ -131,13 +131,8 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 		RespondToAfd:      mediaconvert.RespondToAfdNone,
 	}
 
-	var (
-		width, height int64
-		err           error
-		s             *mediaconvert.VideoCodecSettings
-	)
 	if preset.Video.Width != "" {
-		width, err = strconv.ParseInt(preset.Video.Width, 10, 64)
+		width, err := strconv.ParseInt(preset.Video.Width, 10, 64)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing video width %q to int64", preset.Video.Width)
 		}
@@ -145,12 +140,15 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	}
 
 	if preset.Video.Height != "" {
-		height, err = strconv.ParseInt(preset.Video.Height, 10, 64)
+		height, err := strconv.ParseInt(preset.Video.Height, 10, 64)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing video height %q to int64", preset.Video.Height)
 		}
 		videoPreset.Height = aws.Int64(height)
 	}
+
+	var s *mediaconvert.VideoCodecSettings
+	var err error
 
 	codec := strings.ToLower(preset.Video.Codec)
 	switch codec {
