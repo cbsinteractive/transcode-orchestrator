@@ -181,22 +181,6 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	}
 	videoPreset.VideoPreprocessors = videoPreprocessors
 
-	// cropping
-	if crop := preset.Video.Crop; !crop.Empty() && height > 0 && width > 0 {
-		roundEven := func(i, mod int) *int64 {
-			if i%2 != 0 {
-				i += mod
-			}
-			return aws.Int64(int64(i))
-		}
-		videoPreset.Crop = &mediaconvert.Rectangle{
-			Height: roundEven(int(height)-crop.Top+crop.Bottom, -1),
-			Width:  roundEven(int(width)-crop.Left+crop.Right, -1),
-			X:      roundEven(crop.Left, 1),
-			Y:      roundEven(crop.Top, 1),
-		}
-	}
-
 	cfgSetter := setter{dst: preset, src: sourceInfo}
 	videoPreset = cfgSetter.ScanType(videoPreset)
 	videoPreset = cfgSetter.Crop(videoPreset)
