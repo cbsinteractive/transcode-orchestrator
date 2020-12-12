@@ -82,71 +82,43 @@ func TestSetterScanType(t *testing.T) {
 	}
 }
 
-func TestVideo(t *testing.T) {
-	i64 := func(i int64) *int64 { return &i }
-
+func TestCrop(t *testing.T) {
+	type (
+		dims struct{ height, width uint }
+		rect struct{ height, width, x, y int64 }
+	)
 	for _, tt := range []struct {
-		name   string
-		src    db.File
-		video  db.VideoPreset
-		assert func(t *testing.T, desc *mediaconvert.VideoDescription)
+		name string
+		src  dims
+		crop video.Crop
+		want rect
 	}{
 		{
-			name: "Crop",
-			src:  db.File{Height: 150, Width: 300},
-			video: db.VideoPreset{
-				Bitrate: "12000", GopSize: "2", Width: "30", Height: "15", Codec: "h264",
-				Crop: video.Crop{
-					Top:    10,
-					Bottom: 20,
-					Right:  40,
-					Left:   50,
-				},
-			},
-			assert: func(t *testing.T, got *mediaconvert.VideoDescription) {
-				want := &mediaconvert.Rectangle{
-					Height: i64(120),
-					Width:  i64(210),
-					X:      i64(50),
-					Y:      i64(10),
-				}
-				if !reflect.DeepEqual(got.Crop, want) {
-					t.Errorf("bad crop rect:\nhave: %+v\nwant: %+v", got.Crop, want)
-				}
-			},
+			"Crop",
+			dims{height: 150, width: 300},
+			video.Crop{Left: 50, Top: 10, Right: 40, Bottom: 20},
+			rect{height: 120, width: 210, x: 50, y: 10},
 		},
 		{
-			name: "CropOddToEven",
-			src:  db.File{Height: 150, Width: 300},
-			video: db.VideoPreset{
-				Bitrate: "12000", GopSize: "2", Width: "30", Height: "15", Codec: "h264",
-				Crop: video.Crop{
-					Top:    11,
-					Bottom: 25,
-					Right:  49,
-					Left:   55,
-				},
-			},
-			assert: func(t *testing.T, got *mediaconvert.VideoDescription) {
-				want := &mediaconvert.Rectangle{
-					Height: i64(114),
-					Width:  i64(196),
-					X:      i64(56),
-					Y:      i64(12),
-				}
-				if !reflect.DeepEqual(got.Crop, want) {
-					t.Errorf("bad crop rect:\nhave: %+v\nwant: %+v", got.Crop, want)
-				}
-			},
+			"CropOdd2Even",
+			dims{height: 150, width: 300},
+			video.Crop{Left: 55, Top: 11, Right: 49, Bottom: 25},
+			rect{height: 114, width: 196, x: 56, y: 12},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			have, err := videoPresetFrom(db.Preset{Video: tt.video}, tt.src)
+			have, err := videoPresetFrom(
+				db.Preset{
+					Video: db.VideoPreset{Bitrate: "12000", GopSize: "2", Width: "30", Height: "15", Codec: "h264", Crop: tt.crop},
+				},
+				db.File{Width: tt.src.width, Height: tt.src.height},
+			)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if tt.assert != nil {
-				tt.assert(t, have)
+			want := &mediaconvert.Rectangle{Height: &tt.want.height, Width: &tt.want.width, X: &tt.want.x, Y: &tt.want.y}
+			if !reflect.DeepEqual(have.Crop, want) {
+				t.Errorf("bad crop rect:\nhave: %+v\nwant: %+v", have.Crop, tt.want)
 			}
 		})
 	}
