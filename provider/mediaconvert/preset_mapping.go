@@ -131,8 +131,13 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 		RespondToAfd:      mediaconvert.RespondToAfdNone,
 	}
 
+	var (
+		width, height int64
+		err           error
+		s             *mediaconvert.VideoCodecSettings
+	)
 	if preset.Video.Width != "" {
-		width, err := strconv.ParseInt(preset.Video.Width, 10, 64)
+		width, err = strconv.ParseInt(preset.Video.Width, 10, 64)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing video width %q to int64", preset.Video.Width)
 		}
@@ -140,15 +145,12 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	}
 
 	if preset.Video.Height != "" {
-		height, err := strconv.ParseInt(preset.Video.Height, 10, 64)
+		height, err = strconv.ParseInt(preset.Video.Height, 10, 64)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing video height %q to int64", preset.Video.Height)
 		}
 		videoPreset.Height = aws.Int64(height)
 	}
-
-	var s *mediaconvert.VideoCodecSettings
-	var err error
 
 	codec := strings.ToLower(preset.Video.Codec)
 	switch codec {
@@ -178,6 +180,16 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 		return nil, errors.Wrap(err, "building videoPreprocessors")
 	}
 	videoPreset.VideoPreprocessors = videoPreprocessors
+
+	// cropping
+	if crop := preset.Video.Crop; !crop.Empty() && height > 0 && width > 0 {
+		videoPreset.Crop = &mediaconvert.Rectangle{
+			Height: aws.Int64(height - int64(crop.Top+crop.Bottom)),
+			Width:  aws.Int64(width - int64(crop.Left+crop.Right)),
+			X:      aws.Int64(int64(crop.Left)),
+			Y:      aws.Int64(int64(crop.Top)),
+		}
+	}
 
 	videoPreset = setter{dst: preset, src: sourceInfo}.ScanType(videoPreset)
 

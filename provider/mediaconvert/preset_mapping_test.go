@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/cbsinteractive/pkg/video"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
@@ -76,6 +77,50 @@ func TestSetterScanType(t *testing.T) {
 			v := setter{dst, src}.ScanType(nil)
 			if have := v.VideoPreprocessors.Deinterlacer; have != tt.want {
 				t.Logf("bad deinterlacer:\n\t\thave: %#v\n\t\twant: %#v", have, tt.want)
+			}
+		})
+	}
+}
+
+func TestVideoMapping(t *testing.T) {
+	i64 := func(i int64) *int64 { return &i }
+
+	for _, tt := range []struct {
+		name   string
+		video  db.VideoPreset
+		assert func(t *testing.T, desc *mediaconvert.VideoDescription)
+	}{
+		{
+			name: "Crop",
+			video: db.VideoPreset{
+				Bitrate: "12000", GopSize: "2", Width: "300", Height: "150", Codec: "h264",
+				Crop: video.Crop{
+					Top:    10,
+					Bottom: 20,
+					Right:  40,
+					Left:   50,
+				},
+			},
+			assert: func(t *testing.T, got *mediaconvert.VideoDescription) {
+				want := &mediaconvert.Rectangle{
+					Height: i64(120),
+					Width:  i64(210),
+					X:      i64(50),
+					Y:      i64(10),
+				}
+				if !reflect.DeepEqual(got.Crop, want) {
+					t.Errorf("bad crop rect:\nhave: %+v\nwant: %+v", got.Crop, want)
+				}
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			have, err := videoPresetFrom(db.Preset{Video: tt.video}, db.File{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.assert != nil {
+				tt.assert(t, have)
 			}
 		})
 	}
