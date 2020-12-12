@@ -113,6 +113,29 @@ func TestVideoMapping(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "CropOddToEven",
+			video: db.VideoPreset{
+				Bitrate: "12000", GopSize: "2", Width: "300", Height: "150", Codec: "h264",
+				Crop: video.Crop{
+					Top:    11,
+					Bottom: 25,
+					Right:  49,
+					Left:   55,
+				},
+			},
+			assert: func(t *testing.T, got *mediaconvert.VideoDescription) {
+				want := &mediaconvert.Rectangle{
+					Height: i64(114),
+					Width:  i64(196),
+					X:      i64(56),
+					Y:      i64(12),
+				}
+				if !reflect.DeepEqual(got.Crop, want) {
+					t.Errorf("bad crop rect:\nhave: %+v\nwant: %+v", got.Crop, want)
+				}
+			},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			have, err := videoPresetFrom(db.Preset{Video: tt.video}, db.File{})
