@@ -84,8 +84,8 @@ func TestSetterScanType(t *testing.T) {
 
 func TestCrop(t *testing.T) {
 	type (
-		dims struct{ height, width uint }
-		rect struct{ height, width, x, y int64 }
+		dims struct{ width, height uint }
+		rect struct{ width, height, x, y int64 }
 	)
 	for _, tt := range []struct {
 		name string
@@ -95,15 +95,15 @@ func TestCrop(t *testing.T) {
 	}{
 		{
 			"Crop",
-			dims{height: 150, width: 300},
-			video.Crop{Left: 50, Top: 10, Right: 40, Bottom: 20},
-			rect{height: 120, width: 210, x: 50, y: 10},
+			dims{width: 300, height: 150},
+			video.Crop{Top: 10, Right: 40, Bottom: 20, Left: 50},
+			rect{width: 210, height: 120, x: 50, y: 10},
 		},
 		{
 			"CropOdd2Even",
-			dims{height: 150, width: 300},
-			video.Crop{Left: 55, Top: 11, Right: 49, Bottom: 25},
-			rect{height: 114, width: 196, x: 56, y: 12},
+			dims{width: 300, height: 150},
+			video.Crop{Top: 11, Right: 49, Bottom: 25, Left: 55},
+			rect{width: 196, height: 114, x: 56, y: 12},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
