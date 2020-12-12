@@ -107,18 +107,13 @@ func TestCrop(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			have, err := videoPresetFrom(
-				db.Preset{
-					Video: db.VideoPreset{Bitrate: "12000", GopSize: "2", Width: "30", Height: "15", Codec: "h264", Crop: tt.crop},
-				},
-				db.File{Width: tt.src.width, Height: tt.src.height},
-			)
-			if err != nil {
-				t.Fatal(err)
-			}
+			have := setter{
+				dst: db.Preset{Video: db.VideoPreset{Crop: tt.crop}},
+				src: db.File{Height: tt.src.height, Width: tt.src.width},
+			}.Crop(nil).Crop
 			want := &mediaconvert.Rectangle{Height: &tt.want.height, Width: &tt.want.width, X: &tt.want.x, Y: &tt.want.y}
-			if !reflect.DeepEqual(have.Crop, want) {
-				t.Errorf("bad crop rect:\nhave: %+v\nwant: %+v", have.Crop, tt.want)
+			if !reflect.DeepEqual(have, want) {
+				t.Errorf("bad crop rect:\nhave: %+v\nwant: %+v", have, tt.want)
 			}
 		})
 	}
