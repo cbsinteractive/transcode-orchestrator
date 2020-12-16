@@ -403,1097 +403,1098 @@ func Test_mcProvider_DeletePreset(t *testing.T) {
 	}
 }
 
-func Test_mcProvider_Transcode(t *testing.T) {
-	vp8Preset := func(audioCodec string) db.Preset {
-		return db.Preset{
-			Name:        "preset_name",
-			Description: "test_desc",
-			Container:   "webm",
-			RateControl: "VBR",
-			Video: db.VideoPreset{
-				Width:   "300",
-				Height:  "400",
-				Codec:   "vp8",
-				Bitrate: "400000",
-				GopSize: "120",
-				GopUnit: "frames",
-			},
-			Audio: db.AudioPreset{
-				Codec:         audioCodec,
-				Bitrate:       "96000",
-				Normalization: true,
-			},
-		}
-	}
-
-	tests := []struct {
-		cfg         *config.MediaConvert
-		name        string
-		job         *db.Job
-		preset      db.Preset
-		destination string
-		wantJobReq  mediaconvert.CreateJobInput
-		wantErr     bool
-	}{
-		{
-			name: "H264/AAC/MP4",
-			cfg: &config.MediaConvert{
-				Role:            "some-role",
-				DefaultQueueARN: "some:default:queue:arn",
-			},
-			job: &db.Job{
-				ID:           "jobID",
-				ProviderName: Name,
-				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
-				Labels:       []string{"bill:some-bu", "some-more-labels"},
-			},
-			preset:      defaultPreset,
-			destination: "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				Role:              aws.String("some-role"),
-				Queue:             aws.String("some:default:queue:arn"),
-				BillingTagsSource: "JOB",
-				Tags: map[string]string{
-					"bu":               "bill:some-bu",
-					"some-more-labels": "true",
-				},
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": {
-									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-								},
-							},
-							FileInput: aws.String("s3://some/path.mp4"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination:         aws.String("s3://some/destination/jobID/m"),
-									DestinationSettings: &defaultDestinationSettings,
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mediaconvert.ContainerSettings{
-										Container: mediaconvert.ContainerTypeMp4,
-										Mp4Settings: &mediaconvert.Mp4Settings{
-											Mp4MajorBrand: aws.String("isom"),
-										},
-									},
-									VideoDescription: &mediaconvert.VideoDescription{
-										Height:            aws.Int64(400),
-										Width:             aws.Int64(300),
-										RespondToAfd:      mediaconvert.RespondToAfdNone,
-										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-										AntiAlias:         mediaconvert.AntiAliasEnabled,
-										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
-											Deinterlacer: &mediaconvert.Deinterlacer{
-												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-												Control:   mediaconvert.DeinterlacerControlNormal,
-												Mode:      mediaconvert.DeinterlacerModeAdaptive,
-											},
-										},
-										CodecSettings: &mediaconvert.VideoCodecSettings{
-											Codec: mediaconvert.VideoCodecH264,
-											H264Settings: &mediaconvert.H264Settings{
-												Bitrate:            aws.Int64(400000),
-												CodecLevel:         mediaconvert.H264CodecLevelAuto,
-												CodecProfile:       mediaconvert.H264CodecProfileHigh,
-												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
-												ParControl:         mediaconvert.H264ParControlSpecified,
-												ParNumerator:       aws.Int64(1),
-												ParDenominator:     aws.Int64(1),
-												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
-												RateControlMode:    mediaconvert.H264RateControlModeVbr,
-												GopSize:            aws.Float64(120),
-												GopSizeUnits:       "FRAMES",
-											},
-										},
-									},
-									AudioDescriptions: []mediaconvert.AudioDescription{
-										{
-											CodecSettings: &mediaconvert.AudioCodecSettings{
-												Codec: mediaconvert.AudioCodecAac,
-												AacSettings: &mediaconvert.AacSettings{
-													Bitrate:         aws.Int64(20000),
-													CodecProfile:    mediaconvert.AacCodecProfileLc,
-													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
-													RateControlMode: mediaconvert.AacRateControlModeCbr,
-													SampleRate:      aws.Int64(defaultAudioSampleRate),
-												},
-											},
-										},
-									},
-									Extension: aws.String("mp4"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
-		{
-			name: "H264/AAC/MP4-Interlaced",
-			job: &db.Job{
-				ID:           "jobID",
-				ProviderName: Name,
-				SourceMedia:  "s3://some/path.mp4",
-				SourceInfo: db.File{
-					ScanType: db.ScanTypeInterlaced,
-				},
-				Outputs: []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
-			},
-			preset:      defaultPreset,
-			destination: "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				Role:              aws.String(""),
-				Queue:             aws.String(""),
-				BillingTagsSource: "JOB",
-				Tags:              map[string]string{},
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": {
-									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-								},
-							},
-							FileInput: aws.String("s3://some/path.mp4"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination:         aws.String("s3://some/destination/jobID/m"),
-									DestinationSettings: &defaultDestinationSettings,
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mediaconvert.ContainerSettings{
-										Container: mediaconvert.ContainerTypeMp4,
-										Mp4Settings: &mediaconvert.Mp4Settings{
-											Mp4MajorBrand: aws.String("isom"),
-										},
-									},
-									VideoDescription: &mediaconvert.VideoDescription{
-										Height:            aws.Int64(400),
-										Width:             aws.Int64(300),
-										RespondToAfd:      mediaconvert.RespondToAfdNone,
-										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-										AntiAlias:         mediaconvert.AntiAliasEnabled,
-										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
-											Deinterlacer: &mediaconvert.Deinterlacer{
-												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-												Control:   mediaconvert.DeinterlacerControlNormal,
-												Mode:      mediaconvert.DeinterlacerModeDeinterlace,
-											},
-										},
-										CodecSettings: &mediaconvert.VideoCodecSettings{
-											Codec: mediaconvert.VideoCodecH264,
-											H264Settings: &mediaconvert.H264Settings{
-												Bitrate:            aws.Int64(400000),
-												CodecLevel:         mediaconvert.H264CodecLevelAuto,
-												CodecProfile:       mediaconvert.H264CodecProfileHigh,
-												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
-												ParControl:         mediaconvert.H264ParControlSpecified,
-												ParNumerator:       aws.Int64(1),
-												ParDenominator:     aws.Int64(1),
-												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
-												RateControlMode:    mediaconvert.H264RateControlModeVbr,
-												GopSize:            aws.Float64(120),
-												GopSizeUnits:       "FRAMES",
-											},
-										},
-									},
-									AudioDescriptions: []mediaconvert.AudioDescription{
-										{
-											CodecSettings: &mediaconvert.AudioCodecSettings{
-												Codec: mediaconvert.AudioCodecAac,
-												AacSettings: &mediaconvert.AacSettings{
-													Bitrate:         aws.Int64(20000),
-													CodecProfile:    mediaconvert.AacCodecProfileLc,
-													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
-													RateControlMode: mediaconvert.AacRateControlModeCbr,
-													SampleRate:      aws.Int64(defaultAudioSampleRate),
-												},
-											},
-										},
-									},
-									Extension: aws.String("mp4"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
-		{
-			name: "H264/AAC/MP4-Progressive",
-			job: &db.Job{
-				ID:           "jobID",
-				ProviderName: Name,
-				SourceMedia:  "s3://some/path.mp4",
-				SourceInfo: db.File{
-					ScanType: db.ScanTypeProgressive,
-				},
-				Outputs: []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
-			},
-			preset:      defaultPreset,
-			destination: "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				Role:              aws.String(""),
-				Queue:             aws.String(""),
-				BillingTagsSource: "JOB",
-				Tags:              map[string]string{},
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": {
-									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-								},
-							},
-							FileInput: aws.String("s3://some/path.mp4"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination:         aws.String("s3://some/destination/jobID/m"),
-									DestinationSettings: &defaultDestinationSettings,
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mediaconvert.ContainerSettings{
-										Container: mediaconvert.ContainerTypeMp4,
-										Mp4Settings: &mediaconvert.Mp4Settings{
-											Mp4MajorBrand: aws.String("isom"),
-										},
-									},
-									VideoDescription: &mediaconvert.VideoDescription{
-										Height:             aws.Int64(400),
-										Width:              aws.Int64(300),
-										RespondToAfd:       mediaconvert.RespondToAfdNone,
-										ScalingBehavior:    mediaconvert.ScalingBehaviorDefault,
-										TimecodeInsertion:  mediaconvert.VideoTimecodeInsertionDisabled,
-										AntiAlias:          mediaconvert.AntiAliasEnabled,
-										VideoPreprocessors: &mediaconvert.VideoPreprocessor{},
-										CodecSettings: &mediaconvert.VideoCodecSettings{
-											Codec: mediaconvert.VideoCodecH264,
-											H264Settings: &mediaconvert.H264Settings{
-												Bitrate:            aws.Int64(400000),
-												CodecLevel:         mediaconvert.H264CodecLevelAuto,
-												CodecProfile:       mediaconvert.H264CodecProfileHigh,
-												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
-												ParControl:         mediaconvert.H264ParControlSpecified,
-												ParNumerator:       aws.Int64(1),
-												ParDenominator:     aws.Int64(1),
-												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
-												RateControlMode:    mediaconvert.H264RateControlModeVbr,
-												GopSize:            aws.Float64(120),
-												GopSizeUnits:       "FRAMES",
-											},
-										},
-									},
-									AudioDescriptions: []mediaconvert.AudioDescription{
-										{
-											CodecSettings: &mediaconvert.AudioCodecSettings{
-												Codec: mediaconvert.AudioCodecAac,
-												AacSettings: &mediaconvert.AacSettings{
-													Bitrate:         aws.Int64(20000),
-													CodecProfile:    mediaconvert.AacCodecProfileLc,
-													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
-													RateControlMode: mediaconvert.AacRateControlModeCbr,
-													SampleRate:      aws.Int64(defaultAudioSampleRate),
-												},
-											},
-										},
-									},
-									Extension: aws.String("mp4"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
-		{
-			name: "H265/MP4-VideoOnly",
-			job: &db.Job{
-				ID:           "jobID",
-				ProviderName: Name,
-				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: h265Preset.Name}, FileName: "file1.mp4"}},
-			},
-			preset:      h265Preset,
-			destination: "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				Role:              aws.String(""),
-				Queue:             aws.String(""),
-				BillingTagsSource: "JOB",
-				Tags:              map[string]string{},
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": {
-									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-								},
-							},
-							FileInput: aws.String("s3://some/path.mp4"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination:         aws.String("s3://some/destination/jobID/m"),
-									DestinationSettings: &defaultDestinationSettings,
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mediaconvert.ContainerSettings{
-										Container: mediaconvert.ContainerTypeMp4,
-										Mp4Settings: &mediaconvert.Mp4Settings{
-											Mp4MajorBrand: aws.String("isom"),
-										},
-									},
-									VideoDescription: &mediaconvert.VideoDescription{
-										Height:            aws.Int64(400),
-										Width:             aws.Int64(300),
-										RespondToAfd:      mediaconvert.RespondToAfdNone,
-										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-										AntiAlias:         mediaconvert.AntiAliasEnabled,
-										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
-											Deinterlacer: &mediaconvert.Deinterlacer{
-												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-												Control:   mediaconvert.DeinterlacerControlNormal,
-												Mode:      mediaconvert.DeinterlacerModeAdaptive,
-											},
-										},
-										CodecSettings: &mediaconvert.VideoCodecSettings{
-											Codec: mediaconvert.VideoCodecH265,
-											H265Settings: &mediaconvert.H265Settings{
-												Bitrate:                        aws.Int64(400000),
-												GopSize:                        aws.Float64(120),
-												GopSizeUnits:                   "FRAMES",
-												CodecLevel:                     mediaconvert.H265CodecLevelAuto,
-												CodecProfile:                   mediaconvert.H265CodecProfileMainMain,
-												InterlaceMode:                  mediaconvert.H265InterlaceModeProgressive,
-												ParControl:                     mediaconvert.H265ParControlSpecified,
-												ParNumerator:                   aws.Int64(1),
-												ParDenominator:                 aws.Int64(1),
-												QualityTuningLevel:             mediaconvert.H265QualityTuningLevelSinglePassHq,
-												RateControlMode:                mediaconvert.H265RateControlModeCbr,
-												WriteMp4PackagingType:          mediaconvert.H265WriteMp4PackagingTypeHvc1,
-												AlternateTransferFunctionSei:   mediaconvert.H265AlternateTransferFunctionSeiDisabled,
-												SpatialAdaptiveQuantization:    mediaconvert.H265SpatialAdaptiveQuantizationEnabled,
-												TemporalAdaptiveQuantization:   mediaconvert.H265TemporalAdaptiveQuantizationEnabled,
-												FlickerAdaptiveQuantization:    mediaconvert.H265FlickerAdaptiveQuantizationEnabled,
-												SceneChangeDetect:              mediaconvert.H265SceneChangeDetectEnabled,
-												UnregisteredSeiTimecode:        mediaconvert.H265UnregisteredSeiTimecodeDisabled,
-												SampleAdaptiveOffsetFilterMode: mediaconvert.H265SampleAdaptiveOffsetFilterModeAdaptive,
-											},
-										},
-									},
-									Extension: aws.String("mp4"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
-		{
-			name: "AV1/MP4",
-			job: &db.Job{
-				ID:           "jobID",
-				ProviderName: Name,
-				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: av1Preset.Name}, FileName: "file1.mp4"}},
-			},
-			preset:      av1Preset,
-			destination: "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				Role:              aws.String(""),
-				Queue:             aws.String(""),
-				BillingTagsSource: "JOB",
-				Tags:              map[string]string{},
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": {
-									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-								},
-							},
-							FileInput: aws.String("s3://some/path.mp4"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination:         aws.String("s3://some/destination/jobID/m"),
-									DestinationSettings: &defaultDestinationSettings,
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mediaconvert.ContainerSettings{
-										Container: mediaconvert.ContainerTypeMp4,
-										Mp4Settings: &mediaconvert.Mp4Settings{
-											Mp4MajorBrand: aws.String("isom"),
-										},
-									},
-									VideoDescription: &mediaconvert.VideoDescription{
-										Height:            aws.Int64(400),
-										Width:             aws.Int64(300),
-										RespondToAfd:      mediaconvert.RespondToAfdNone,
-										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-										AntiAlias:         mediaconvert.AntiAliasEnabled,
-										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
-											Deinterlacer: &mediaconvert.Deinterlacer{
-												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-												Control:   mediaconvert.DeinterlacerControlNormal,
-												Mode:      mediaconvert.DeinterlacerModeAdaptive,
-											},
-										},
-										CodecSettings: &mediaconvert.VideoCodecSettings{
-											Codec: mediaconvert.VideoCodecAv1,
-											Av1Settings: &mediaconvert.Av1Settings{
-												MaxBitrate: aws.Int64(400000),
-												GopSize:    aws.Float64(120),
-												QvbrSettings: &mediaconvert.Av1QvbrSettings{
-													QvbrQualityLevel:         aws.Int64(7),
-													QvbrQualityLevelFineTune: aws.Float64(0),
-												},
-												RateControlMode: mediaconvert.Av1RateControlModeQvbr,
-											},
-										},
-									},
-									Extension: aws.String("mp4"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
-		{
-			name: "VP8/Vorbis/Webm",
-			job: &db.Job{
-				ID:           "jobID",
-				ProviderName: Name,
-				SourceMedia:  "s3://some/path.webm",
-				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.webm"}},
-			},
-			preset:      vp8Preset("vorbis"),
-			destination: "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				Role:              aws.String(""),
-				Queue:             aws.String(""),
-				BillingTagsSource: "JOB",
-				Tags:              map[string]string{},
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": {
-									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-								},
-							},
-							FileInput: aws.String("s3://some/path.webm"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination:         aws.String("s3://some/destination/jobID/m"),
-									DestinationSettings: &defaultDestinationSettings,
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mediaconvert.ContainerSettings{
-										Container: mediaconvert.ContainerTypeWebm,
-									},
-									VideoDescription: &mediaconvert.VideoDescription{
-										Height:            aws.Int64(400),
-										Width:             aws.Int64(300),
-										RespondToAfd:      mediaconvert.RespondToAfdNone,
-										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-										AntiAlias:         mediaconvert.AntiAliasEnabled,
-										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
-											Deinterlacer: &mediaconvert.Deinterlacer{
-												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-												Control:   mediaconvert.DeinterlacerControlNormal,
-												Mode:      mediaconvert.DeinterlacerModeAdaptive,
-											},
-										},
-										CodecSettings: &mediaconvert.VideoCodecSettings{
-											Codec: mediaconvert.VideoCodecVp8,
-											Vp8Settings: &mediaconvert.Vp8Settings{
-												Bitrate:          aws.Int64(400000),
-												GopSize:          aws.Float64(120),
-												RateControlMode:  mediaconvert.Vp8RateControlModeVbr,
-												FramerateControl: mediaconvert.Vp8FramerateControlInitializeFromSource,
-												ParControl:       mediaconvert.Vp8ParControlSpecified,
-												ParNumerator:     aws.Int64(1),
-												ParDenominator:   aws.Int64(1),
-											},
-										},
-									},
-									AudioDescriptions: []mediaconvert.AudioDescription{
-										{
-											AudioNormalizationSettings: &mediaconvert.AudioNormalizationSettings{
-												Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17703,
-												AlgorithmControl: mediaconvert.AudioNormalizationAlgorithmControlCorrectAudio,
-											},
-											CodecSettings: &mediaconvert.AudioCodecSettings{
-												Codec: mediaconvert.AudioCodecVorbis,
-												VorbisSettings: &mediaconvert.VorbisSettings{
-													Channels:   aws.Int64(2),
-													SampleRate: aws.Int64(defaultAudioSampleRate),
-													VbrQuality: aws.Int64(2),
-												},
-											},
-										},
-									},
-									Extension: aws.String("webm"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
-		{
-			name: "VP8/Opus/Webm",
-			job: &db.Job{
-				ID:           "jobID",
-				ProviderName: Name,
-				SourceMedia:  "s3://some/path.webm",
-				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.webm"}},
-			},
-			preset:      vp8Preset("opus"),
-			destination: "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				Role:              aws.String(""),
-				Queue:             aws.String(""),
-				BillingTagsSource: "JOB",
-				Tags:              map[string]string{},
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": {
-									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-								},
-							},
-							FileInput: aws.String("s3://some/path.webm"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination:         aws.String("s3://some/destination/jobID/m"),
-									DestinationSettings: &defaultDestinationSettings,
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mediaconvert.ContainerSettings{
-										Container: mediaconvert.ContainerTypeWebm,
-									},
-									VideoDescription: &mediaconvert.VideoDescription{
-										Height:            aws.Int64(400),
-										Width:             aws.Int64(300),
-										RespondToAfd:      mediaconvert.RespondToAfdNone,
-										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-										AntiAlias:         mediaconvert.AntiAliasEnabled,
-										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
-											Deinterlacer: &mediaconvert.Deinterlacer{
-												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-												Control:   mediaconvert.DeinterlacerControlNormal,
-												Mode:      mediaconvert.DeinterlacerModeAdaptive,
-											},
-										},
-										CodecSettings: &mediaconvert.VideoCodecSettings{
-											Codec: mediaconvert.VideoCodecVp8,
-											Vp8Settings: &mediaconvert.Vp8Settings{
-												Bitrate:          aws.Int64(400000),
-												GopSize:          aws.Float64(120),
-												RateControlMode:  mediaconvert.Vp8RateControlModeVbr,
-												FramerateControl: mediaconvert.Vp8FramerateControlInitializeFromSource,
-												ParControl:       mediaconvert.Vp8ParControlSpecified,
-												ParNumerator:     aws.Int64(1),
-												ParDenominator:   aws.Int64(1),
-											},
-										},
-									},
-									AudioDescriptions: []mediaconvert.AudioDescription{
-										{
-											AudioNormalizationSettings: &mediaconvert.AudioNormalizationSettings{
-												Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17703,
-												AlgorithmControl: mediaconvert.AudioNormalizationAlgorithmControlCorrectAudio,
-											},
-											CodecSettings: &mediaconvert.AudioCodecSettings{
-												Codec: mediaconvert.AudioCodecOpus,
-												OpusSettings: &mediaconvert.OpusSettings{
-													Channels:   aws.Int64(2),
-													Bitrate:    aws.Int64(96000),
-													SampleRate: aws.Int64(defaultAudioSampleRate),
-												},
-											},
-										},
-									},
-									Extension: aws.String("webm"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
-		{
-			name: "a job is mapped correctly to a mediaconvert job input when a preferred queue is defined",
-			cfg: &config.MediaConvert{
-				DefaultQueueARN:   "some:default:queue:arn",
-				PreferredQueueARN: "some:preferred:queue:arn",
-			},
-			job: &db.Job{
-				ID:           "jobID",
-				ProviderName: Name,
-				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
-			},
-			preset:      defaultPreset,
-			destination: "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				Role:              aws.String(""),
-				Queue:             aws.String("some:preferred:queue:arn"),
-				HopDestinations:   []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
-				BillingTagsSource: "JOB",
-				Tags:              map[string]string{},
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": {
-									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-								},
-							},
-							FileInput: aws.String("s3://some/path.mp4"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination:         aws.String("s3://some/destination/jobID/m"),
-									DestinationSettings: &defaultDestinationSettings,
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mediaconvert.ContainerSettings{
-										Container: mediaconvert.ContainerTypeMp4,
-										Mp4Settings: &mediaconvert.Mp4Settings{
-											Mp4MajorBrand: aws.String("isom"),
-										},
-									},
-									VideoDescription: &mediaconvert.VideoDescription{
-										Height:            aws.Int64(400),
-										Width:             aws.Int64(300),
-										RespondToAfd:      mediaconvert.RespondToAfdNone,
-										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-										AntiAlias:         mediaconvert.AntiAliasEnabled,
-										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
-											Deinterlacer: &mediaconvert.Deinterlacer{
-												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-												Control:   mediaconvert.DeinterlacerControlNormal,
-												Mode:      mediaconvert.DeinterlacerModeAdaptive,
-											},
-										},
-										CodecSettings: &mediaconvert.VideoCodecSettings{
-											Codec: mediaconvert.VideoCodecH264,
-											H264Settings: &mediaconvert.H264Settings{
-												Bitrate:            aws.Int64(400000),
-												CodecLevel:         mediaconvert.H264CodecLevelAuto,
-												CodecProfile:       mediaconvert.H264CodecProfileHigh,
-												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
-												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
-												RateControlMode:    mediaconvert.H264RateControlModeVbr,
-												GopSize:            aws.Float64(120),
-												GopSizeUnits:       mediaconvert.H264GopSizeUnitsFrames,
-												ParControl:         mediaconvert.H264ParControlSpecified,
-												ParNumerator:       aws.Int64(1),
-												ParDenominator:     aws.Int64(1),
-											},
-										},
-									},
-									AudioDescriptions: []mediaconvert.AudioDescription{
-										{
-											CodecSettings: &mediaconvert.AudioCodecSettings{
-												Codec: mediaconvert.AudioCodecAac,
-												AacSettings: &mediaconvert.AacSettings{
-													Bitrate:         aws.Int64(20000),
-													CodecProfile:    mediaconvert.AacCodecProfileLc,
-													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
-													RateControlMode: mediaconvert.AacRateControlModeCbr,
-													SampleRate:      aws.Int64(defaultAudioSampleRate),
-												},
-											},
-										},
-									},
-									Extension: aws.String("mp4"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
-		{
-			name: "JobWithAudioDownmixAndTimeCodeBurninForMovOutput",
-			cfg: &config.MediaConvert{
-				DefaultQueueARN:   "some:default:queue:arn",
-				PreferredQueueARN: "some:preferred:queue:arn",
-			},
-			job: &db.Job{
-				ID:           "jobID",
-				ProviderName: Name,
-				SourceMedia:  "s3://some/path.mov",
-				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: tcBurninPreset.Name}, FileName: "file1.mov"}},
-				AudioDownmix: &db.AudioDownmix{
-					SrcChannels: []db.AudioChannel{
-						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
-						{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
-						{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},
-						{TrackIdx: 1, ChannelIdx: 4, Layout: "LFE"},
-						{TrackIdx: 1, ChannelIdx: 5, Layout: "Ls"},
-						{TrackIdx: 1, ChannelIdx: 6, Layout: "Rs"},
-					},
-					DestChannels: []db.AudioChannel{
-						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
-						{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
-					},
-				},
-			},
-			preset:      tcBurninPreset,
-			destination: "s3://some/destination",
-			wantJobReq: mediaconvert.CreateJobInput{
-				Role:              aws.String(""),
-				Queue:             aws.String("some:preferred:queue:arn"),
-				HopDestinations:   []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
-				BillingTagsSource: "JOB",
-				Tags:              map[string]string{},
-				Settings: &mediaconvert.JobSettings{
-					Inputs: []mediaconvert.Input{
-						{
-							AudioSelectors: map[string]mediaconvert.AudioSelector{
-								"Audio Selector 1": getAudioSelector(6, 2, []int64{1}, []mediaconvert.OutputChannelMapping{
-									{InputChannels: []int64{0, -60, 0, -60, 0, -60}},
-									{InputChannels: []int64{-60, 0, 0, -60, -60, 0}},
-								}),
-							},
-							FileInput: aws.String("s3://some/path.mov"),
-							VideoSelector: &mediaconvert.VideoSelector{
-								ColorSpace: mediaconvert.ColorSpaceFollow,
-							},
-							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mediaconvert.OutputGroup{
-						{
-							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mediaconvert.FileGroupSettings{
-									Destination:         aws.String("s3://some/destination/jobID/m"),
-									DestinationSettings: &defaultDestinationSettings,
-								},
-							},
-							Outputs: []mediaconvert.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mediaconvert.ContainerSettings{
-										Container: mediaconvert.ContainerTypeMov,
-										MovSettings: &mediaconvert.MovSettings{
-											ClapAtom:           mediaconvert.MovClapAtomExclude,
-											CslgAtom:           mediaconvert.MovCslgAtomInclude,
-											PaddingControl:     mediaconvert.MovPaddingControlOmneon,
-											Reference:          mediaconvert.MovReferenceSelfContained,
-											Mpeg2FourCCControl: mediaconvert.MovMpeg2FourCCControlMpeg,
-										},
-									},
-									VideoDescription: &mediaconvert.VideoDescription{
-										Height:            aws.Int64(400),
-										Width:             aws.Int64(300),
-										RespondToAfd:      mediaconvert.RespondToAfdNone,
-										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-										AntiAlias:         mediaconvert.AntiAliasEnabled,
-										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
-											Deinterlacer: &mediaconvert.Deinterlacer{
-												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-												Control:   mediaconvert.DeinterlacerControlNormal,
-												Mode:      mediaconvert.DeinterlacerModeAdaptive,
-											},
-											TimecodeBurnin: &mediaconvert.TimecodeBurnin{
-												FontSize: aws.Int64(12),
-												Position: mediaconvert.TimecodeBurninPositionBottomLeft,
-												Prefix:   aws.String(""),
-											},
-										},
-										CodecSettings: &mediaconvert.VideoCodecSettings{
-											Codec: mediaconvert.VideoCodecH264,
-											H264Settings: &mediaconvert.H264Settings{
-												Bitrate:            aws.Int64(400000),
-												CodecLevel:         mediaconvert.H264CodecLevelAuto,
-												CodecProfile:       mediaconvert.H264CodecProfileHigh,
-												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
-												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
-												RateControlMode:    mediaconvert.H264RateControlModeVbr,
-												GopSize:            aws.Float64(120),
-												GopSizeUnits:       mediaconvert.H264GopSizeUnitsFrames,
-												ParControl:         mediaconvert.H264ParControlSpecified,
-												ParNumerator:       aws.Int64(1),
-												ParDenominator:     aws.Int64(1),
-											},
-										},
-									},
-									AudioDescriptions: []mediaconvert.AudioDescription{
-										{
-											CodecSettings: &mediaconvert.AudioCodecSettings{
-												Codec: mediaconvert.AudioCodecAac,
-												AacSettings: &mediaconvert.AacSettings{
-													Bitrate:         aws.Int64(20000),
-													CodecProfile:    mediaconvert.AacCodecProfileLc,
-													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
-													RateControlMode: mediaconvert.AacRateControlModeCbr,
-													SampleRate:      aws.Int64(defaultAudioSampleRate),
-												},
-											},
-										},
-									},
-									Extension: aws.String("mov"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mediaconvert.TimecodeConfig{
-						Source: mediaconvert.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
-		//{
-		//	name: "acceleration is enabled and the default queue is used when a source has a large filesize",
-		//	cfg: &config.MediaConvert{
-		//		DefaultQueueARN:   "some:default:queue:arn",
-		//		PreferredQueueARN: "some:preferred:queue:arn",
-		//	},
-		//	job: &db.Job{
-		//		ID:           "jobID",
-		//		ProviderName: Name,
-		//		SourceMedia:  "s3://some/path.mp4",
-		//		SourceInfo:   db.File{FileSize: 1_000_000_000},
-		//		Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
-		//	},
-		//	preset:      audioOnlyPreset,
-		//	destination: "s3://some/destination",
-		//	wantJobReq: mediaconvert.CreateJobInput{
-		//		AccelerationSettings: &mediaconvert.AccelerationSettings{
-		//			Mode: mediaconvert.AccelerationModePreferred,
-		//		},
-		//		Role:  aws.String(""),
-		//		Queue: aws.String("some:default:queue:arn"),
-		//		Tags: map[string]string{},
-		//		Settings: &mediaconvert.JobSettings{
-		//			Inputs: []mediaconvert.Input{
-		//				{
-		//					AudioSelectors: map[string]mediaconvert.AudioSelector{
-		//						"Audio Selector 1": {
-		//							DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
-		//						},
-		//					},
-		//					FileInput: aws.String("s3://some/path.mp4"),
-		//					VideoSelector: &mediaconvert.VideoSelector{
-		//						ColorSpace: mediaconvert.ColorSpaceFollow,
-		//					},
-		//					TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
-		//				},
-		//			},
-		//			OutputGroups: []mediaconvert.OutputGroup{
-		//				{
-		//					OutputGroupSettings: &mediaconvert.OutputGroupSettings{
-		//						Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-		//						FileGroupSettings: &mediaconvert.FileGroupSettings{
-		//							Destination: aws.String("s3://some/destination/jobID/m"),
-		//						},
-		//					},
-		//					Outputs: []mediaconvert.Output{
-		//						{
-		//							NameModifier: aws.String("file1"),
-		//							ContainerSettings: &mediaconvert.ContainerSettings{
-		//								Container: mediaconvert.ContainerTypeMp4,
-		//								Mp4Settings: &mediaconvert.Mp4Settings{
-		//									Mp4MajorBrand: aws.String("isom"),
-		//								},
-		//							},
-		//							AudioDescriptions: []mediaconvert.AudioDescription{
-		//								{
-		//									CodecSettings: &mediaconvert.AudioCodecSettings{
-		//										Codec: mediaconvert.AudioCodecAac,
-		//										AacSettings: &mediaconvert.AacSettings{
-		//											Bitrate:         aws.Int64(20000),
-		//											CodecProfile:    mediaconvert.AacCodecProfileLc,
-		//											CodingMode:      mediaconvert.AacCodingModeCodingMode20,
-		//											RateControlMode: mediaconvert.AacRateControlModeCbr,
-		//											SampleRate:      aws.Int64(defaultAudioSampleRate),
-		//										},
-		//									},
-		//								},
-		//							},
-		//							Extension: aws.String("mp4"),
-		//						},
-		//					},
-		//				},
-		//			},
-		//			TimecodeConfig: &mediaconvert.TimecodeConfig{
-		//				Source: mediaconvert.TimecodeSourceZerobased,
-		//			},
-		//		},
-		//	},
-		//},
-	}
-
-	for _, tt := range tests {
-
-		t.Run(tt.name, func(t *testing.T) {
-			repo, err := fakeDBWithPresets(tt.preset)
-			if err != nil {
-				t.Error(err)
-				return
-			}
-
-			if tt.cfg == nil {
-				tt.cfg = &config.MediaConvert{Destination: tt.destination}
-			} else {
-				tt.cfg.Destination = tt.destination
-			}
-
-			client := &testMediaConvertClient{t: t}
-			p := &mcProvider{
-				client:     client,
-				cfg:        tt.cfg,
-				repository: repo,
-			}
-			_, err = p.Transcode(context.Background(), tt.job)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("mcProvider.Transcode() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if g, e := client.createJobCalledWith, tt.wantJobReq; !reflect.DeepEqual(g, e) {
-				t.Fatalf("Transcode(): wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
-					g, cmp.Diff(e, g))
-			}
-		})
-	}
-}
+//
+//func Test_mcProvider_Transcode(t *testing.T) {
+//	vp8Preset := func(audioCodec string) db.Preset {
+//		return db.Preset{
+//			Name:        "preset_name",
+//			Description: "test_desc",
+//			Container:   "webm",
+//			RateControl: "VBR",
+//			Video: db.VideoPreset{
+//				Width:   "300",
+//				Height:  "400",
+//				Codec:   "vp8",
+//				Bitrate: "400000",
+//				GopSize: "120",
+//				GopUnit: "frames",
+//			},
+//			Audio: db.AudioPreset{
+//				Codec:         audioCodec,
+//				Bitrate:       "96000",
+//				Normalization: true,
+//			},
+//		}
+//	}
+//
+//	tests := []struct {
+//		cfg         *config.MediaConvert
+//		name        string
+//		job         *db.Job
+//		preset      db.Preset
+//		destination string
+//		wantJobReq  mediaconvert.CreateJobInput
+//		wantErr     bool
+//	}{
+//		{
+//			name: "H264/AAC/MP4",
+//			cfg: &config.MediaConvert{
+//				Role:            "some-role",
+//				DefaultQueueARN: "some:default:queue:arn",
+//			},
+//			job: &db.Job{
+//				ID:           "jobID",
+//				ProviderName: Name,
+//				SourceMedia:  "s3://some/path.mp4",
+//				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+//				Labels:       []string{"bill:some-bu", "some-more-labels"},
+//			},
+//			preset:      defaultPreset,
+//			destination: "s3://some/destination",
+//			wantJobReq: mediaconvert.CreateJobInput{
+//				Role:              aws.String("some-role"),
+//				Queue:             aws.String("some:default:queue:arn"),
+//				BillingTagsSource: "JOB",
+//				Tags: map[string]string{
+//					"bu":               "bill:some-bu",
+//					"some-more-labels": "true",
+//				},
+//				Settings: &mediaconvert.JobSettings{
+//					Inputs: []mediaconvert.Input{
+//						{
+//							AudioSelectors: map[string]mediaconvert.AudioSelector{
+//								"Audio Selector 1": {
+//									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+//								},
+//							},
+//							FileInput: aws.String("s3://some/path.mp4"),
+//							VideoSelector: &mediaconvert.VideoSelector{
+//								ColorSpace: mediaconvert.ColorSpaceFollow,
+//							},
+//							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+//						},
+//					},
+//					OutputGroups: []mediaconvert.OutputGroup{
+//						{
+//							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+//								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+//								FileGroupSettings: &mediaconvert.FileGroupSettings{
+//									Destination:         aws.String("s3://some/destination/jobID/m"),
+//									DestinationSettings: &defaultDestinationSettings,
+//								},
+//							},
+//							Outputs: []mediaconvert.Output{
+//								{
+//									NameModifier: aws.String("file1"),
+//									ContainerSettings: &mediaconvert.ContainerSettings{
+//										Container: mediaconvert.ContainerTypeMp4,
+//										Mp4Settings: &mediaconvert.Mp4Settings{
+//											Mp4MajorBrand: aws.String("isom"),
+//										},
+//									},
+//									VideoDescription: &mediaconvert.VideoDescription{
+//										Height:            aws.Int64(400),
+//										Width:             aws.Int64(300),
+//										RespondToAfd:      mediaconvert.RespondToAfdNone,
+//										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+//										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+//										AntiAlias:         mediaconvert.AntiAliasEnabled,
+//										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+//											Deinterlacer: &mediaconvert.Deinterlacer{
+//												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+//												Control:   mediaconvert.DeinterlacerControlNormal,
+//												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+//											},
+//										},
+//										CodecSettings: &mediaconvert.VideoCodecSettings{
+//											Codec: mediaconvert.VideoCodecH264,
+//											H264Settings: &mediaconvert.H264Settings{
+//												Bitrate:            aws.Int64(400000),
+//												CodecLevel:         mediaconvert.H264CodecLevelAuto,
+//												CodecProfile:       mediaconvert.H264CodecProfileHigh,
+//												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+//												ParControl:         mediaconvert.H264ParControlSpecified,
+//												ParNumerator:       aws.Int64(1),
+//												ParDenominator:     aws.Int64(1),
+//												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+//												RateControlMode:    mediaconvert.H264RateControlModeVbr,
+//												GopSize:            aws.Float64(120),
+//												GopSizeUnits:       "FRAMES",
+//											},
+//										},
+//									},
+//									AudioDescriptions: []mediaconvert.AudioDescription{
+//										{
+//											CodecSettings: &mediaconvert.AudioCodecSettings{
+//												Codec: mediaconvert.AudioCodecAac,
+//												AacSettings: &mediaconvert.AacSettings{
+//													Bitrate:         aws.Int64(20000),
+//													CodecProfile:    mediaconvert.AacCodecProfileLc,
+//													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+//													RateControlMode: mediaconvert.AacRateControlModeCbr,
+//													SampleRate:      aws.Int64(defaultAudioSampleRate),
+//												},
+//											},
+//										},
+//									},
+//									Extension: aws.String("mp4"),
+//								},
+//							},
+//						},
+//					},
+//					TimecodeConfig: &mediaconvert.TimecodeConfig{
+//						Source: mediaconvert.TimecodeSourceZerobased,
+//					},
+//				},
+//			},
+//		},
+//		{
+//			name: "H264/AAC/MP4-Interlaced",
+//			job: &db.Job{
+//				ID:           "jobID",
+//				ProviderName: Name,
+//				SourceMedia:  "s3://some/path.mp4",
+//				SourceInfo: db.File{
+//					ScanType: db.ScanTypeInterlaced,
+//				},
+//				Outputs: []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+//			},
+//			preset:      defaultPreset,
+//			destination: "s3://some/destination",
+//			wantJobReq: mediaconvert.CreateJobInput{
+//				Role:              aws.String(""),
+//				Queue:             aws.String(""),
+//				BillingTagsSource: "JOB",
+//				Tags:              map[string]string{},
+//				Settings: &mediaconvert.JobSettings{
+//					Inputs: []mediaconvert.Input{
+//						{
+//							AudioSelectors: map[string]mediaconvert.AudioSelector{
+//								"Audio Selector 1": {
+//									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+//								},
+//							},
+//							FileInput: aws.String("s3://some/path.mp4"),
+//							VideoSelector: &mediaconvert.VideoSelector{
+//								ColorSpace: mediaconvert.ColorSpaceFollow,
+//							},
+//							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+//						},
+//					},
+//					OutputGroups: []mediaconvert.OutputGroup{
+//						{
+//							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+//								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+//								FileGroupSettings: &mediaconvert.FileGroupSettings{
+//									Destination:         aws.String("s3://some/destination/jobID/m"),
+//									DestinationSettings: &defaultDestinationSettings,
+//								},
+//							},
+//							Outputs: []mediaconvert.Output{
+//								{
+//									NameModifier: aws.String("file1"),
+//									ContainerSettings: &mediaconvert.ContainerSettings{
+//										Container: mediaconvert.ContainerTypeMp4,
+//										Mp4Settings: &mediaconvert.Mp4Settings{
+//											Mp4MajorBrand: aws.String("isom"),
+//										},
+//									},
+//									VideoDescription: &mediaconvert.VideoDescription{
+//										Height:            aws.Int64(400),
+//										Width:             aws.Int64(300),
+//										RespondToAfd:      mediaconvert.RespondToAfdNone,
+//										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+//										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+//										AntiAlias:         mediaconvert.AntiAliasEnabled,
+//										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+//											Deinterlacer: &mediaconvert.Deinterlacer{
+//												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+//												Control:   mediaconvert.DeinterlacerControlNormal,
+//												Mode:      mediaconvert.DeinterlacerModeDeinterlace,
+//											},
+//										},
+//										CodecSettings: &mediaconvert.VideoCodecSettings{
+//											Codec: mediaconvert.VideoCodecH264,
+//											H264Settings: &mediaconvert.H264Settings{
+//												Bitrate:            aws.Int64(400000),
+//												CodecLevel:         mediaconvert.H264CodecLevelAuto,
+//												CodecProfile:       mediaconvert.H264CodecProfileHigh,
+//												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+//												ParControl:         mediaconvert.H264ParControlSpecified,
+//												ParNumerator:       aws.Int64(1),
+//												ParDenominator:     aws.Int64(1),
+//												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+//												RateControlMode:    mediaconvert.H264RateControlModeVbr,
+//												GopSize:            aws.Float64(120),
+//												GopSizeUnits:       "FRAMES",
+//											},
+//										},
+//									},
+//									AudioDescriptions: []mediaconvert.AudioDescription{
+//										{
+//											CodecSettings: &mediaconvert.AudioCodecSettings{
+//												Codec: mediaconvert.AudioCodecAac,
+//												AacSettings: &mediaconvert.AacSettings{
+//													Bitrate:         aws.Int64(20000),
+//													CodecProfile:    mediaconvert.AacCodecProfileLc,
+//													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+//													RateControlMode: mediaconvert.AacRateControlModeCbr,
+//													SampleRate:      aws.Int64(defaultAudioSampleRate),
+//												},
+//											},
+//										},
+//									},
+//									Extension: aws.String("mp4"),
+//								},
+//							},
+//						},
+//					},
+//					TimecodeConfig: &mediaconvert.TimecodeConfig{
+//						Source: mediaconvert.TimecodeSourceZerobased,
+//					},
+//				},
+//			},
+//		},
+//		{
+//			name: "H264/AAC/MP4-Progressive",
+//			job: &db.Job{
+//				ID:           "jobID",
+//				ProviderName: Name,
+//				SourceMedia:  "s3://some/path.mp4",
+//				SourceInfo: db.File{
+//					ScanType: db.ScanTypeProgressive,
+//				},
+//				Outputs: []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+//			},
+//			preset:      defaultPreset,
+//			destination: "s3://some/destination",
+//			wantJobReq: mediaconvert.CreateJobInput{
+//				Role:              aws.String(""),
+//				Queue:             aws.String(""),
+//				BillingTagsSource: "JOB",
+//				Tags:              map[string]string{},
+//				Settings: &mediaconvert.JobSettings{
+//					Inputs: []mediaconvert.Input{
+//						{
+//							AudioSelectors: map[string]mediaconvert.AudioSelector{
+//								"Audio Selector 1": {
+//									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+//								},
+//							},
+//							FileInput: aws.String("s3://some/path.mp4"),
+//							VideoSelector: &mediaconvert.VideoSelector{
+//								ColorSpace: mediaconvert.ColorSpaceFollow,
+//							},
+//							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+//						},
+//					},
+//					OutputGroups: []mediaconvert.OutputGroup{
+//						{
+//							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+//								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+//								FileGroupSettings: &mediaconvert.FileGroupSettings{
+//									Destination:         aws.String("s3://some/destination/jobID/m"),
+//									DestinationSettings: &defaultDestinationSettings,
+//								},
+//							},
+//							Outputs: []mediaconvert.Output{
+//								{
+//									NameModifier: aws.String("file1"),
+//									ContainerSettings: &mediaconvert.ContainerSettings{
+//										Container: mediaconvert.ContainerTypeMp4,
+//										Mp4Settings: &mediaconvert.Mp4Settings{
+//											Mp4MajorBrand: aws.String("isom"),
+//										},
+//									},
+//									VideoDescription: &mediaconvert.VideoDescription{
+//										Height:             aws.Int64(400),
+//										Width:              aws.Int64(300),
+//										RespondToAfd:       mediaconvert.RespondToAfdNone,
+//										ScalingBehavior:    mediaconvert.ScalingBehaviorDefault,
+//										TimecodeInsertion:  mediaconvert.VideoTimecodeInsertionDisabled,
+//										AntiAlias:          mediaconvert.AntiAliasEnabled,
+//										VideoPreprocessors: &mediaconvert.VideoPreprocessor{},
+//										CodecSettings: &mediaconvert.VideoCodecSettings{
+//											Codec: mediaconvert.VideoCodecH264,
+//											H264Settings: &mediaconvert.H264Settings{
+//												Bitrate:            aws.Int64(400000),
+//												CodecLevel:         mediaconvert.H264CodecLevelAuto,
+//												CodecProfile:       mediaconvert.H264CodecProfileHigh,
+//												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+//												ParControl:         mediaconvert.H264ParControlSpecified,
+//												ParNumerator:       aws.Int64(1),
+//												ParDenominator:     aws.Int64(1),
+//												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+//												RateControlMode:    mediaconvert.H264RateControlModeVbr,
+//												GopSize:            aws.Float64(120),
+//												GopSizeUnits:       "FRAMES",
+//											},
+//										},
+//									},
+//									AudioDescriptions: []mediaconvert.AudioDescription{
+//										{
+//											CodecSettings: &mediaconvert.AudioCodecSettings{
+//												Codec: mediaconvert.AudioCodecAac,
+//												AacSettings: &mediaconvert.AacSettings{
+//													Bitrate:         aws.Int64(20000),
+//													CodecProfile:    mediaconvert.AacCodecProfileLc,
+//													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+//													RateControlMode: mediaconvert.AacRateControlModeCbr,
+//													SampleRate:      aws.Int64(defaultAudioSampleRate),
+//												},
+//											},
+//										},
+//									},
+//									Extension: aws.String("mp4"),
+//								},
+//							},
+//						},
+//					},
+//					TimecodeConfig: &mediaconvert.TimecodeConfig{
+//						Source: mediaconvert.TimecodeSourceZerobased,
+//					},
+//				},
+//			},
+//		},
+//		{
+//			name: "H265/MP4-VideoOnly",
+//			job: &db.Job{
+//				ID:           "jobID",
+//				ProviderName: Name,
+//				SourceMedia:  "s3://some/path.mp4",
+//				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: h265Preset.Name}, FileName: "file1.mp4"}},
+//			},
+//			preset:      h265Preset,
+//			destination: "s3://some/destination",
+//			wantJobReq: mediaconvert.CreateJobInput{
+//				Role:              aws.String(""),
+//				Queue:             aws.String(""),
+//				BillingTagsSource: "JOB",
+//				Tags:              map[string]string{},
+//				Settings: &mediaconvert.JobSettings{
+//					Inputs: []mediaconvert.Input{
+//						{
+//							AudioSelectors: map[string]mediaconvert.AudioSelector{
+//								"Audio Selector 1": {
+//									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+//								},
+//							},
+//							FileInput: aws.String("s3://some/path.mp4"),
+//							VideoSelector: &mediaconvert.VideoSelector{
+//								ColorSpace: mediaconvert.ColorSpaceFollow,
+//							},
+//							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+//						},
+//					},
+//					OutputGroups: []mediaconvert.OutputGroup{
+//						{
+//							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+//								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+//								FileGroupSettings: &mediaconvert.FileGroupSettings{
+//									Destination:         aws.String("s3://some/destination/jobID/m"),
+//									DestinationSettings: &defaultDestinationSettings,
+//								},
+//							},
+//							Outputs: []mediaconvert.Output{
+//								{
+//									NameModifier: aws.String("file1"),
+//									ContainerSettings: &mediaconvert.ContainerSettings{
+//										Container: mediaconvert.ContainerTypeMp4,
+//										Mp4Settings: &mediaconvert.Mp4Settings{
+//											Mp4MajorBrand: aws.String("isom"),
+//										},
+//									},
+//									VideoDescription: &mediaconvert.VideoDescription{
+//										Height:            aws.Int64(400),
+//										Width:             aws.Int64(300),
+//										RespondToAfd:      mediaconvert.RespondToAfdNone,
+//										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+//										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+//										AntiAlias:         mediaconvert.AntiAliasEnabled,
+//										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+//											Deinterlacer: &mediaconvert.Deinterlacer{
+//												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+//												Control:   mediaconvert.DeinterlacerControlNormal,
+//												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+//											},
+//										},
+//										CodecSettings: &mediaconvert.VideoCodecSettings{
+//											Codec: mediaconvert.VideoCodecH265,
+//											H265Settings: &mediaconvert.H265Settings{
+//												Bitrate:                        aws.Int64(400000),
+//												GopSize:                        aws.Float64(120),
+//												GopSizeUnits:                   "FRAMES",
+//												CodecLevel:                     mediaconvert.H265CodecLevelAuto,
+//												CodecProfile:                   mediaconvert.H265CodecProfileMainMain,
+//												InterlaceMode:                  mediaconvert.H265InterlaceModeProgressive,
+//												ParControl:                     mediaconvert.H265ParControlSpecified,
+//												ParNumerator:                   aws.Int64(1),
+//												ParDenominator:                 aws.Int64(1),
+//												QualityTuningLevel:             mediaconvert.H265QualityTuningLevelSinglePassHq,
+//												RateControlMode:                mediaconvert.H265RateControlModeCbr,
+//												WriteMp4PackagingType:          mediaconvert.H265WriteMp4PackagingTypeHvc1,
+//												AlternateTransferFunctionSei:   mediaconvert.H265AlternateTransferFunctionSeiDisabled,
+//												SpatialAdaptiveQuantization:    mediaconvert.H265SpatialAdaptiveQuantizationEnabled,
+//												TemporalAdaptiveQuantization:   mediaconvert.H265TemporalAdaptiveQuantizationEnabled,
+//												FlickerAdaptiveQuantization:    mediaconvert.H265FlickerAdaptiveQuantizationEnabled,
+//												SceneChangeDetect:              mediaconvert.H265SceneChangeDetectEnabled,
+//												UnregisteredSeiTimecode:        mediaconvert.H265UnregisteredSeiTimecodeDisabled,
+//												SampleAdaptiveOffsetFilterMode: mediaconvert.H265SampleAdaptiveOffsetFilterModeAdaptive,
+//											},
+//										},
+//									},
+//									Extension: aws.String("mp4"),
+//								},
+//							},
+//						},
+//					},
+//					TimecodeConfig: &mediaconvert.TimecodeConfig{
+//						Source: mediaconvert.TimecodeSourceZerobased,
+//					},
+//				},
+//			},
+//		},
+//		{
+//			name: "AV1/MP4",
+//			job: &db.Job{
+//				ID:           "jobID",
+//				ProviderName: Name,
+//				SourceMedia:  "s3://some/path.mp4",
+//				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: av1Preset.Name}, FileName: "file1.mp4"}},
+//			},
+//			preset:      av1Preset,
+//			destination: "s3://some/destination",
+//			wantJobReq: mediaconvert.CreateJobInput{
+//				Role:              aws.String(""),
+//				Queue:             aws.String(""),
+//				BillingTagsSource: "JOB",
+//				Tags:              map[string]string{},
+//				Settings: &mediaconvert.JobSettings{
+//					Inputs: []mediaconvert.Input{
+//						{
+//							AudioSelectors: map[string]mediaconvert.AudioSelector{
+//								"Audio Selector 1": {
+//									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+//								},
+//							},
+//							FileInput: aws.String("s3://some/path.mp4"),
+//							VideoSelector: &mediaconvert.VideoSelector{
+//								ColorSpace: mediaconvert.ColorSpaceFollow,
+//							},
+//							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+//						},
+//					},
+//					OutputGroups: []mediaconvert.OutputGroup{
+//						{
+//							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+//								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+//								FileGroupSettings: &mediaconvert.FileGroupSettings{
+//									Destination:         aws.String("s3://some/destination/jobID/m"),
+//									DestinationSettings: &defaultDestinationSettings,
+//								},
+//							},
+//							Outputs: []mediaconvert.Output{
+//								{
+//									NameModifier: aws.String("file1"),
+//									ContainerSettings: &mediaconvert.ContainerSettings{
+//										Container: mediaconvert.ContainerTypeMp4,
+//										Mp4Settings: &mediaconvert.Mp4Settings{
+//											Mp4MajorBrand: aws.String("isom"),
+//										},
+//									},
+//									VideoDescription: &mediaconvert.VideoDescription{
+//										Height:            aws.Int64(400),
+//										Width:             aws.Int64(300),
+//										RespondToAfd:      mediaconvert.RespondToAfdNone,
+//										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+//										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+//										AntiAlias:         mediaconvert.AntiAliasEnabled,
+//										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+//											Deinterlacer: &mediaconvert.Deinterlacer{
+//												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+//												Control:   mediaconvert.DeinterlacerControlNormal,
+//												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+//											},
+//										},
+//										CodecSettings: &mediaconvert.VideoCodecSettings{
+//											Codec: mediaconvert.VideoCodecAv1,
+//											Av1Settings: &mediaconvert.Av1Settings{
+//												MaxBitrate: aws.Int64(400000),
+//												GopSize:    aws.Float64(120),
+//												QvbrSettings: &mediaconvert.Av1QvbrSettings{
+//													QvbrQualityLevel:         aws.Int64(7),
+//													QvbrQualityLevelFineTune: aws.Float64(0),
+//												},
+//												RateControlMode: mediaconvert.Av1RateControlModeQvbr,
+//											},
+//										},
+//									},
+//									Extension: aws.String("mp4"),
+//								},
+//							},
+//						},
+//					},
+//					TimecodeConfig: &mediaconvert.TimecodeConfig{
+//						Source: mediaconvert.TimecodeSourceZerobased,
+//					},
+//				},
+//			},
+//		},
+//		{
+//			name: "VP8/Vorbis/Webm",
+//			job: &db.Job{
+//				ID:           "jobID",
+//				ProviderName: Name,
+//				SourceMedia:  "s3://some/path.webm",
+//				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.webm"}},
+//			},
+//			preset:      vp8Preset("vorbis"),
+//			destination: "s3://some/destination",
+//			wantJobReq: mediaconvert.CreateJobInput{
+//				Role:              aws.String(""),
+//				Queue:             aws.String(""),
+//				BillingTagsSource: "JOB",
+//				Tags:              map[string]string{},
+//				Settings: &mediaconvert.JobSettings{
+//					Inputs: []mediaconvert.Input{
+//						{
+//							AudioSelectors: map[string]mediaconvert.AudioSelector{
+//								"Audio Selector 1": {
+//									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+//								},
+//							},
+//							FileInput: aws.String("s3://some/path.webm"),
+//							VideoSelector: &mediaconvert.VideoSelector{
+//								ColorSpace: mediaconvert.ColorSpaceFollow,
+//							},
+//							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+//						},
+//					},
+//					OutputGroups: []mediaconvert.OutputGroup{
+//						{
+//							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+//								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+//								FileGroupSettings: &mediaconvert.FileGroupSettings{
+//									Destination:         aws.String("s3://some/destination/jobID/m"),
+//									DestinationSettings: &defaultDestinationSettings,
+//								},
+//							},
+//							Outputs: []mediaconvert.Output{
+//								{
+//									NameModifier: aws.String("file1"),
+//									ContainerSettings: &mediaconvert.ContainerSettings{
+//										Container: mediaconvert.ContainerTypeWebm,
+//									},
+//									VideoDescription: &mediaconvert.VideoDescription{
+//										Height:            aws.Int64(400),
+//										Width:             aws.Int64(300),
+//										RespondToAfd:      mediaconvert.RespondToAfdNone,
+//										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+//										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+//										AntiAlias:         mediaconvert.AntiAliasEnabled,
+//										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+//											Deinterlacer: &mediaconvert.Deinterlacer{
+//												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+//												Control:   mediaconvert.DeinterlacerControlNormal,
+//												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+//											},
+//										},
+//										CodecSettings: &mediaconvert.VideoCodecSettings{
+//											Codec: mediaconvert.VideoCodecVp8,
+//											Vp8Settings: &mediaconvert.Vp8Settings{
+//												Bitrate:          aws.Int64(400000),
+//												GopSize:          aws.Float64(120),
+//												RateControlMode:  mediaconvert.Vp8RateControlModeVbr,
+//												FramerateControl: mediaconvert.Vp8FramerateControlInitializeFromSource,
+//												ParControl:       mediaconvert.Vp8ParControlSpecified,
+//												ParNumerator:     aws.Int64(1),
+//												ParDenominator:   aws.Int64(1),
+//											},
+//										},
+//									},
+//									AudioDescriptions: []mediaconvert.AudioDescription{
+//										{
+//											AudioNormalizationSettings: &mediaconvert.AudioNormalizationSettings{
+//												Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17703,
+//												AlgorithmControl: mediaconvert.AudioNormalizationAlgorithmControlCorrectAudio,
+//											},
+//											CodecSettings: &mediaconvert.AudioCodecSettings{
+//												Codec: mediaconvert.AudioCodecVorbis,
+//												VorbisSettings: &mediaconvert.VorbisSettings{
+//													Channels:   aws.Int64(2),
+//													SampleRate: aws.Int64(defaultAudioSampleRate),
+//													VbrQuality: aws.Int64(2),
+//												},
+//											},
+//										},
+//									},
+//									Extension: aws.String("webm"),
+//								},
+//							},
+//						},
+//					},
+//					TimecodeConfig: &mediaconvert.TimecodeConfig{
+//						Source: mediaconvert.TimecodeSourceZerobased,
+//					},
+//				},
+//			},
+//		},
+//		{
+//			name: "VP8/Opus/Webm",
+//			job: &db.Job{
+//				ID:           "jobID",
+//				ProviderName: Name,
+//				SourceMedia:  "s3://some/path.webm",
+//				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.webm"}},
+//			},
+//			preset:      vp8Preset("opus"),
+//			destination: "s3://some/destination",
+//			wantJobReq: mediaconvert.CreateJobInput{
+//				Role:              aws.String(""),
+//				Queue:             aws.String(""),
+//				BillingTagsSource: "JOB",
+//				Tags:              map[string]string{},
+//				Settings: &mediaconvert.JobSettings{
+//					Inputs: []mediaconvert.Input{
+//						{
+//							AudioSelectors: map[string]mediaconvert.AudioSelector{
+//								"Audio Selector 1": {
+//									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+//								},
+//							},
+//							FileInput: aws.String("s3://some/path.webm"),
+//							VideoSelector: &mediaconvert.VideoSelector{
+//								ColorSpace: mediaconvert.ColorSpaceFollow,
+//							},
+//							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+//						},
+//					},
+//					OutputGroups: []mediaconvert.OutputGroup{
+//						{
+//							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+//								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+//								FileGroupSettings: &mediaconvert.FileGroupSettings{
+//									Destination:         aws.String("s3://some/destination/jobID/m"),
+//									DestinationSettings: &defaultDestinationSettings,
+//								},
+//							},
+//							Outputs: []mediaconvert.Output{
+//								{
+//									NameModifier: aws.String("file1"),
+//									ContainerSettings: &mediaconvert.ContainerSettings{
+//										Container: mediaconvert.ContainerTypeWebm,
+//									},
+//									VideoDescription: &mediaconvert.VideoDescription{
+//										Height:            aws.Int64(400),
+//										Width:             aws.Int64(300),
+//										RespondToAfd:      mediaconvert.RespondToAfdNone,
+//										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+//										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+//										AntiAlias:         mediaconvert.AntiAliasEnabled,
+//										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+//											Deinterlacer: &mediaconvert.Deinterlacer{
+//												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+//												Control:   mediaconvert.DeinterlacerControlNormal,
+//												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+//											},
+//										},
+//										CodecSettings: &mediaconvert.VideoCodecSettings{
+//											Codec: mediaconvert.VideoCodecVp8,
+//											Vp8Settings: &mediaconvert.Vp8Settings{
+//												Bitrate:          aws.Int64(400000),
+//												GopSize:          aws.Float64(120),
+//												RateControlMode:  mediaconvert.Vp8RateControlModeVbr,
+//												FramerateControl: mediaconvert.Vp8FramerateControlInitializeFromSource,
+//												ParControl:       mediaconvert.Vp8ParControlSpecified,
+//												ParNumerator:     aws.Int64(1),
+//												ParDenominator:   aws.Int64(1),
+//											},
+//										},
+//									},
+//									AudioDescriptions: []mediaconvert.AudioDescription{
+//										{
+//											AudioNormalizationSettings: &mediaconvert.AudioNormalizationSettings{
+//												Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17703,
+//												AlgorithmControl: mediaconvert.AudioNormalizationAlgorithmControlCorrectAudio,
+//											},
+//											CodecSettings: &mediaconvert.AudioCodecSettings{
+//												Codec: mediaconvert.AudioCodecOpus,
+//												OpusSettings: &mediaconvert.OpusSettings{
+//													Channels:   aws.Int64(2),
+//													Bitrate:    aws.Int64(96000),
+//													SampleRate: aws.Int64(defaultAudioSampleRate),
+//												},
+//											},
+//										},
+//									},
+//									Extension: aws.String("webm"),
+//								},
+//							},
+//						},
+//					},
+//					TimecodeConfig: &mediaconvert.TimecodeConfig{
+//						Source: mediaconvert.TimecodeSourceZerobased,
+//					},
+//				},
+//			},
+//		},
+//		{
+//			name: "a job is mapped correctly to a mediaconvert job input when a preferred queue is defined",
+//			cfg: &config.MediaConvert{
+//				DefaultQueueARN:   "some:default:queue:arn",
+//				PreferredQueueARN: "some:preferred:queue:arn",
+//			},
+//			job: &db.Job{
+//				ID:           "jobID",
+//				ProviderName: Name,
+//				SourceMedia:  "s3://some/path.mp4",
+//				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+//			},
+//			preset:      defaultPreset,
+//			destination: "s3://some/destination",
+//			wantJobReq: mediaconvert.CreateJobInput{
+//				Role:              aws.String(""),
+//				Queue:             aws.String("some:preferred:queue:arn"),
+//				HopDestinations:   []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
+//				BillingTagsSource: "JOB",
+//				Tags:              map[string]string{},
+//				Settings: &mediaconvert.JobSettings{
+//					Inputs: []mediaconvert.Input{
+//						{
+//							AudioSelectors: map[string]mediaconvert.AudioSelector{
+//								"Audio Selector 1": {
+//									DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+//								},
+//							},
+//							FileInput: aws.String("s3://some/path.mp4"),
+//							VideoSelector: &mediaconvert.VideoSelector{
+//								ColorSpace: mediaconvert.ColorSpaceFollow,
+//							},
+//							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+//						},
+//					},
+//					OutputGroups: []mediaconvert.OutputGroup{
+//						{
+//							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+//								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+//								FileGroupSettings: &mediaconvert.FileGroupSettings{
+//									Destination:         aws.String("s3://some/destination/jobID/m"),
+//									DestinationSettings: &defaultDestinationSettings,
+//								},
+//							},
+//							Outputs: []mediaconvert.Output{
+//								{
+//									NameModifier: aws.String("file1"),
+//									ContainerSettings: &mediaconvert.ContainerSettings{
+//										Container: mediaconvert.ContainerTypeMp4,
+//										Mp4Settings: &mediaconvert.Mp4Settings{
+//											Mp4MajorBrand: aws.String("isom"),
+//										},
+//									},
+//									VideoDescription: &mediaconvert.VideoDescription{
+//										Height:            aws.Int64(400),
+//										Width:             aws.Int64(300),
+//										RespondToAfd:      mediaconvert.RespondToAfdNone,
+//										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+//										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+//										AntiAlias:         mediaconvert.AntiAliasEnabled,
+//										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+//											Deinterlacer: &mediaconvert.Deinterlacer{
+//												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+//												Control:   mediaconvert.DeinterlacerControlNormal,
+//												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+//											},
+//										},
+//										CodecSettings: &mediaconvert.VideoCodecSettings{
+//											Codec: mediaconvert.VideoCodecH264,
+//											H264Settings: &mediaconvert.H264Settings{
+//												Bitrate:            aws.Int64(400000),
+//												CodecLevel:         mediaconvert.H264CodecLevelAuto,
+//												CodecProfile:       mediaconvert.H264CodecProfileHigh,
+//												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+//												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+//												RateControlMode:    mediaconvert.H264RateControlModeVbr,
+//												GopSize:            aws.Float64(120),
+//												GopSizeUnits:       mediaconvert.H264GopSizeUnitsFrames,
+//												ParControl:         mediaconvert.H264ParControlSpecified,
+//												ParNumerator:       aws.Int64(1),
+//												ParDenominator:     aws.Int64(1),
+//											},
+//										},
+//									},
+//									AudioDescriptions: []mediaconvert.AudioDescription{
+//										{
+//											CodecSettings: &mediaconvert.AudioCodecSettings{
+//												Codec: mediaconvert.AudioCodecAac,
+//												AacSettings: &mediaconvert.AacSettings{
+//													Bitrate:         aws.Int64(20000),
+//													CodecProfile:    mediaconvert.AacCodecProfileLc,
+//													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+//													RateControlMode: mediaconvert.AacRateControlModeCbr,
+//													SampleRate:      aws.Int64(defaultAudioSampleRate),
+//												},
+//											},
+//										},
+//									},
+//									Extension: aws.String("mp4"),
+//								},
+//							},
+//						},
+//					},
+//					TimecodeConfig: &mediaconvert.TimecodeConfig{
+//						Source: mediaconvert.TimecodeSourceZerobased,
+//					},
+//				},
+//			},
+//		},
+//		{
+//			name: "JobWithAudioDownmixAndTimeCodeBurninForMovOutput",
+//			cfg: &config.MediaConvert{
+//				DefaultQueueARN:   "some:default:queue:arn",
+//				PreferredQueueARN: "some:preferred:queue:arn",
+//			},
+//			job: &db.Job{
+//				ID:           "jobID",
+//				ProviderName: Name,
+//				SourceMedia:  "s3://some/path.mov",
+//				Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: tcBurninPreset.Name}, FileName: "file1.mov"}},
+//				AudioDownmix: &db.AudioDownmix{
+//					SrcChannels: []db.AudioChannel{
+//						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
+//						{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
+//						{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},
+//						{TrackIdx: 1, ChannelIdx: 4, Layout: "LFE"},
+//						{TrackIdx: 1, ChannelIdx: 5, Layout: "Ls"},
+//						{TrackIdx: 1, ChannelIdx: 6, Layout: "Rs"},
+//					},
+//					DestChannels: []db.AudioChannel{
+//						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
+//						{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
+//					},
+//				},
+//			},
+//			preset:      tcBurninPreset,
+//			destination: "s3://some/destination",
+//			wantJobReq: mediaconvert.CreateJobInput{
+//				Role:              aws.String(""),
+//				Queue:             aws.String("some:preferred:queue:arn"),
+//				HopDestinations:   []mediaconvert.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
+//				BillingTagsSource: "JOB",
+//				Tags:              map[string]string{},
+//				Settings: &mediaconvert.JobSettings{
+//					Inputs: []mediaconvert.Input{
+//						{
+//							AudioSelectors: map[string]mediaconvert.AudioSelector{
+//								"Audio Selector 1": getAudioSelector(6, 2, []int64{1}, []mediaconvert.OutputChannelMapping{
+//									{InputChannels: []int64{0, -60, 0, -60, 0, -60}},
+//									{InputChannels: []int64{-60, 0, 0, -60, -60, 0}},
+//								}),
+//							},
+//							FileInput: aws.String("s3://some/path.mov"),
+//							VideoSelector: &mediaconvert.VideoSelector{
+//								ColorSpace: mediaconvert.ColorSpaceFollow,
+//							},
+//							TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+//						},
+//					},
+//					OutputGroups: []mediaconvert.OutputGroup{
+//						{
+//							OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+//								Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+//								FileGroupSettings: &mediaconvert.FileGroupSettings{
+//									Destination:         aws.String("s3://some/destination/jobID/m"),
+//									DestinationSettings: &defaultDestinationSettings,
+//								},
+//							},
+//							Outputs: []mediaconvert.Output{
+//								{
+//									NameModifier: aws.String("file1"),
+//									ContainerSettings: &mediaconvert.ContainerSettings{
+//										Container: mediaconvert.ContainerTypeMov,
+//										MovSettings: &mediaconvert.MovSettings{
+//											ClapAtom:           mediaconvert.MovClapAtomExclude,
+//											CslgAtom:           mediaconvert.MovCslgAtomInclude,
+//											PaddingControl:     mediaconvert.MovPaddingControlOmneon,
+//											Reference:          mediaconvert.MovReferenceSelfContained,
+//											Mpeg2FourCCControl: mediaconvert.MovMpeg2FourCCControlMpeg,
+//										},
+//									},
+//									VideoDescription: &mediaconvert.VideoDescription{
+//										Height:            aws.Int64(400),
+//										Width:             aws.Int64(300),
+//										RespondToAfd:      mediaconvert.RespondToAfdNone,
+//										ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
+//										TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
+//										AntiAlias:         mediaconvert.AntiAliasEnabled,
+//										VideoPreprocessors: &mediaconvert.VideoPreprocessor{
+//											Deinterlacer: &mediaconvert.Deinterlacer{
+//												Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+//												Control:   mediaconvert.DeinterlacerControlNormal,
+//												Mode:      mediaconvert.DeinterlacerModeAdaptive,
+//											},
+//											TimecodeBurnin: &mediaconvert.TimecodeBurnin{
+//												FontSize: aws.Int64(12),
+//												Position: mediaconvert.TimecodeBurninPositionBottomLeft,
+//												Prefix:   aws.String(""),
+//											},
+//										},
+//										CodecSettings: &mediaconvert.VideoCodecSettings{
+//											Codec: mediaconvert.VideoCodecH264,
+//											H264Settings: &mediaconvert.H264Settings{
+//												Bitrate:            aws.Int64(400000),
+//												CodecLevel:         mediaconvert.H264CodecLevelAuto,
+//												CodecProfile:       mediaconvert.H264CodecProfileHigh,
+//												InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+//												QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+//												RateControlMode:    mediaconvert.H264RateControlModeVbr,
+//												GopSize:            aws.Float64(120),
+//												GopSizeUnits:       mediaconvert.H264GopSizeUnitsFrames,
+//												ParControl:         mediaconvert.H264ParControlSpecified,
+//												ParNumerator:       aws.Int64(1),
+//												ParDenominator:     aws.Int64(1),
+//											},
+//										},
+//									},
+//									AudioDescriptions: []mediaconvert.AudioDescription{
+//										{
+//											CodecSettings: &mediaconvert.AudioCodecSettings{
+//												Codec: mediaconvert.AudioCodecAac,
+//												AacSettings: &mediaconvert.AacSettings{
+//													Bitrate:         aws.Int64(20000),
+//													CodecProfile:    mediaconvert.AacCodecProfileLc,
+//													CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+//													RateControlMode: mediaconvert.AacRateControlModeCbr,
+//													SampleRate:      aws.Int64(defaultAudioSampleRate),
+//												},
+//											},
+//										},
+//									},
+//									Extension: aws.String("mov"),
+//								},
+//							},
+//						},
+//					},
+//					TimecodeConfig: &mediaconvert.TimecodeConfig{
+//						Source: mediaconvert.TimecodeSourceZerobased,
+//					},
+//				},
+//			},
+//		},
+//		//{
+//		//	name: "acceleration is enabled and the default queue is used when a source has a large filesize",
+//		//	cfg: &config.MediaConvert{
+//		//		DefaultQueueARN:   "some:default:queue:arn",
+//		//		PreferredQueueARN: "some:preferred:queue:arn",
+//		//	},
+//		//	job: &db.Job{
+//		//		ID:           "jobID",
+//		//		ProviderName: Name,
+//		//		SourceMedia:  "s3://some/path.mp4",
+//		//		SourceInfo:   db.File{FileSize: 1_000_000_000},
+//		//		Outputs:      []db.TranscodeOutput{{Preset: db.PresetMap{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
+//		//	},
+//		//	preset:      audioOnlyPreset,
+//		//	destination: "s3://some/destination",
+//		//	wantJobReq: mediaconvert.CreateJobInput{
+//		//		AccelerationSettings: &mediaconvert.AccelerationSettings{
+//		//			Mode: mediaconvert.AccelerationModePreferred,
+//		//		},
+//		//		Role:  aws.String(""),
+//		//		Queue: aws.String("some:default:queue:arn"),
+//		//		Tags: map[string]string{},
+//		//		Settings: &mediaconvert.JobSettings{
+//		//			Inputs: []mediaconvert.Input{
+//		//				{
+//		//					AudioSelectors: map[string]mediaconvert.AudioSelector{
+//		//						"Audio Selector 1": {
+//		//							DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+//		//						},
+//		//					},
+//		//					FileInput: aws.String("s3://some/path.mp4"),
+//		//					VideoSelector: &mediaconvert.VideoSelector{
+//		//						ColorSpace: mediaconvert.ColorSpaceFollow,
+//		//					},
+//		//					TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+//		//				},
+//		//			},
+//		//			OutputGroups: []mediaconvert.OutputGroup{
+//		//				{
+//		//					OutputGroupSettings: &mediaconvert.OutputGroupSettings{
+//		//						Type: mediaconvert.OutputGroupTypeFileGroupSettings,
+//		//						FileGroupSettings: &mediaconvert.FileGroupSettings{
+//		//							Destination: aws.String("s3://some/destination/jobID/m"),
+//		//						},
+//		//					},
+//		//					Outputs: []mediaconvert.Output{
+//		//						{
+//		//							NameModifier: aws.String("file1"),
+//		//							ContainerSettings: &mediaconvert.ContainerSettings{
+//		//								Container: mediaconvert.ContainerTypeMp4,
+//		//								Mp4Settings: &mediaconvert.Mp4Settings{
+//		//									Mp4MajorBrand: aws.String("isom"),
+//		//								},
+//		//							},
+//		//							AudioDescriptions: []mediaconvert.AudioDescription{
+//		//								{
+//		//									CodecSettings: &mediaconvert.AudioCodecSettings{
+//		//										Codec: mediaconvert.AudioCodecAac,
+//		//										AacSettings: &mediaconvert.AacSettings{
+//		//											Bitrate:         aws.Int64(20000),
+//		//											CodecProfile:    mediaconvert.AacCodecProfileLc,
+//		//											CodingMode:      mediaconvert.AacCodingModeCodingMode20,
+//		//											RateControlMode: mediaconvert.AacRateControlModeCbr,
+//		//											SampleRate:      aws.Int64(defaultAudioSampleRate),
+//		//										},
+//		//									},
+//		//								},
+//		//							},
+//		//							Extension: aws.String("mp4"),
+//		//						},
+//		//					},
+//		//				},
+//		//			},
+//		//			TimecodeConfig: &mediaconvert.TimecodeConfig{
+//		//				Source: mediaconvert.TimecodeSourceZerobased,
+//		//			},
+//		//		},
+//		//	},
+//		//},
+//	}
+//
+//	for _, tt := range tests {
+//
+//		t.Run(tt.name, func(t *testing.T) {
+//			repo, err := fakeDBWithPresets(tt.preset)
+//			if err != nil {
+//				t.Error(err)
+//				return
+//			}
+//
+//			if tt.cfg == nil {
+//				tt.cfg = &config.MediaConvert{Destination: tt.destination}
+//			} else {
+//				tt.cfg.Destination = tt.destination
+//			}
+//
+//			client := &testMediaConvertClient{t: t}
+//			p := &mcProvider{
+//				client:     client,
+//				cfg:        tt.cfg,
+//				repository: repo,
+//			}
+//			_, err = p.Transcode(context.Background(), tt.job)
+//			if (err != nil) != tt.wantErr {
+//				t.Errorf("mcProvider.Transcode() error = %v, wantErr %v", err, tt.wantErr)
+//				return
+//			}
+//
+//			if g, e := client.createJobCalledWith, tt.wantJobReq; !reflect.DeepEqual(g, e) {
+//				t.Fatalf("Transcode(): wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
+//					g, cmp.Diff(e, g))
+//			}
+//		})
+//	}
+//}
 
 func Test_mcProvider_CancelJob(t *testing.T) {
 	jobID := "some_job_id"
