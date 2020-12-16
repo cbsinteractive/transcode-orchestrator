@@ -109,6 +109,7 @@ func containerSettingsFrom(container mediaconvert.ContainerType) *mediaconvert.C
 		cs.Mp4Settings = &mediaconvert.Mp4Settings{
 			//ISO specification for base media file format
 			Mp4MajorBrand: aws.String("isom"),
+			MoovPlacement: mediaconvert.Mp4MoovPlacementProgressiveDownload,
 		}
 	case mediaconvert.ContainerTypeMov:
 		cs.MovSettings = &mediaconvert.MovSettings{
