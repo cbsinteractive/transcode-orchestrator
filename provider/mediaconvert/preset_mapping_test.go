@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/cbsinteractive/pkg/video"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
@@ -76,6 +77,43 @@ func TestSetterScanType(t *testing.T) {
 			v := setter{dst, src}.ScanType(nil)
 			if have := v.VideoPreprocessors.Deinterlacer; have != tt.want {
 				t.Logf("bad deinterlacer:\n\t\thave: %#v\n\t\twant: %#v", have, tt.want)
+			}
+		})
+	}
+}
+
+func TestCrop(t *testing.T) {
+	type (
+		dims struct{ width, height uint }
+		rect struct{ width, height, x, y int64 }
+	)
+	for _, tt := range []struct {
+		name string
+		src  dims
+		crop video.Crop
+		want rect
+	}{
+		{
+			"Crop",
+			dims{width: 300, height: 150},
+			video.Crop{Top: 10, Right: 40, Bottom: 20, Left: 50},
+			rect{width: 210, height: 120, x: 50, y: 10},
+		},
+		{
+			"CropOdd2Even",
+			dims{width: 300, height: 150},
+			video.Crop{Top: 11, Right: 49, Bottom: 25, Left: 55},
+			rect{width: 196, height: 114, x: 56, y: 12},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			have := setter{
+				dst: db.Preset{Video: db.VideoPreset{Crop: tt.crop}},
+				src: db.File{Height: tt.src.height, Width: tt.src.width},
+			}.Crop(nil).Crop
+			want := &mediaconvert.Rectangle{Height: &tt.want.height, Width: &tt.want.width, X: &tt.want.x, Y: &tt.want.y}
+			if !reflect.DeepEqual(have, want) {
+				t.Errorf("bad crop rect:\nhave: %+v\nwant: %+v", have, tt.want)
 			}
 		})
 	}

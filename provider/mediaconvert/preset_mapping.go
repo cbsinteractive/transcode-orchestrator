@@ -179,7 +179,9 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	}
 	videoPreset.VideoPreprocessors = videoPreprocessors
 
-	videoPreset = setter{dst: preset, src: sourceInfo}.ScanType(videoPreset)
+	cfgSetter := setter{dst: preset, src: sourceInfo}
+	videoPreset = cfgSetter.ScanType(videoPreset)
+	videoPreset = cfgSetter.Crop(videoPreset)
 
 	return videoPreset, nil
 }
@@ -232,6 +234,34 @@ func (s setter) ScanType(v *mediaconvert.VideoDescription) *mediaconvert.VideoDe
 		default:
 			v.VideoPreprocessors.Deinterlacer = &deinterlacerAdaptive
 		}
+	}
+	return v
+}
+
+func (s setter) Crop(v *mediaconvert.VideoDescription) *mediaconvert.VideoDescription {
+	if v == nil {
+		v = &mediaconvert.VideoDescription{}
+	}
+
+	var (
+		crop = s.dst.Video.Crop
+		h, w = int(s.src.Height), int(s.src.Width)
+	)
+	if crop.Empty() || h <= 0 || w <= 0 {
+		return v
+	}
+
+	roundEven := func(i, mod int) *int64 {
+		if i%2 != 0 {
+			i += mod
+		}
+		return aws.Int64(int64(i))
+	}
+	v.Crop = &mediaconvert.Rectangle{
+		Height: roundEven(h-crop.Top-crop.Bottom, -1),
+		Width:  roundEven(w-crop.Left-crop.Right, -1),
+		X:      roundEven(crop.Left, 1),
+		Y:      roundEven(crop.Top, 1),
 	}
 	return v
 }
