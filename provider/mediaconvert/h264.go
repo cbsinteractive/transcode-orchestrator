@@ -42,6 +42,36 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		tuning = mediaconvert.H264QualityTuningLevelMultiPassHq
 	}
 
+	if rateControl == mediaconvert.H264RateControlModeQvbr {
+		var qvbrLevel int64 = 9
+		height, err := strconv.Atoi(preset.Video.Height)
+		if err == nil {
+			if height <= 720 {
+				qvbrLevel = 8
+			}
+			if height <= 540 {
+				qvbrLevel = 7
+			}
+		}
+		return &mediaconvert.VideoCodecSettings{
+			Codec: mediaconvert.VideoCodecH264,
+			H264Settings: &mediaconvert.H264Settings{
+				// MaxBitrate:         aws.Int64(bitrate),
+				GopSize:         aws.Float64(gopSize),
+				GopSizeUnits:    gopUnit,
+				RateControlMode: rateControl,
+				QvbrSettings: &mediaconvert.H264QvbrSettings{
+					MaxAverageBitrate: aws.Int64(bitrate),
+					QvbrQualityLevel:  aws.Int64(qvbrLevel),
+				},
+				CodecProfile:       profile,
+				CodecLevel:         mediaconvert.H264CodecLevelAuto,
+				InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
+				QualityTuningLevel: mediaconvert.H264QualityTuningLevelMultiPassHq,
+			},
+		}, nil
+	}
+
 	return &mediaconvert.VideoCodecSettings{
 		Codec: mediaconvert.VideoCodecH264,
 		H264Settings: &mediaconvert.H264Settings{
@@ -81,9 +111,9 @@ func h264RateControlModeFrom(rateControl string) (mediaconvert.H264RateControlMo
 	switch rateControl {
 	case "vbr":
 		return mediaconvert.H264RateControlModeVbr, nil
-	case "", "cbr":
+	case "cbr":
 		return mediaconvert.H264RateControlModeCbr, nil
-	case "qvbr":
+	case "", "qvbr":
 		return mediaconvert.H264RateControlModeQvbr, nil
 	default:
 		return "", fmt.Errorf("rate control mode %q is not supported with mediaconvert", rateControl)
