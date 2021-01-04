@@ -29,7 +29,7 @@ func vp8CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, e
 		return nil, errors.Wrapf(err, "parsing video bitrate %q to int64", preset.Video.Bitrate)
 	}
 
-	return &mediaconvert.VideoCodecSettings{
+	settings := &mediaconvert.VideoCodecSettings{
 		Codec: mediaconvert.VideoCodecVp8,
 		Vp8Settings: &mediaconvert.Vp8Settings{
 			Bitrate:          aws.Int64(bitrate),
@@ -40,5 +40,14 @@ func vp8CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, e
 			ParNumerator:     aws.Int64(1),
 			ParDenominator:   aws.Int64(1),
 		},
-	}, nil
+	}
+
+	if fr := preset.Video.Framerate; !fr.Empty() {
+		settings.Vp8Settings.FramerateControl = mediaconvert.Vp8FramerateControlSpecified
+		settings.Vp8Settings.FramerateConversionAlgorithm = mediaconvert.Vp8FramerateConversionAlgorithmInterpolate
+		settings.Vp8Settings.FramerateNumerator = aws.Int64(int64(fr.Numerator))
+		settings.Vp8Settings.FramerateDenominator = aws.Int64(int64(fr.Denominator))
+	}
+
+	return settings, nil
 }

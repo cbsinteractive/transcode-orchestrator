@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	"github.com/cbsinteractive/pkg/video"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/db/dbtest"
@@ -194,6 +195,42 @@ func Test_mcProvider_CreatePreset_fields(t *testing.T) {
 			assertion: func(output mediaconvert.Output, t *testing.T) {
 				if g, e := output.ContainerSettings.Container, mediaconvert.ContainerTypeCmfc; g != e {
 					t.Fatalf("got %q, expected %q", g, e)
+				}
+			},
+		},
+		{
+			name: "framerate is set correctly",
+			presetModifier: func(preset db.Preset) db.Preset {
+				preset.Video.Framerate = video.Framerate{Numerator: 30000, Denominator: 1001}
+				return preset
+			},
+			assertion: func(output mediaconvert.Output, t *testing.T) {
+				valOrZero := func(i *int64) int64 {
+					if i == nil {
+						return 0
+					}
+					return *i
+				}
+				type settings struct {
+					control                mediaconvert.H264FramerateControl
+					algo                   mediaconvert.H264FramerateConversionAlgorithm
+					numerator, denominator int64
+				}
+				want := settings{
+					control:     mediaconvert.H264FramerateControlSpecified,
+					algo:        mediaconvert.H264FramerateConversionAlgorithmInterpolate,
+					numerator:   30000,
+					denominator: 1001,
+				}
+				got := settings{
+					control:     output.VideoDescription.CodecSettings.H264Settings.FramerateControl,
+					algo:        output.VideoDescription.CodecSettings.H264Settings.FramerateConversionAlgorithm,
+					numerator:   valOrZero(output.VideoDescription.CodecSettings.H264Settings.FramerateNumerator),
+					denominator: valOrZero(output.VideoDescription.CodecSettings.H264Settings.FramerateDenominator),
+				}
+
+				if got != want {
+					t.Errorf("\nframerate settings\ngot:\n\t%#v\nexpected\n\t%#v", got, want)
 				}
 			},
 		},

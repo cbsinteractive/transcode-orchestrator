@@ -63,6 +63,8 @@ github.com/cbsinteractive/pkg/video v0.0.0-20200829195108-cc8210d024ab h1:JjKy1b
 github.com/cbsinteractive/pkg/video v0.0.0-20200829195108-cc8210d024ab/go.mod h1:r5qPR/TvTmjEetSAp7Pr5xmAGt3L06pPYElzWxBCBZg=
 github.com/cbsinteractive/pkg/video v0.0.2 h1:WkhrxH5rET6HjpaI04Jn/bFpFs8DltG6fGmCja8r0cI=
 github.com/cbsinteractive/pkg/video v0.0.2/go.mod h1:r5qPR/TvTmjEetSAp7Pr5xmAGt3L06pPYElzWxBCBZg=
+github.com/cbsinteractive/pkg/video v0.0.4 h1:FdrQy8DbHEkxMTo9ZRRCDNEey1K2uFrenJ9qsnmZYcI=
+github.com/cbsinteractive/pkg/video v0.0.4/go.mod h1:r5qPR/TvTmjEetSAp7Pr5xmAGt3L06pPYElzWxBCBZg=
 github.com/census-instrumentation/opencensus-proto v0.2.0/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575/go.mod h1:9d6lWj8KzO/fd/NrVaLscBKmPigpZpn5YawRPw+e3Yo=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
