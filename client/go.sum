@@ -3,3 +3,5 @@ github.com/cbsinteractive/pkg/timecode v0.0.0-20200409233703-f2037b1185c6 h1:zdc
 github.com/cbsinteractive/pkg/timecode v0.0.0-20200409233703-f2037b1185c6/go.mod h1:ReOY3qLLv1Aafa5tt2x78vbSZQu6YOyH3yq64Fd4uVA=
 github.com/cbsinteractive/pkg/video v0.0.0-20200829154626-5096cad96783 h1:xjOawhgY9YGUXhrZUybcvItwwIxftEh5V+bkVbPxalk=
 github.com/cbsinteractive/pkg/video v0.0.0-20200829154626-5096cad96783/go.mod h1:r5qPR/TvTmjEetSAp7Pr5xmAGt3L06pPYElzWxBCBZg=
+github.com/cbsinteractive/pkg/video v0.0.4 h1:FdrQy8DbHEkxMTo9ZRRCDNEey1K2uFrenJ9qsnmZYcI=
+github.com/cbsinteractive/pkg/video v0.0.4/go.mod h1:r5qPR/TvTmjEetSAp7Pr5xmAGt3L06pPYElzWxBCBZg=

@@ -42,7 +42,7 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		tuning = mediaconvert.H264QualityTuningLevelMultiPassHq
 	}
 
-	return &mediaconvert.VideoCodecSettings{
+	settings := &mediaconvert.VideoCodecSettings{
 		Codec: mediaconvert.VideoCodecH264,
 		H264Settings: &mediaconvert.H264Settings{
 			Bitrate:            aws.Int64(bitrate),
@@ -57,7 +57,16 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 			ParDenominator:     aws.Int64(1),
 			QualityTuningLevel: tuning,
 		},
-	}, nil
+	}
+
+	if fr := preset.Video.Framerate; !fr.Empty() {
+		settings.H264Settings.FramerateControl = mediaconvert.H264FramerateControlSpecified
+		settings.H264Settings.FramerateConversionAlgorithm = mediaconvert.H264FramerateConversionAlgorithmInterpolate
+		settings.H264Settings.FramerateNumerator = aws.Int64(int64(fr.Numerator))
+		settings.H264Settings.FramerateDenominator = aws.Int64(int64(fr.Denominator))
+	}
+
+	return settings, nil
 }
 
 func h264GopUnitFrom(gopUnit string) (mediaconvert.H264GopSizeUnits, error) {

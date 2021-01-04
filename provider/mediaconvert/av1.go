@@ -22,7 +22,7 @@ func av1CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, e
 		return nil, err
 	}
 
-	return &mediaconvert.VideoCodecSettings{
+	settings := &mediaconvert.VideoCodecSettings{
 		Codec: mediaconvert.VideoCodecAv1,
 		Av1Settings: &mediaconvert.Av1Settings{
 			MaxBitrate: aws.Int64(bitrate),
@@ -33,7 +33,16 @@ func av1CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, e
 			},
 			RateControlMode: mediaconvert.Av1RateControlModeQvbr,
 		},
-	}, nil
+	}
+
+	if fr := preset.Video.Framerate; !fr.Empty() {
+		settings.Av1Settings.FramerateControl = mediaconvert.Av1FramerateControlSpecified
+		settings.Av1Settings.FramerateConversionAlgorithm = mediaconvert.Av1FramerateConversionAlgorithmInterpolate
+		settings.Av1Settings.FramerateNumerator = aws.Int64(int64(fr.Numerator))
+		settings.Av1Settings.FramerateDenominator = aws.Int64(int64(fr.Denominator))
+	}
+
+	return settings, nil
 }
 
 func av1GopSizeFrom(gopUnit string, gopSize string) (float64, error) {

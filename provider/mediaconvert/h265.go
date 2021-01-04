@@ -47,7 +47,7 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		tuning = mediaconvert.H265QualityTuningLevelMultiPassHq
 	}
 
-	return &mediaconvert.VideoCodecSettings{
+	settings := &mediaconvert.VideoCodecSettings{
 		Codec: mediaconvert.VideoCodecH265,
 		H265Settings: &mediaconvert.H265Settings{
 			Bitrate:                        aws.Int64(bitrate),
@@ -70,7 +70,16 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 			UnregisteredSeiTimecode:        mediaconvert.H265UnregisteredSeiTimecodeDisabled,
 			SampleAdaptiveOffsetFilterMode: mediaconvert.H265SampleAdaptiveOffsetFilterModeAdaptive,
 		},
-	}, nil
+	}
+
+	if fr := preset.Video.Framerate; !fr.Empty() {
+		settings.H265Settings.FramerateControl = mediaconvert.H265FramerateControlSpecified
+		settings.H265Settings.FramerateConversionAlgorithm = mediaconvert.H265FramerateConversionAlgorithmInterpolate
+		settings.H265Settings.FramerateNumerator = aws.Int64(int64(fr.Numerator))
+		settings.H265Settings.FramerateDenominator = aws.Int64(int64(fr.Denominator))
+	}
+
+	return settings, nil
 }
 
 func h265GopUnitFrom(gopUnit string) (mediaconvert.H265GopSizeUnits, error) {

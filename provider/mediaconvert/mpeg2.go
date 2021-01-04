@@ -44,6 +44,12 @@ func (m mpeg2) apply(p db.Preset) mpeg2 {
 	if p.RateControl != "" {
 		m.RateControlMode = mediaconvert.Mpeg2RateControlMode(p.RateControl)
 	}
+	if fr := p.Video.Framerate; !fr.Empty() {
+		m.FramerateControl = mediaconvert.Mpeg2FramerateControlSpecified
+		m.FramerateConversionAlgorithm = mediaconvert.Mpeg2FramerateConversionAlgorithmInterpolate
+		m.FramerateNumerator = aws.Int64(int64(fr.Numerator))
+		m.FramerateDenominator = aws.Int64(int64(fr.Denominator))
+	}
 	return m
 }
 

@@ -276,6 +276,10 @@ type VideoPreset struct {
 
 	// Crop contains offsets for top, bottom, left and right src cropping
 	Crop video.Crop `json:"crop" redis-hash:"crop,expand,omitempty"`
+
+	// Framerate contains individual integer elements of a fractional framerate
+	// including both the numerator and its divisor
+	Framerate video.Framerate `json:"framerate" redis-hash:"framerate,expand,omitempty"`
 }
 
 // GopUnit defines the unit used to measure gops
