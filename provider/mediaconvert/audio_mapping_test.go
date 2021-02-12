@@ -1,27 +1,26 @@
 package mediaconvert
 
 import (
-	"reflect"
-	"testing"
-
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/google/go-cmp/cmp"
+	"reflect"
+	"testing"
 )
 
 func Test_mcProvider_audioSelectorFrom(t *testing.T) {
 	audioSelectorKey := "Audio Selector 1"
-	defaultSelectorMap := map[string]mediaconvert.AudioSelector{
+	defaultSelectorMap := map[string]mc.AudioSelector{
 		audioSelectorKey: {
-			DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+			DefaultSelection: mc.AudioDefaultSelectionDefault,
 		},
 	}
 
 	tests := []struct {
 		name         string
 		audioDownmix db.AudioDownmix
-		want         mediaconvert.AudioSelector
+		want         mc.AudioSelector
 		wantErr      bool
 	}{
 		{
@@ -40,7 +39,7 @@ func Test_mcProvider_audioSelectorFrom(t *testing.T) {
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 				},
 			},
-			want: getAudioSelector(6, 2, []int64{1}, []mediaconvert.OutputChannelMapping{
+			want: getAudioSelector(6, 2, []int64{1}, []mc.OutputChannelMapping{
 				{InputChannels: []int64{0, -60, 0, -60, 0, -60}},
 				{InputChannels: []int64{-60, 0, 0, -60, -60, 0}},
 			}),
@@ -61,7 +60,7 @@ func Test_mcProvider_audioSelectorFrom(t *testing.T) {
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 				},
 			},
-			want: getAudioSelector(6, 2, []int64{1, 2, 3, 4, 5, 6}, []mediaconvert.OutputChannelMapping{
+			want: getAudioSelector(6, 2, []int64{1, 2, 3, 4, 5, 6}, []mc.OutputChannelMapping{
 				{InputChannels: []int64{0, -60, 0, -60, 0, -60}},
 				{InputChannels: []int64{-60, 0, 0, -60, -60, 0}},
 			}),
@@ -84,7 +83,7 @@ func Test_mcProvider_audioSelectorFrom(t *testing.T) {
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 				},
 			},
-			want: getAudioSelector(8, 2, []int64{1, 2, 3, 4, 5, 6, 7, 8}, []mediaconvert.OutputChannelMapping{
+			want: getAudioSelector(8, 2, []int64{1, 2, 3, 4, 5, 6, 7, 8}, []mc.OutputChannelMapping{
 				{InputChannels: []int64{0, -60, 0, -60, 0, -60, 0, -60}},
 				{InputChannels: []int64{-60, 0, 0, -60, -60, 0, -60, 0}},
 			}),
@@ -127,17 +126,17 @@ func Test_mcProvider_audioSelectorFrom(t *testing.T) {
 	}
 }
 
-func getAudioSelector(cIn int64, cOut int64, tracks []int64, oc []mediaconvert.OutputChannelMapping) mediaconvert.AudioSelector {
-	return mediaconvert.AudioSelector{
-		DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+func getAudioSelector(cIn int64, cOut int64, tracks []int64, oc []mc.OutputChannelMapping) mc.AudioSelector {
+	return mc.AudioSelector{
+		DefaultSelection: mc.AudioDefaultSelectionDefault,
 		Offset:           aws.Int64(0),
 		ProgramSelection: aws.Int64(1),
-		SelectorType:     mediaconvert.AudioSelectorTypeTrack,
+		SelectorType:     mc.AudioSelectorTypeTrack,
 		Tracks:           tracks,
-		RemixSettings: &mediaconvert.RemixSettings{
+		RemixSettings: &mc.RemixSettings{
 			ChannelsIn:  aws.Int64(cIn),
 			ChannelsOut: aws.Int64(cOut),
-			ChannelMapping: &mediaconvert.ChannelMapping{
+			ChannelMapping: &mc.ChannelMapping{
 				OutputChannels: oc,
 			},
 		},

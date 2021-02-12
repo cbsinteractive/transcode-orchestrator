@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/pkg/timecode"
 )
 
@@ -12,7 +12,7 @@ func TestSplice2Clippings(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		input timecode.Splice
-		want  []mediaconvert.InputClipping
+		want  []mc.InputClipping
 	}{
 		{"5-10s", timecode.Splice{{5, 10}}, makeIC("00:00:05:00", "00:00:10:00")},
 	} {
@@ -26,8 +26,8 @@ func TestSplice2Clippings(t *testing.T) {
 	}
 }
 
-func makeIC(s, e string) []mediaconvert.InputClipping {
-	return []mediaconvert.InputClipping{{
+func makeIC(s, e string) []mc.InputClipping {
+	return []mc.InputClipping{{
 		StartTimecode: &s,
 		EndTimecode:   &e,
 	}}

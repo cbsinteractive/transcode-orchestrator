@@ -1,7 +1,7 @@
 package mediaconvert
 
 import (
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/service"
@@ -16,10 +16,10 @@ var (
 	}
 )
 
-func audioSelectorFrom(audioDownmix *db.AudioDownmix, audioSelector *mediaconvert.AudioSelector) error {
+func audioSelectorFrom(audioDownmix *db.AudioDownmix, audioSelector *mc.AudioSelector) error {
 	audioSelector.Offset = aws.Int64(0)
 	audioSelector.ProgramSelection = aws.Int64(1)
-	audioSelector.SelectorType = mediaconvert.AudioSelectorTypeTrack
+	audioSelector.SelectorType = mc.AudioSelectorTypeTrack
 	audioSelector.Tracks = trackListFrom(*audioDownmix)
 
 	channelMapping, err := audioChannelMappingFrom(*audioDownmix)
@@ -27,7 +27,7 @@ func audioSelectorFrom(audioDownmix *db.AudioDownmix, audioSelector *mediaconver
 		return err
 	}
 
-	audioSelector.RemixSettings = &mediaconvert.RemixSettings{
+	audioSelector.RemixSettings = &mc.RemixSettings{
 		ChannelsIn:     aws.Int64(int64(len(audioDownmix.SrcChannels))),
 		ChannelsOut:    aws.Int64(int64(len(audioDownmix.DestChannels))),
 		ChannelMapping: channelMapping,
@@ -49,12 +49,12 @@ func trackListFrom(audioDownmix db.AudioDownmix) (tracks []int64) {
 	return tracks
 }
 
-func audioChannelMappingFrom(audioDownmix db.AudioDownmix) (*mediaconvert.ChannelMapping, error) {
-	var outputChannelMapping []mediaconvert.OutputChannelMapping
+func audioChannelMappingFrom(audioDownmix db.AudioDownmix) (*mc.ChannelMapping, error) {
+	var outputChannelMapping []mc.OutputChannelMapping
 
 	mapping, err := service.AudioDownmixMapping(audioDownmix)
 	if err != nil {
-		return &mediaconvert.ChannelMapping{}, err
+		return &mc.ChannelMapping{}, err
 	}
 
 	for _, channel := range mapping {
@@ -65,10 +65,10 @@ func audioChannelMappingFrom(audioDownmix db.AudioDownmix) (*mediaconvert.Channe
 		}
 
 		outputChannelMapping = append(outputChannelMapping,
-			mediaconvert.OutputChannelMapping{InputChannels: outputChannel})
+			mc.OutputChannelMapping{InputChannels: outputChannel})
 	}
 
-	return &mediaconvert.ChannelMapping{
+	return &mc.ChannelMapping{
 		OutputChannels: outputChannelMapping,
 	}, nil
 }

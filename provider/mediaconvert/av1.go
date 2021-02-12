@@ -4,28 +4,28 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-func av1CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, error) {
+func av1CodecSettingsFrom(preset db.Preset) (*mc.VideoCodecSettings, error) {
 	bitrate := int64(preset.Video.Bitrate)
 	gopSize, err := av1GopSizeFrom(preset.Video.GopUnit, preset.Video.GopSize)
 	if err != nil {
 		return nil, err
 	}
 
-	return &mediaconvert.VideoCodecSettings{
-		Codec: mediaconvert.VideoCodecAv1,
-		Av1Settings: &mediaconvert.Av1Settings{
+	return &mc.VideoCodecSettings{
+		Codec: mc.VideoCodecAv1,
+		Av1Settings: &mc.Av1Settings{
 			MaxBitrate: aws.Int64(bitrate),
 			GopSize:    aws.Float64(gopSize),
-			QvbrSettings: &mediaconvert.Av1QvbrSettings{
+			QvbrSettings: &mc.Av1QvbrSettings{
 				QvbrQualityLevel:         aws.Int64(7),
 				QvbrQualityLevelFineTune: aws.Float64(0),
 			},
-			RateControlMode: mediaconvert.Av1RateControlModeQvbr,
+			RateControlMode: mc.Av1RateControlModeQvbr,
 		},
 	}, nil
 }

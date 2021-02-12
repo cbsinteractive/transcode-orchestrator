@@ -2,14 +2,13 @@ package mediaconvert
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"strings"
 )
 
-func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, error) {
+func h265CodecSettingsFrom(preset db.Preset) (*mc.VideoCodecSettings, error) {
 	bitrate := preset.Video.Bitrate
 	gopSize := preset.Video.GopSize
 
@@ -23,9 +22,9 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		return nil, err
 	}
 
-	profile := mediaconvert.H265CodecProfileMainMain
+	profile := mc.H265CodecProfileMainMain
 	if preset.Video.HDR10Settings.Enabled {
-		profile = mediaconvert.H265CodecProfileMain10Main
+		profile = mc.H265CodecProfileMain10Main
 	}
 
 	level, err := h265CodecLevelFrom(preset.Video.ProfileLevel)
@@ -33,93 +32,93 @@ func h265CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		return nil, err
 	}
 
-	tuning := mediaconvert.H265QualityTuningLevelSinglePassHq
+	tuning := mc.H265QualityTuningLevelSinglePassHq
 	if preset.TwoPass {
-		tuning = mediaconvert.H265QualityTuningLevelMultiPassHq
+		tuning = mc.H265QualityTuningLevelMultiPassHq
 	}
 
-	return &mediaconvert.VideoCodecSettings{
-		Codec: mediaconvert.VideoCodecH265,
-		H265Settings: &mediaconvert.H265Settings{
+	return &mc.VideoCodecSettings{
+		Codec: mc.VideoCodecH265,
+		H265Settings: &mc.H265Settings{
 			Bitrate:                        aws.Int64(int64(bitrate)),
 			GopSize:                        aws.Float64(gopSize),
 			GopSizeUnits:                   gopUnit,
 			RateControlMode:                rateControl,
 			CodecProfile:                   profile,
 			CodecLevel:                     level,
-			InterlaceMode:                  mediaconvert.H265InterlaceModeProgressive,
-			ParControl:                     mediaconvert.H265ParControlSpecified,
+			InterlaceMode:                  mc.H265InterlaceModeProgressive,
+			ParControl:                     mc.H265ParControlSpecified,
 			ParNumerator:                   aws.Int64(1),
 			ParDenominator:                 aws.Int64(1),
 			QualityTuningLevel:             tuning,
-			WriteMp4PackagingType:          mediaconvert.H265WriteMp4PackagingTypeHvc1,
-			AlternateTransferFunctionSei:   mediaconvert.H265AlternateTransferFunctionSeiDisabled,
-			SpatialAdaptiveQuantization:    mediaconvert.H265SpatialAdaptiveQuantizationEnabled,
-			TemporalAdaptiveQuantization:   mediaconvert.H265TemporalAdaptiveQuantizationEnabled,
-			FlickerAdaptiveQuantization:    mediaconvert.H265FlickerAdaptiveQuantizationEnabled,
-			SceneChangeDetect:              mediaconvert.H265SceneChangeDetectEnabled,
-			UnregisteredSeiTimecode:        mediaconvert.H265UnregisteredSeiTimecodeDisabled,
-			SampleAdaptiveOffsetFilterMode: mediaconvert.H265SampleAdaptiveOffsetFilterModeAdaptive,
+			WriteMp4PackagingType:          mc.H265WriteMp4PackagingTypeHvc1,
+			AlternateTransferFunctionSei:   mc.H265AlternateTransferFunctionSeiDisabled,
+			SpatialAdaptiveQuantization:    mc.H265SpatialAdaptiveQuantizationEnabled,
+			TemporalAdaptiveQuantization:   mc.H265TemporalAdaptiveQuantizationEnabled,
+			FlickerAdaptiveQuantization:    mc.H265FlickerAdaptiveQuantizationEnabled,
+			SceneChangeDetect:              mc.H265SceneChangeDetectEnabled,
+			UnregisteredSeiTimecode:        mc.H265UnregisteredSeiTimecodeDisabled,
+			SampleAdaptiveOffsetFilterMode: mc.H265SampleAdaptiveOffsetFilterModeAdaptive,
 		},
 	}, nil
 }
 
-func h265GopUnitFrom(gopUnit string) (mediaconvert.H265GopSizeUnits, error) {
+func h265GopUnitFrom(gopUnit string) (mc.H265GopSizeUnits, error) {
 	gopUnit = strings.ToLower(gopUnit)
 	switch gopUnit {
 	case "", db.GopUnitFrames:
-		return mediaconvert.H265GopSizeUnitsFrames, nil
+		return mc.H265GopSizeUnitsFrames, nil
 	case db.GopUnitSeconds:
-		return mediaconvert.H265GopSizeUnitsSeconds, nil
+		return mc.H265GopSizeUnitsSeconds, nil
 	default:
 		return "", fmt.Errorf("gop unit %q is not supported with mediaconvert", gopUnit)
 	}
 }
 
-func h265RateControlModeFrom(rateControl string) (mediaconvert.H265RateControlMode, error) {
+func h265RateControlModeFrom(rateControl string) (mc.H265RateControlMode, error) {
 	rateControl = strings.ToLower(rateControl)
 	switch rateControl {
 	case "vbr":
-		return mediaconvert.H265RateControlModeVbr, nil
+		return mc.H265RateControlModeVbr, nil
 	case "", "cbr":
-		return mediaconvert.H265RateControlModeCbr, nil
+		return mc.H265RateControlModeCbr, nil
 	case "qvbr":
-		return mediaconvert.H265RateControlModeQvbr, nil
+		return mc.H265RateControlModeQvbr, nil
 	default:
 		return "", fmt.Errorf("rate control mode %q is not supported with mediaconvert", rateControl)
 	}
 }
 
-func h265CodecLevelFrom(level string) (mediaconvert.H265CodecLevel, error) {
+func h265CodecLevelFrom(level string) (mc.H265CodecLevel, error) {
 	switch level {
 	case "":
-		return mediaconvert.H265CodecLevelAuto, nil
+		return mc.H265CodecLevelAuto, nil
 	case "1", "1.0":
-		return mediaconvert.H265CodecLevelLevel1, nil
+		return mc.H265CodecLevelLevel1, nil
 	case "2", "2.0":
-		return mediaconvert.H265CodecLevelLevel2, nil
+		return mc.H265CodecLevelLevel2, nil
 	case "2.1":
-		return mediaconvert.H265CodecLevelLevel21, nil
+		return mc.H265CodecLevelLevel21, nil
 	case "3", "3.0":
-		return mediaconvert.H265CodecLevelLevel3, nil
+		return mc.H265CodecLevelLevel3, nil
 	case "3.1":
-		return mediaconvert.H265CodecLevelLevel31, nil
+		return mc.H265CodecLevelLevel31, nil
 	case "4", "4.0":
-		return mediaconvert.H265CodecLevelLevel4, nil
+		return mc.H265CodecLevelLevel4, nil
 	case "4.1":
-		return mediaconvert.H265CodecLevelLevel41, nil
+		return mc.H265CodecLevelLevel41, nil
 	case "5", "5.0":
-		return mediaconvert.H265CodecLevelLevel5, nil
+		return mc.H265CodecLevelLevel5, nil
 	case "5.1":
-		return mediaconvert.H265CodecLevelLevel51, nil
+		return mc.H265CodecLevelLevel51, nil
 	case "5.2":
-		return mediaconvert.H265CodecLevelLevel52, nil
+		return mc.H265CodecLevelLevel52, nil
 	case "6", "6.0":
-		return mediaconvert.H265CodecLevelLevel6, nil
+		return mc.H265CodecLevelLevel6, nil
 	case "6.1":
-		return mediaconvert.H265CodecLevelLevel61, nil
+		return mc.H265CodecLevelLevel61, nil
 	case "6.2":
-		return mediaconvert.H265CodecLevelLevel62, nil
+		return mc.H265CodecLevelLevel62, nil
 	default:
 		return "", fmt.Errorf("h265 level %q is not supported with mediaconvert", level)
 	}

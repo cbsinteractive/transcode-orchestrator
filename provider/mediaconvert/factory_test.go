@@ -2,15 +2,14 @@ package mediaconvert
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/external"
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/google/go-cmp/cmp"
 	"os"
 	"reflect"
 	"testing"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/external"
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
-	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/google/go-cmp/cmp"
 )
 
 var cfgWithoutCredsAndRegion = config.Config{
@@ -106,7 +105,7 @@ func Test_mediaconvertFactory(t *testing.T) {
 				return
 			}
 
-			client, ok := p.client.(*mediaconvert.Client)
+			client, ok := p.client.(*mc.Client)
 			if !ok {
 				t.Error("factory returned a mediaconvert provider with a non-aws client implementation")
 				return

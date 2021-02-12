@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, error) {
+func h264CodecSettingsFrom(preset db.Preset) (*mc.VideoCodecSettings, error) {
 	bitrate := preset.Video.Bitrate
 	gopSize := preset.Video.GopSize
 	gopUnit, err := h264GopUnitFrom(preset.Video.GopUnit)
@@ -27,22 +27,22 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 		return nil, err
 	}
 
-	tuning := mediaconvert.H264QualityTuningLevelSinglePassHq
+	tuning := mc.H264QualityTuningLevelSinglePassHq
 	if preset.TwoPass {
-		tuning = mediaconvert.H264QualityTuningLevelMultiPassHq
+		tuning = mc.H264QualityTuningLevelMultiPassHq
 	}
 
-	return &mediaconvert.VideoCodecSettings{
-		Codec: mediaconvert.VideoCodecH264,
-		H264Settings: &mediaconvert.H264Settings{
+	return &mc.VideoCodecSettings{
+		Codec: mc.VideoCodecH264,
+		H264Settings: &mc.H264Settings{
 			Bitrate:            aws.Int64(int64(bitrate)),
 			GopSize:            aws.Float64(gopSize),
 			GopSizeUnits:       gopUnit,
 			RateControlMode:    rateControl,
 			CodecProfile:       profile,
-			CodecLevel:         mediaconvert.H264CodecLevelAuto,
-			InterlaceMode:      mediaconvert.H264InterlaceModeProgressive,
-			ParControl:         mediaconvert.H264ParControlSpecified,
+			CodecLevel:         mc.H264CodecLevelAuto,
+			InterlaceMode:      mc.H264InterlaceModeProgressive,
+			ParControl:         mc.H264ParControlSpecified,
 			ParNumerator:       aws.Int64(1),
 			ParDenominator:     aws.Int64(1),
 			QualityTuningLevel: tuning,
@@ -50,41 +50,41 @@ func h264CodecSettingsFrom(preset db.Preset) (*mediaconvert.VideoCodecSettings, 
 	}, nil
 }
 
-func h264GopUnitFrom(gopUnit string) (mediaconvert.H264GopSizeUnits, error) {
+func h264GopUnitFrom(gopUnit string) (mc.H264GopSizeUnits, error) {
 	gopUnit = strings.ToLower(gopUnit)
 	switch gopUnit {
 	case "", db.GopUnitFrames:
-		return mediaconvert.H264GopSizeUnitsFrames, nil
+		return mc.H264GopSizeUnitsFrames, nil
 	case db.GopUnitSeconds:
-		return mediaconvert.H264GopSizeUnitsSeconds, nil
+		return mc.H264GopSizeUnitsSeconds, nil
 	default:
 		return "", fmt.Errorf("gop unit %q is not supported with mediaconvert", gopUnit)
 	}
 }
 
-func h264RateControlModeFrom(rateControl string) (mediaconvert.H264RateControlMode, error) {
+func h264RateControlModeFrom(rateControl string) (mc.H264RateControlMode, error) {
 	rateControl = strings.ToLower(rateControl)
 	switch rateControl {
 	case "vbr":
-		return mediaconvert.H264RateControlModeVbr, nil
+		return mc.H264RateControlModeVbr, nil
 	case "", "cbr":
-		return mediaconvert.H264RateControlModeCbr, nil
+		return mc.H264RateControlModeCbr, nil
 	case "qvbr":
-		return mediaconvert.H264RateControlModeQvbr, nil
+		return mc.H264RateControlModeQvbr, nil
 	default:
 		return "", fmt.Errorf("rate control mode %q is not supported with mediaconvert", rateControl)
 	}
 }
 
-func h264CodecProfileFrom(profile string) (mediaconvert.H264CodecProfile, error) {
+func h264CodecProfileFrom(profile string) (mc.H264CodecProfile, error) {
 	profile = strings.ToLower(profile)
 	switch profile {
 	case "baseline":
-		return mediaconvert.H264CodecProfileBaseline, nil
+		return mc.H264CodecProfileBaseline, nil
 	case "main":
-		return mediaconvert.H264CodecProfileMain, nil
+		return mc.H264CodecProfileMain, nil
 	case "", "high":
-		return mediaconvert.H264CodecProfileHigh, nil
+		return mc.H264CodecProfileHigh, nil
 	default:
 		return "", fmt.Errorf("h264 profile %q is not supported with mediaconvert", profile)
 	}

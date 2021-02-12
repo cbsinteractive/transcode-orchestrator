@@ -2,46 +2,45 @@ package mediaconvert
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/pkg/errors"
+	"strings"
 )
 
-var timecodePositionMap = map[int]mediaconvert.TimecodeBurninPosition{
-	0: mediaconvert.TimecodeBurninPositionTopCenter,
-	1: mediaconvert.TimecodeBurninPositionTopLeft,
-	2: mediaconvert.TimecodeBurninPositionTopRight,
-	3: mediaconvert.TimecodeBurninPositionMiddleCenter,
-	4: mediaconvert.TimecodeBurninPositionMiddleLeft,
-	5: mediaconvert.TimecodeBurninPositionMiddleRight,
-	6: mediaconvert.TimecodeBurninPositionBottomCenter,
-	7: mediaconvert.TimecodeBurninPositionBottomLeft,
-	8: mediaconvert.TimecodeBurninPositionBottomRight,
+var timecodePositionMap = map[int]mc.TimecodeBurninPosition{
+	0: mc.TimecodeBurninPositionTopCenter,
+	1: mc.TimecodeBurninPositionTopLeft,
+	2: mc.TimecodeBurninPositionTopRight,
+	3: mc.TimecodeBurninPositionMiddleCenter,
+	4: mc.TimecodeBurninPositionMiddleLeft,
+	5: mc.TimecodeBurninPositionMiddleRight,
+	6: mc.TimecodeBurninPositionBottomCenter,
+	7: mc.TimecodeBurninPositionBottomLeft,
+	8: mc.TimecodeBurninPositionBottomRight,
 }
 
-func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, error) {
+func outputFrom(preset db.Preset, sourceInfo db.File) (mc.Output, error) {
 	container, err := containerFrom(preset.Container)
 	if err != nil {
-		return mediaconvert.Output{}, errors.Wrap(err, "mapping preset container to MediaConvert container")
+		return mc.Output{}, errors.Wrap(err, "mapping preset container to MediaConvert container")
 	}
 
-	var videoPreset *mediaconvert.VideoDescription
+	var videoPreset *mc.VideoDescription
 	if preset.Video != (db.VideoPreset{}) {
 		videoPreset, err = videoPresetFrom(preset, sourceInfo)
 		if err != nil {
-			return mediaconvert.Output{}, errors.Wrap(err, "generating video preset")
+			return mc.Output{}, errors.Wrap(err, "generating video preset")
 		}
 	}
 
-	var audioPresets []mediaconvert.AudioDescription
+	var audioPresets []mc.AudioDescription
 	if preset.Audio != (db.AudioPreset{}) {
 		audioPreset, err := audioPresetFrom(preset)
 		if err != nil {
-			return mediaconvert.Output{}, errors.Wrap(err, "generating audio preset")
+			return mc.Output{}, errors.Wrap(err, "generating audio preset")
 		}
 		if preset.Audio.DiscreteTracks {
 			audioPresets = audioSplit(audioPreset)
@@ -50,7 +49,7 @@ func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, erro
 		}
 	}
 
-	output := mediaconvert.Output{
+	output := mc.Output{
 		ContainerSettings: containerSettingsFrom(container),
 		VideoDescription:  videoPreset,
 		AudioDescriptions: audioPresets,
@@ -59,75 +58,75 @@ func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, erro
 	return output, nil
 }
 
-func state(status mediaconvert.JobStatus) provider.State {
+func state(status mc.JobStatus) provider.State {
 	switch status {
-	case mediaconvert.JobStatusSubmitted:
+	case mc.JobStatusSubmitted:
 		return provider.StateQueued
-	case mediaconvert.JobStatusProgressing:
+	case mc.JobStatusProgressing:
 		return provider.StateStarted
-	case mediaconvert.JobStatusComplete:
+	case mc.JobStatusComplete:
 		return provider.StateFinished
-	case mediaconvert.JobStatusCanceled:
+	case mc.JobStatusCanceled:
 		return provider.StateCanceled
-	case mediaconvert.JobStatusError:
+	case mc.JobStatusError:
 		return provider.StateFailed
 	default:
 		return provider.StateUnknown
 	}
 }
 
-func containerFrom(container string) (mediaconvert.ContainerType, error) {
+func containerFrom(container string) (mc.ContainerType, error) {
 	container = strings.ToLower(container)
 	switch container {
 	case "mxf":
-		return mediaconvert.ContainerTypeMxf, nil
+		return mc.ContainerTypeMxf, nil
 	case "m3u8":
-		return mediaconvert.ContainerTypeM3u8, nil
+		return mc.ContainerTypeM3u8, nil
 	case "cmaf":
-		return mediaconvert.ContainerTypeCmfc, nil
+		return mc.ContainerTypeCmfc, nil
 	case "mp4":
-		return mediaconvert.ContainerTypeMp4, nil
+		return mc.ContainerTypeMp4, nil
 	case "mov":
-		return mediaconvert.ContainerTypeMov, nil
+		return mc.ContainerTypeMov, nil
 	case "webm":
-		return mediaconvert.ContainerTypeWebm, nil
+		return mc.ContainerTypeWebm, nil
 	default:
 		return "", fmt.Errorf("container %q not supported with mediaconvert", container)
 	}
 }
 
-func containerSettingsFrom(container mediaconvert.ContainerType) *mediaconvert.ContainerSettings {
-	cs := &mediaconvert.ContainerSettings{
+func containerSettingsFrom(container mc.ContainerType) *mc.ContainerSettings {
+	cs := &mc.ContainerSettings{
 		Container: container,
 	}
 
 	switch container {
-	case mediaconvert.ContainerTypeMxf:
+	case mc.ContainerTypeMxf:
 		// NOTE(as): AWS claims to auto-detect profile
-	case mediaconvert.ContainerTypeMp4:
-		cs.Mp4Settings = &mediaconvert.Mp4Settings{
+	case mc.ContainerTypeMp4:
+		cs.Mp4Settings = &mc.Mp4Settings{
 			//ISO specification for base media file format
 			Mp4MajorBrand: aws.String("isom"),
 		}
-	case mediaconvert.ContainerTypeMov:
-		cs.MovSettings = &mediaconvert.MovSettings{
-			ClapAtom:           mediaconvert.MovClapAtomExclude,
-			CslgAtom:           mediaconvert.MovCslgAtomInclude,
-			PaddingControl:     mediaconvert.MovPaddingControlOmneon,
-			Reference:          mediaconvert.MovReferenceSelfContained,
-			Mpeg2FourCCControl: mediaconvert.MovMpeg2FourCCControlMpeg,
+	case mc.ContainerTypeMov:
+		cs.MovSettings = &mc.MovSettings{
+			ClapAtom:           mc.MovClapAtomExclude,
+			CslgAtom:           mc.MovCslgAtomInclude,
+			PaddingControl:     mc.MovPaddingControlOmneon,
+			Reference:          mc.MovReferenceSelfContained,
+			Mpeg2FourCCControl: mc.MovMpeg2FourCCControlMpeg,
 		}
 	}
 
 	return cs
 }
 
-func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoDescription, error) {
-	videoPreset := mediaconvert.VideoDescription{
-		ScalingBehavior:   mediaconvert.ScalingBehaviorDefault,
-		TimecodeInsertion: mediaconvert.VideoTimecodeInsertionDisabled,
-		AntiAlias:         mediaconvert.AntiAliasEnabled,
-		RespondToAfd:      mediaconvert.RespondToAfdNone,
+func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mc.VideoDescription, error) {
+	videoPreset := mc.VideoDescription{
+		ScalingBehavior:   mc.ScalingBehaviorDefault,
+		TimecodeInsertion: mc.VideoTimecodeInsertionDisabled,
+		AntiAlias:         mc.AntiAliasEnabled,
+		RespondToAfd:      mc.RespondToAfdNone,
 	}
 
 	if preset.Video.Width != 0 {
@@ -137,7 +136,7 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 		videoPreset.Height = aws.Int64(int64(preset.Video.Height))
 	}
 
-	var s *mediaconvert.VideoCodecSettings
+	var s *mc.VideoCodecSettings
 	var err error
 
 	codec := strings.ToLower(preset.Video.Codec)
@@ -175,16 +174,16 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	switch sourceInfo.ScanType {
 	case db.ScanTypeProgressive:
 	case db.ScanTypeInterlaced:
-		videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
-			Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-			Control:   mediaconvert.DeinterlacerControlNormal,
-			Mode:      mediaconvert.DeinterlacerModeDeinterlace,
+		videoPreset.VideoPreprocessors.Deinterlacer = &mc.Deinterlacer{
+			Algorithm: mc.DeinterlaceAlgorithmInterpolate,
+			Control:   mc.DeinterlacerControlNormal,
+			Mode:      mc.DeinterlacerModeDeinterlace,
 		}
 	default:
-		videoPreset.VideoPreprocessors.Deinterlacer = &mediaconvert.Deinterlacer{
-			Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-			Control:   mediaconvert.DeinterlacerControlNormal,
-			Mode:      mediaconvert.DeinterlacerModeAdaptive,
+		videoPreset.VideoPreprocessors.Deinterlacer = &mc.Deinterlacer{
+			Algorithm: mc.DeinterlaceAlgorithmInterpolate,
+			Control:   mc.DeinterlacerControlNormal,
+			Mode:      mc.DeinterlacerModeAdaptive,
 		}
 	}
 
@@ -192,15 +191,15 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 }
 
 var (
-	deinterlacerStandard = mediaconvert.Deinterlacer{
-		Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-		Control:   mediaconvert.DeinterlacerControlNormal,
-		Mode:      mediaconvert.DeinterlacerModeDeinterlace,
+	deinterlacerStandard = mc.Deinterlacer{
+		Algorithm: mc.DeinterlaceAlgorithmInterpolate,
+		Control:   mc.DeinterlacerControlNormal,
+		Mode:      mc.DeinterlacerModeDeinterlace,
 	}
-	deinterlacerAdaptive = mediaconvert.Deinterlacer{
-		Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
-		Control:   mediaconvert.DeinterlacerControlNormal,
-		Mode:      mediaconvert.DeinterlacerModeAdaptive,
+	deinterlacerAdaptive = mc.Deinterlacer{
+		Algorithm: mc.DeinterlaceAlgorithmInterpolate,
+		Control:   mc.DeinterlacerControlNormal,
+		Mode:      mc.DeinterlacerModeAdaptive,
 	}
 )
 
@@ -209,17 +208,17 @@ type setter struct {
 	src db.File
 }
 
-func (s setter) ScanType(v *mediaconvert.VideoDescription) *mediaconvert.VideoDescription {
+func (s setter) ScanType(v *mc.VideoDescription) *mc.VideoDescription {
 	const (
 		// constants have same value for src/dst, but different types...
 		progressive = string(db.ScanTypeProgressive)
 		interlaced  = string(db.ScanTypeInterlaced)
 	)
 	if v == nil {
-		v = &mediaconvert.VideoDescription{}
+		v = &mc.VideoDescription{}
 	}
 	if v.VideoPreprocessors == nil {
-		v.VideoPreprocessors = &mediaconvert.VideoPreprocessor{}
+		v.VideoPreprocessors = &mc.VideoPreprocessor{}
 	}
 
 	switch s.dst.Video.InterlaceMode {
@@ -243,9 +242,9 @@ func (s setter) ScanType(v *mediaconvert.VideoDescription) *mediaconvert.VideoDe
 	return v
 }
 
-func (s setter) Crop(v *mediaconvert.VideoDescription) *mediaconvert.VideoDescription {
+func (s setter) Crop(v *mc.VideoDescription) *mc.VideoDescription {
 	if v == nil {
-		v = &mediaconvert.VideoDescription{}
+		v = &mc.VideoDescription{}
 	}
 
 	var (
@@ -262,7 +261,7 @@ func (s setter) Crop(v *mediaconvert.VideoDescription) *mediaconvert.VideoDescri
 		}
 		return aws.Int64(int64(i))
 	}
-	v.Crop = &mediaconvert.Rectangle{
+	v.Crop = &mc.Rectangle{
 		Height: roundEven(h-crop.Top-crop.Bottom, -1),
 		Width:  roundEven(w-crop.Left-crop.Right, -1),
 		X:      roundEven(crop.Left, 1),
@@ -271,12 +270,12 @@ func (s setter) Crop(v *mediaconvert.VideoDescription) *mediaconvert.VideoDescri
 	return v
 }
 
-func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPreprocessor, error) {
-	videoPreprocessor := &mediaconvert.VideoPreprocessor{}
+func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mc.VideoPreprocessor, error) {
+	videoPreprocessor := &mc.VideoPreprocessor{}
 
 	if videoPreset.Overlays != nil && videoPreset.Overlays.TimecodeBurnin != nil {
 		if tcBurnin := videoPreset.Overlays.TimecodeBurnin; tcBurnin.Enabled {
-			videoPreprocessor.TimecodeBurnin = &mediaconvert.TimecodeBurnin{
+			videoPreprocessor.TimecodeBurnin = &mc.TimecodeBurnin{
 				Prefix:   &tcBurnin.Prefix,
 				FontSize: aws.Int64(int64(tcBurnin.FontSize)),
 				Position: timecodePositionMap[tcBurnin.Position],
@@ -285,7 +284,7 @@ func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPrep
 	}
 
 	if hdr10 := videoPreset.HDR10Settings; hdr10.Enabled {
-		mcHDR10Metadata := &mediaconvert.Hdr10Metadata{}
+		mcHDR10Metadata := &mc.Hdr10Metadata{}
 		if hdr10.MasterDisplay != "" {
 			display, err := parseMasterDisplay(hdr10.MasterDisplay)
 			if err != nil {
@@ -311,9 +310,9 @@ func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPrep
 			mcHDR10Metadata.MaxFrameAverageLightLevel = aws.Int64(int64(hdr10.MaxFALL))
 		}
 
-		videoPreprocessor.ColorCorrector = &mediaconvert.ColorCorrector{
+		videoPreprocessor.ColorCorrector = &mc.ColorCorrector{
 			Hdr10Metadata:        mcHDR10Metadata,
-			ColorSpaceConversion: mediaconvert.ColorSpaceConversionForceHdr10,
+			ColorSpaceConversion: mc.ColorSpaceConversionForceHdr10,
 		}
 	}
 
@@ -326,12 +325,12 @@ func unmute(n int, channel ...int64) []int64 {
 	return channel
 }
 
-func audioSplit(a mediaconvert.AudioDescription) (split []mediaconvert.AudioDescription) {
+func audioSplit(a mc.AudioDescription) (split []mc.AudioDescription) {
 	if a.CodecSettings == nil ||
-		a.CodecSettings.Codec != mediaconvert.AudioCodecWav ||
+		a.CodecSettings.Codec != mc.AudioCodecWav ||
 		a.CodecSettings.WavSettings == nil ||
 		*a.CodecSettings.WavSettings.Channels < 2 {
-		return []mediaconvert.AudioDescription{a}
+		return []mc.AudioDescription{a}
 	}
 
 	n := int64(*a.CodecSettings.WavSettings.Channels)
@@ -342,11 +341,11 @@ func audioSplit(a mediaconvert.AudioDescription) (split []mediaconvert.AudioDesc
 		gain[i] = -60
 	}
 	for i := range gain {
-		split = append(split, mediaconvert.AudioDescription{
+		split = append(split, mc.AudioDescription{
 			CodecSettings: a.CodecSettings,
-			RemixSettings: &mediaconvert.RemixSettings{
-				ChannelMapping: &mediaconvert.ChannelMapping{
-					OutputChannels: []mediaconvert.OutputChannelMapping{{
+			RemixSettings: &mc.RemixSettings{
+				ChannelMapping: &mc.ChannelMapping{
+					OutputChannels: []mc.OutputChannelMapping{{
 						InputChannels: unmute(i, gain...),
 					},
 					}},
@@ -357,13 +356,13 @@ func audioSplit(a mediaconvert.AudioDescription) (split []mediaconvert.AudioDesc
 	return split
 }
 
-func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
-	audioPreset := mediaconvert.AudioDescription{}
+func audioPresetFrom(preset db.Preset) (mc.AudioDescription, error) {
+	audioPreset := mc.AudioDescription{}
 
 	if preset.Audio.Normalization {
-		audioPreset.AudioNormalizationSettings = &mediaconvert.AudioNormalizationSettings{
-			Algorithm:        mediaconvert.AudioNormalizationAlgorithmItuBs17703,
-			AlgorithmControl: mediaconvert.AudioNormalizationAlgorithmControlCorrectAudio,
+		audioPreset.AudioNormalizationSettings = &mc.AudioNormalizationSettings{
+			Algorithm:        mc.AudioNormalizationAlgorithmItuBs17703,
+			AlgorithmControl: mc.AudioNormalizationAlgorithmControlCorrectAudio,
 		}
 	}
 
@@ -372,9 +371,9 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 
 	switch codec {
 	case "pcm":
-		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
-			Codec: mediaconvert.AudioCodecWav,
-			WavSettings: &mediaconvert.WavSettings{
+		audioPreset.CodecSettings = &mc.AudioCodecSettings{
+			Codec: mc.AudioCodecWav,
+			WavSettings: &mc.WavSettings{
 				BitDepth:   aws.Int64(24),
 				Channels:   aws.Int64(2),
 				SampleRate: aws.Int64(defaultAudioSampleRate),
@@ -382,36 +381,36 @@ func audioPresetFrom(preset db.Preset) (mediaconvert.AudioDescription, error) {
 			},
 		}
 	case "aac":
-		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
-			Codec: mediaconvert.AudioCodecAac,
-			AacSettings: &mediaconvert.AacSettings{
+		audioPreset.CodecSettings = &mc.AudioCodecSettings{
+			Codec: mc.AudioCodecAac,
+			AacSettings: &mc.AacSettings{
 				SampleRate:      aws.Int64(defaultAudioSampleRate),
 				Bitrate:         aws.Int64(bitrate),
-				CodecProfile:    mediaconvert.AacCodecProfileLc,
-				CodingMode:      mediaconvert.AacCodingModeCodingMode20,
-				RateControlMode: mediaconvert.AacRateControlModeCbr,
+				CodecProfile:    mc.AacCodecProfileLc,
+				CodingMode:      mc.AacCodingModeCodingMode20,
+				RateControlMode: mc.AacRateControlModeCbr,
 			},
 		}
 	case "opus":
-		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
-			Codec: mediaconvert.AudioCodecOpus,
-			OpusSettings: &mediaconvert.OpusSettings{
+		audioPreset.CodecSettings = &mc.AudioCodecSettings{
+			Codec: mc.AudioCodecOpus,
+			OpusSettings: &mc.OpusSettings{
 				Channels:   aws.Int64(2),
 				Bitrate:    aws.Int64(bitrate),
 				SampleRate: aws.Int64(defaultAudioSampleRate),
 			},
 		}
 	case "vorbis":
-		audioPreset.CodecSettings = &mediaconvert.AudioCodecSettings{
-			Codec: mediaconvert.AudioCodecVorbis,
-			VorbisSettings: &mediaconvert.VorbisSettings{
+		audioPreset.CodecSettings = &mc.AudioCodecSettings{
+			Codec: mc.AudioCodecVorbis,
+			VorbisSettings: &mc.VorbisSettings{
 				Channels:   aws.Int64(2),
 				SampleRate: aws.Int64(defaultAudioSampleRate),
 				VbrQuality: aws.Int64(vbrLevel(bitrate)),
 			},
 		}
 	default:
-		return mediaconvert.AudioDescription{}, fmt.Errorf("audio codec %q is not yet supported with mediaconvert", codec)
+		return mc.AudioDescription{}, fmt.Errorf("audio codec %q is not yet supported with mediaconvert", codec)
 	}
 
 	return audioPreset, nil

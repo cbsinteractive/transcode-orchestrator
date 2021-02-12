@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
@@ -61,7 +61,7 @@ func TestSetterScanType(t *testing.T) {
 
 	for _, tt := range []struct {
 		name, src, dst string
-		want           *mediaconvert.Deinterlacer
+		want           *mc.Deinterlacer
 	}{
 		{"i2p", "interlaced", "progressive", &deinterlacerStandard},
 		{"u2p", "unknown", "progressive", &deinterlacerAdaptive},
@@ -82,10 +82,10 @@ func TestSetterScanType(t *testing.T) {
 }
 
 func TestAudioSplit(t *testing.T) {
-	input := mediaconvert.AudioDescription{
-		CodecSettings: &mediaconvert.AudioCodecSettings{
-			Codec: mediaconvert.AudioCodecWav,
-			WavSettings: &mediaconvert.WavSettings{
+	input := mc.AudioDescription{
+		CodecSettings: &mc.AudioCodecSettings{
+			Codec: mc.AudioCodecWav,
+			WavSettings: &mc.WavSettings{
 				BitDepth:   aws.Int64(24),
 				Channels:   aws.Int64(2),
 				SampleRate: aws.Int64(48000),
@@ -94,19 +94,19 @@ func TestAudioSplit(t *testing.T) {
 		},
 	}
 
-	want := []mediaconvert.AudioDescription{{
-		RemixSettings: &mediaconvert.RemixSettings{
-			ChannelMapping: &mediaconvert.ChannelMapping{
-				OutputChannels: []mediaconvert.OutputChannelMapping{{
+	want := []mc.AudioDescription{{
+		RemixSettings: &mc.RemixSettings{
+			ChannelMapping: &mc.ChannelMapping{
+				OutputChannels: []mc.OutputChannelMapping{{
 					InputChannels: []int64{0, -60},
 				},
 				}},
 			ChannelsIn:  aws.Int64(2),
 			ChannelsOut: aws.Int64(1),
 		},
-		CodecSettings: &mediaconvert.AudioCodecSettings{
-			Codec: mediaconvert.AudioCodecWav,
-			WavSettings: &mediaconvert.WavSettings{
+		CodecSettings: &mc.AudioCodecSettings{
+			Codec: mc.AudioCodecWav,
+			WavSettings: &mc.WavSettings{
 				BitDepth:   aws.Int64(24),
 				Channels:   aws.Int64(1),
 				SampleRate: aws.Int64(48000),
@@ -114,18 +114,18 @@ func TestAudioSplit(t *testing.T) {
 			},
 		},
 	}, {
-		RemixSettings: &mediaconvert.RemixSettings{
-			ChannelMapping: &mediaconvert.ChannelMapping{
-				OutputChannels: []mediaconvert.OutputChannelMapping{{
+		RemixSettings: &mc.RemixSettings{
+			ChannelMapping: &mc.ChannelMapping{
+				OutputChannels: []mc.OutputChannelMapping{{
 					InputChannels: []int64{-60, 0},
 				},
 				}},
 			ChannelsIn:  aws.Int64(2),
 			ChannelsOut: aws.Int64(1),
 		},
-		CodecSettings: &mediaconvert.AudioCodecSettings{
-			Codec: mediaconvert.AudioCodecWav,
-			WavSettings: &mediaconvert.WavSettings{
+		CodecSettings: &mc.AudioCodecSettings{
+			Codec: mc.AudioCodecWav,
+			WavSettings: &mc.WavSettings{
 				BitDepth:   aws.Int64(24),
 				Channels:   aws.Int64(1),
 				SampleRate: aws.Int64(48000),
