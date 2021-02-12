@@ -91,8 +91,8 @@ type JobResponseOutput struct {
 	UpdateTimestamp float64 `json:"update_timestamp"`
 }
 
-func (p *flock) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
-	jobReq, err := p.flockJobRequestFrom(ctx, job)
+func (p *flock) Create(ctx context.Context, job *db.Job) (*provider.Status, error) {
+	jobReq, err := p.flockJobRequestFrom(job)
 	if err != nil {
 		return nil, fmt.Errorf("generating flock job request: %w", err)
 	}
@@ -127,14 +127,14 @@ func (p *flock) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus
 		return nil, fmt.Errorf("parsing flock response: %w", err)
 	}
 
-	return &provider.JobStatus{
+	return &provider.Status{
 		ProviderName:  Name,
 		ProviderJobID: fmt.Sprintf("%d", newJob.JobID),
-		Status:        provider.StatusQueued,
+		State:         provider.StateQueued,
 	}, nil
 }
 
-func (p *flock) flockJobRequestFrom(ctx context.Context, job *db.Job) (*JobRequest, error) {
+func (p *flock) flockJobRequestFrom(job *db.Job) (*JobRequest, error) {
 	presets := []db.Preset{}
 	for _, output := range job.Outputs {
 		presets = append(presets, output.Preset)
@@ -184,7 +184,7 @@ func (p *flock) flockJobRequestFrom(ctx context.Context, job *db.Job) (*JobReque
 	return &jobReq, nil
 }
 
-func (p *flock) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
+func (p *flock) Status(ctx context.Context, job *db.Job) (*provider.Status, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		fmt.Sprintf("%s/api/v1/jobs/%s", p.cfg.Endpoint, job.ProviderJobID), nil)
 	if err != nil {
@@ -220,8 +220,8 @@ func (p *flock) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus
 	return p.jobStatusFrom(job, &jobResp), nil
 }
 
-func (p *flock) jobStatusFrom(job *db.Job, jobResp *JobResponse) *provider.JobStatus {
-	status := &provider.JobStatus{
+func (p *flock) jobStatusFrom(job *db.Job, jobResp *JobResponse) *provider.Status {
+	status := &provider.Status{
 		ProviderJobID: job.ProviderJobID,
 		ProviderName:  Name,
 		ProviderStatus: map[string]interface{}{
@@ -231,18 +231,18 @@ func (p *flock) jobStatusFrom(job *db.Job, jobResp *JobResponse) *provider.JobSt
 			"progress":         jobResp.Progress,
 			"status":           jobResp.Status,
 		},
-		Status: statusFrom(jobResp),
-		Output: provider.JobOutput{
+		State: state(jobResp),
+		Output: provider.Output{
 			Destination: joinBaseAndParts(job.DestinationBasePath, job.RootFolder()),
 		},
 		Labels: job.Labels,
 	}
 
 	outputsStatus := make([]map[string]interface{}, 0, len(jobResp.Outputs))
-	outputFiles := make([]provider.OutputFile, 0, len(jobResp.Outputs))
+	outputFiles := make([]provider.File, 0, len(jobResp.Outputs))
 
 	for _, output := range jobResp.Outputs {
-		outputFiles = append(outputFiles, provider.OutputFile{Path: output.Destination})
+		outputFiles = append(outputFiles, provider.File{Path: output.Destination})
 		outputsStatus = append(outputsStatus, map[string]interface{}{
 			"duration":         output.Duration,
 			"destination":      output.Destination,
@@ -266,23 +266,23 @@ func joinBaseAndParts(base string, elem ...string) string {
 	return strings.Join(parts, "/")
 }
 
-func statusFrom(job *JobResponse) provider.Status {
+func state(job *JobResponse) provider.State {
 	switch job.Status {
 	case "submitted":
-		return provider.StatusQueued
+		return provider.StateQueued
 	case "assigned", "transcoding":
-		return provider.StatusStarted
+		return provider.StateStarted
 	case "complete":
-		return provider.StatusFinished
+		return provider.StateFinished
 	case "cancelled":
-		return provider.StatusCanceled
+		return provider.StateCanceled
 	case "error":
-		return provider.StatusFailed
+		return provider.StateFailed
 	}
-	return provider.StatusUnknown
+	return provider.StateUnknown
 }
 
-func (p *flock) CancelJob(ctx context.Context, providerID string) error {
+func (p *flock) Cancel(ctx context.Context, providerID string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fmt.Sprintf("%s/api/v1/jobs/%s", p.cfg.Endpoint, providerID), nil)
 	if err != nil {
 		return err

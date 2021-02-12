@@ -70,19 +70,19 @@ func (s *Server) serve() bool {
 }
 
 func (s *Server) provider0(job *db.Job) (transcoding.Provider, error) {
-	fn, err := transcoding.GetProviderFactory(job.ProviderName)
+	fn, err := transcoding.GetFactory(job.ProviderName)
 	if err != nil {
 		return nil, err
 	}
 	return fn(s.Config)
 }
 
-func (s *Server) putJob0(job *db.Job) (*transcoding.JobStatus, error) {
+func (s *Server) putJob0(job *db.Job) (*transcoding.Status, error) {
 	p, err := s.provider0(job)
 	if err != nil {
 		return nil, err
 	}
-	stat, err := p.Transcode(s.request.ctx, job)
+	stat, err := p.Create(s.request.ctx, job)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrProvider, err)
 	}
@@ -95,7 +95,7 @@ func (s *Server) putJob0(job *db.Job) (*transcoding.JobStatus, error) {
 	return stat, nil
 }
 
-func (s *Server) getJob0(job *db.Job, del bool) (*transcoding.JobStatus, error) {
+func (s *Server) getJob0(job *db.Job, del bool) (*transcoding.Status, error) {
 	if err := s.DB.Get(job.ID, &job); err != nil {
 		return nil, err
 	}
@@ -104,12 +104,12 @@ func (s *Server) getJob0(job *db.Job, del bool) (*transcoding.JobStatus, error) 
 		return nil, err
 	}
 	if del {
-		if err = p.CancelJob(s.request.ctx, job.ProviderJobID); err != nil {
+		if err = p.Cancel(s.request.ctx, job.ProviderJobID); err != nil {
 			return nil, err
 		}
 	}
 	//TODO(as): provider name
-	return p.JobStatus(s.request.ctx, job)
+	return p.Status(s.request.ctx, job)
 }
 
 func (s *Server) method() string {

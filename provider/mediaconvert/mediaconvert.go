@@ -6,9 +6,10 @@ import (
 	"path"
 	"strings"
 
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/pkg/timecode"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
@@ -17,7 +18,6 @@ import (
 )
 
 const (
-	// Name identifies the MediaConvert provider by name
 	Name = "mediaconvert"
 
 	defaultAudioSampleRate     = 48000
@@ -32,29 +32,29 @@ func init() {
 }
 
 type mediaconvertClient interface {
-	CreateJobRequest(*mediaconvert.CreateJobInput) mediaconvert.CreateJobRequest
-	GetJobRequest(*mediaconvert.GetJobInput) mediaconvert.GetJobRequest
-	ListJobsRequest(*mediaconvert.ListJobsInput) mediaconvert.ListJobsRequest
-	CancelJobRequest(*mediaconvert.CancelJobInput) mediaconvert.CancelJobRequest
-	CreatePresetRequest(*mediaconvert.CreatePresetInput) mediaconvert.CreatePresetRequest
-	GetPresetRequest(*mediaconvert.GetPresetInput) mediaconvert.GetPresetRequest
-	DeletePresetRequest(*mediaconvert.DeletePresetInput) mediaconvert.DeletePresetRequest
+	CreateJobRequest(*mc.CreateJobInput) mc.CreateJobRequest
+	GetJobRequest(*mc.GetJobInput) mc.GetJobRequest
+	ListJobsRequest(*mc.ListJobsInput) mc.ListJobsRequest
+	CancelJobRequest(*mc.CancelJobInput) mc.CancelJobRequest
+	CreatePresetRequest(*mc.CreatePresetInput) mc.CreatePresetRequest
+	GetPresetRequest(*mc.GetPresetInput) mc.GetPresetRequest
+	DeletePresetRequest(*mc.DeletePresetInput) mc.DeletePresetRequest
 }
 
-type mcProvider struct {
+type driver struct {
 	client mediaconvertClient
 	cfg    *config.MediaConvert
 }
 
 type outputCfg struct {
-	output   mediaconvert.Output
+	output   mc.Output
 	filename string
 }
 
-func splice2clippings(s timecode.Splice, fps float64) (ic []mediaconvert.InputClipping) {
+func splice2clippings(s timecode.Splice, fps float64) (ic []mc.InputClipping) {
 	// NOTE(as): While this could be a helper function in the time/timecode package
 	// we probably don't want the uglyness of importing the AWS API in that package
-	// and having to recognize mediaconvert.InputClippings
+	// and having to recognize mc.InputClippings
 
 	// NOTE(as): We need to take into account embedded timecodes. Maybe it would
 	// be better to have this be a method on a timecode object or have it passed in as
@@ -62,7 +62,7 @@ func splice2clippings(s timecode.Splice, fps float64) (ic []mediaconvert.InputCl
 
 	for _, r := range s {
 		s, e := r.Timecodes(fps)
-		ic = append(ic, mediaconvert.InputClipping{
+		ic = append(ic, mc.InputClipping{
 			StartTimecode: &s,
 			EndTimecode:   &e,
 		})
@@ -70,7 +70,7 @@ func splice2clippings(s timecode.Splice, fps float64) (ic []mediaconvert.InputCl
 	return ic
 }
 
-func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
+func (p *driver) createRequest(ctx context.Context, job *db.Job) (*mc.CreateJobInput, error) {
 	outputGroups, err := p.outputGroupsFrom(ctx, job)
 	if err != nil {
 		return nil, fmt.Errorf("mediaconvert: output group generator: %w", err)
@@ -78,23 +78,23 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 
 	queue := aws.String(p.cfg.DefaultQueueARN)
 
-	var hopDestinations []mediaconvert.HopDestination
+	var hopDestinations []mc.HopDestination
 	if preferred := p.cfg.PreferredQueueARN; p.canUsePreferredQueue(job.SourceInfo) && preferred != "" {
 		queue = aws.String(preferred)
-		hopDestinations = append(hopDestinations, mediaconvert.HopDestination{
+		hopDestinations = append(hopDestinations, mc.HopDestination{
 			WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins),
 		})
 	}
 
-	var accelerationSettings *mediaconvert.AccelerationSettings
+	var accelerationSettings *mc.AccelerationSettings
 	if p.requiresAcceleration(job.SourceInfo) {
-		accelerationSettings = &mediaconvert.AccelerationSettings{
-			Mode: mediaconvert.AccelerationModePreferred,
+		accelerationSettings = &mc.AccelerationSettings{
+			Mode: mc.AccelerationModePreferred,
 		}
 	}
 
-	audioSelector := mediaconvert.AudioSelector{
-		DefaultSelection: mediaconvert.AudioDefaultSelectionDefault,
+	audioSelector := mc.AudioSelector{
+		DefaultSelection: mc.AudioDefaultSelectionDefault,
 	}
 	if job.AudioDownmix != nil {
 		if err = audioSelectorFrom(job.AudioDownmix, &audioSelector); err != nil {
@@ -102,45 +102,52 @@ func (p *mcProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobS
 		}
 	}
 
-	resp, err := p.client.CreateJobRequest(&mediaconvert.CreateJobInput{
+	return &mc.CreateJobInput{
 		AccelerationSettings: accelerationSettings,
 		Queue:                queue,
 		HopDestinations:      hopDestinations,
 		Role:                 aws.String(p.cfg.Role),
-		Settings: &mediaconvert.JobSettings{
-			Inputs: []mediaconvert.Input{
+		Settings: &mc.JobSettings{
+			Inputs: []mc.Input{
 				{
 					InputClippings: splice2clippings(job.SourceSplice, 0), // TODO(as): Find FPS in job
 					FileInput:      aws.String(job.SourceMedia),
-					AudioSelectors: map[string]mediaconvert.AudioSelector{
+					AudioSelectors: map[string]mc.AudioSelector{
 						"Audio Selector 1": audioSelector,
 					},
-					VideoSelector: &mediaconvert.VideoSelector{
-						ColorSpace: mediaconvert.ColorSpaceFollow,
+					VideoSelector: &mc.VideoSelector{
+						ColorSpace: mc.ColorSpaceFollow,
 					},
-					TimecodeSource: mediaconvert.InputTimecodeSourceZerobased,
+					TimecodeSource: mc.InputTimecodeSourceZerobased,
 				},
 			},
 			OutputGroups: outputGroups,
-			TimecodeConfig: &mediaconvert.TimecodeConfig{
-				Source: mediaconvert.TimecodeSourceZerobased,
+			TimecodeConfig: &mc.TimecodeConfig{
+				Source: mc.TimecodeSourceZerobased,
 			},
 		},
 		Tags: p.tagsFrom(job.Labels),
-	}).Send(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &provider.JobStatus{
-		ProviderName:  Name,
-		ProviderJobID: aws.StringValue(resp.Job.Id),
-		Status:        provider.StatusQueued,
 	}, nil
 }
 
-func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]mediaconvert.OutputGroup, error) {
-	outputGroups := map[mediaconvert.ContainerType][]outputCfg{}
+func (p *driver) Create(ctx context.Context, job *db.Job) (*provider.Status, error) {
+	input, err := p.createRequest(ctx, job)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := p.client.CreateJobRequest(input).Send(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &provider.Status{
+		ProviderName:  Name,
+		ProviderJobID: aws.StringValue(resp.Job.Id),
+		State:         provider.StateQueued,
+	}, nil
+}
+
+func (p *driver) outputGroupsFrom(ctx context.Context, job *db.Job) ([]mc.OutputGroup, error) {
+	outputGroups := map[mc.ContainerType][]outputCfg{}
 	for _, output := range job.Outputs {
 		mcOutput, err := outputFrom(output.Preset, job.SourceInfo)
 		if err != nil {
@@ -159,17 +166,17 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 		})
 	}
 
-	mcOutputGroups := []mediaconvert.OutputGroup{}
+	mcOutputGroups := []mc.OutputGroup{}
 	for container, outputs := range outputGroups {
-		mcOutputGroup := mediaconvert.OutputGroup{}
+		mcOutputGroup := mc.OutputGroup{}
 
-		mcOutputs := make([]mediaconvert.Output, len(outputs))
+		mcOutputs := make([]mc.Output, len(outputs))
 		for i, o := range outputs {
 			rawExtension := path.Ext(o.filename)
 			filename := strings.Replace(path.Base(o.filename), rawExtension, "", 1)
 			extension := strings.Replace(rawExtension, ".", "", -1)
 
-			mcOutputs[i] = mediaconvert.Output{
+			mcOutputs[i] = mc.Output{
 				NameModifier:      aws.String(filename),
 				Extension:         aws.String(extension),
 				ContainerSettings: o.output.ContainerSettings,
@@ -182,36 +189,36 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 		destination := p.destinationPathFrom(job)
 
 		switch container {
-		case mediaconvert.ContainerTypeCmfc:
-			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
-				Type: mediaconvert.OutputGroupTypeCmafGroupSettings,
-				CmafGroupSettings: &mediaconvert.CmafGroupSettings{
+		case mc.ContainerTypeCmfc:
+			mcOutputGroup.OutputGroupSettings = &mc.OutputGroupSettings{
+				Type: mc.OutputGroupTypeCmafGroupSettings,
+				CmafGroupSettings: &mc.CmafGroupSettings{
 					Destination:            aws.String(destination),
 					FragmentLength:         aws.Int64(int64(job.StreamingParams.SegmentDuration)),
-					ManifestDurationFormat: mediaconvert.CmafManifestDurationFormatFloatingPoint,
-					SegmentControl:         mediaconvert.CmafSegmentControlSegmentedFiles,
+					ManifestDurationFormat: mc.CmafManifestDurationFormatFloatingPoint,
+					SegmentControl:         mc.CmafSegmentControlSegmentedFiles,
 					SegmentLength:          aws.Int64(int64(job.StreamingParams.SegmentDuration)),
-					WriteDashManifest:      mediaconvert.CmafWriteDASHManifestEnabled,
-					WriteHlsManifest:       mediaconvert.CmafWriteHLSManifestEnabled,
+					WriteDashManifest:      mc.CmafWriteDASHManifestEnabled,
+					WriteHlsManifest:       mc.CmafWriteHLSManifestEnabled,
 				},
 			}
-		case mediaconvert.ContainerTypeM3u8:
-			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
-				Type: mediaconvert.OutputGroupTypeHlsGroupSettings,
-				HlsGroupSettings: &mediaconvert.HlsGroupSettings{
+		case mc.ContainerTypeM3u8:
+			mcOutputGroup.OutputGroupSettings = &mc.OutputGroupSettings{
+				Type: mc.OutputGroupTypeHlsGroupSettings,
+				HlsGroupSettings: &mc.HlsGroupSettings{
 					Destination:            aws.String(destination),
 					SegmentLength:          aws.Int64(int64(job.StreamingParams.SegmentDuration)),
 					MinSegmentLength:       aws.Int64(0),
-					DirectoryStructure:     mediaconvert.HlsDirectoryStructureSingleDirectory,
-					ManifestDurationFormat: mediaconvert.HlsManifestDurationFormatFloatingPoint,
-					OutputSelection:        mediaconvert.HlsOutputSelectionManifestsAndSegments,
-					SegmentControl:         mediaconvert.HlsSegmentControlSegmentedFiles,
+					DirectoryStructure:     mc.HlsDirectoryStructureSingleDirectory,
+					ManifestDurationFormat: mc.HlsManifestDurationFormatFloatingPoint,
+					OutputSelection:        mc.HlsOutputSelectionManifestsAndSegments,
+					SegmentControl:         mc.HlsSegmentControlSegmentedFiles,
 				},
 			}
-		case mediaconvert.ContainerTypeMp4, mediaconvert.ContainerTypeMov, mediaconvert.ContainerTypeWebm, mediaconvert.ContainerTypeMxf:
-			mcOutputGroup.OutputGroupSettings = &mediaconvert.OutputGroupSettings{
-				Type: mediaconvert.OutputGroupTypeFileGroupSettings,
-				FileGroupSettings: &mediaconvert.FileGroupSettings{
+		case mc.ContainerTypeMp4, mc.ContainerTypeMov, mc.ContainerTypeWebm, mc.ContainerTypeMxf:
+			mcOutputGroup.OutputGroupSettings = &mc.OutputGroupSettings{
+				Type: mc.OutputGroupTypeFileGroupSettings,
+				FileGroupSettings: &mc.FileGroupSettings{
 					Destination: aws.String(destination + "m"),
 				},
 			}
@@ -225,7 +232,7 @@ func (p *mcProvider) outputGroupsFrom(ctx context.Context, job *db.Job) ([]media
 	return mcOutputGroups, nil
 }
 
-func (p *mcProvider) destinationPathFrom(job *db.Job) string {
+func (p *driver) destinationPathFrom(job *db.Job) string {
 	var basePath string
 	if cfgBasePath := job.DestinationBasePath; cfgBasePath != "" {
 		basePath = cfgBasePath
@@ -235,35 +242,35 @@ func (p *mcProvider) destinationPathFrom(job *db.Job) string {
 	return fmt.Sprintf("%s/%s/", strings.TrimRight(basePath, "/"), job.RootFolder())
 }
 
-func (p *mcProvider) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
-	jobResp, err := p.client.GetJobRequest(&mediaconvert.GetJobInput{
+func (p *driver) Status(ctx context.Context, job *db.Job) (*provider.Status, error) {
+	jobResp, err := p.client.GetJobRequest(&mc.GetJobInput{
 		Id: aws.String(job.ProviderJobID),
 	}).Send(ctx)
 	if err != nil {
-		return &provider.JobStatus{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
+		return &provider.Status{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
 	}
 
-	return p.jobStatusFrom(job.ProviderJobID, job, jobResp.Job), nil
+	return p.status(job, jobResp.Job), nil
 }
 
-func (p *mcProvider) jobStatusFrom(providerJobID string, job *db.Job, mcJob *mediaconvert.Job) *provider.JobStatus {
-	status := &provider.JobStatus{
-		ProviderJobID: providerJobID,
+func (p *driver) status(job *db.Job, mcJob *mc.Job) *provider.Status {
+	status := &provider.Status{
+		ProviderJobID: job.ProviderJobID,
 		ProviderName:  Name,
-		Status:        providerStatusFrom(mcJob.Status),
-		StatusMessage: statusMsgFrom(mcJob),
-		Output: provider.JobOutput{
+		State:         state(mcJob.Status),
+		Message:       message(mcJob),
+		Output: provider.Output{
 			Destination: p.destinationPathFrom(job),
 		},
 	}
 
-	if status.Status == provider.StatusFinished {
+	if status.State == provider.StateFinished {
 		status.Progress = 100
 	} else if p := mcJob.JobPercentComplete; p != nil {
 		status.Progress = float64(*p)
 	}
 
-	var files []provider.OutputFile
+	var files []provider.File
 	if settings := mcJob.Settings; settings != nil {
 		for _, group := range settings.OutputGroups {
 			groupDestination, err := outputGroupDestinationFrom(group)
@@ -271,7 +278,7 @@ func (p *mcProvider) jobStatusFrom(providerJobID string, job *db.Job, mcJob *med
 				continue
 			}
 			for _, output := range group.Outputs {
-				file := provider.OutputFile{}
+				file := provider.File{}
 
 				if modifier := output.NameModifier; modifier != nil {
 					if extension, err := fileExtensionFromContainer(output.ContainerSettings); err == nil {
@@ -307,13 +314,13 @@ func (p *mcProvider) jobStatusFrom(providerJobID string, job *db.Job, mcJob *med
 	return status
 }
 
-func outputGroupDestinationFrom(group mediaconvert.OutputGroup) (string, error) {
+func outputGroupDestinationFrom(group mc.OutputGroup) (string, error) {
 	if group.OutputGroupSettings == nil {
 		return "", errors.New("output group contained no settings")
 	}
 
 	switch group.OutputGroupSettings.Type {
-	case mediaconvert.OutputGroupTypeFileGroupSettings:
+	case mc.OutputGroupTypeFileGroupSettings:
 		fsSettings := group.OutputGroupSettings.FileGroupSettings
 		if fsSettings == nil {
 			return "", errors.New("file group settings were nil")
@@ -330,57 +337,56 @@ func outputGroupDestinationFrom(group mediaconvert.OutputGroup) (string, error) 
 	}
 }
 
-func fileExtensionFromContainer(settings *mediaconvert.ContainerSettings) (string, error) {
+func fileExtensionFromContainer(settings *mc.ContainerSettings) (string, error) {
 	if settings == nil {
 		return "", errors.New("container settings were nil")
 	}
 
 	switch settings.Container {
-	case mediaconvert.ContainerTypeMp4:
+	case mc.ContainerTypeMp4:
 		return ".mp4", nil
-	case mediaconvert.ContainerTypeMov:
+	case mc.ContainerTypeMov:
 		return ".mov", nil
-	case mediaconvert.ContainerTypeWebm:
+	case mc.ContainerTypeWebm:
 		return ".webm", nil
 	default:
 		return "", fmt.Errorf("could not determine extension from output container %q", settings.Container)
 	}
 }
 
-func containerIdentifierFrom(settings *mediaconvert.ContainerSettings) (string, error) {
+func containerIdentifierFrom(settings *mc.ContainerSettings) (string, error) {
 	if settings == nil {
 		return "", errors.New("container settings were nil")
 	}
 
 	switch settings.Container {
-	case mediaconvert.ContainerTypeMp4:
+	case mc.ContainerTypeMp4:
 		return "mp4", nil
-	case mediaconvert.ContainerTypeMov:
+	case mc.ContainerTypeMov:
 		return "mov", nil
-	case mediaconvert.ContainerTypeWebm:
+	case mc.ContainerTypeWebm:
 		return "webm", nil
 	default:
 		return "", fmt.Errorf("could not determine container identifier from output container %q", settings.Container)
 	}
 }
 
-func statusMsgFrom(job *mediaconvert.Job) string {
+func message(job *mc.Job) string {
 	if job.ErrorMessage != nil {
 		return *job.ErrorMessage
 	}
-
 	return string(job.CurrentPhase)
 }
 
-func (p *mcProvider) CancelJob(ctx context.Context, id string) error {
-	_, err := p.client.CancelJobRequest(&mediaconvert.CancelJobInput{
+func (p *driver) Cancel(ctx context.Context, id string) error {
+	_, err := p.client.CancelJobRequest(&mc.CancelJobInput{
 		Id: aws.String(id),
 	}).Send(ctx)
 
 	return err
 }
 
-func (p *mcProvider) Healthcheck() error {
+func (p *driver) Healthcheck() error {
 	_, err := p.client.ListJobsRequest(nil).Send(context.Background()) // TODO(as): plump context
 	if err != nil {
 		return errors.Wrap(err, "listing jobs")
@@ -388,7 +394,7 @@ func (p *mcProvider) Healthcheck() error {
 	return nil
 }
 
-func (p *mcProvider) Capabilities() provider.Capabilities {
+func (p *driver) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
 		InputFormats:  []string{"h264", "h265", "hdr10"},
 		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf", "mov"},
@@ -396,7 +402,7 @@ func (p *mcProvider) Capabilities() provider.Capabilities {
 	}
 }
 
-func (p *mcProvider) tagsFrom(labels []string) map[string]string {
+func (p *driver) tagsFrom(labels []string) map[string]string {
 	tags := make(map[string]string)
 
 	for _, label := range labels {
@@ -431,8 +437,8 @@ func mediaconvertFactory(cfg *config.Config) (provider.Provider, error) {
 		URL: cfg.MediaConvert.Endpoint,
 	}
 
-	return &mcProvider{
-		client: mediaconvert.New(mcCfg),
+	return &driver{
+		client: mc.New(mcCfg),
 		cfg:    cfg.MediaConvert,
 	}, nil
 }

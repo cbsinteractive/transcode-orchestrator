@@ -13,7 +13,7 @@ import (
 
 var containers = map[string]interface {
 	Assemble(*bitmovin.BitmovinApi, AssemblerCfg) error
-	Enrich(*bitmovin.BitmovinApi, provider.JobStatus) (provider.JobStatus, error)
+	Enrich(*bitmovin.BitmovinApi, provider.Status) (provider.Status, error)
 }{
 	"webm": &WEBM{},
 	"mp4":  &MP4{},
@@ -83,7 +83,7 @@ func (a *WEBM) Assemble(api *bitmovin.BitmovinApi, cfg AssemblerCfg) error {
 }
 
 // Enrich populates information about MOV outputs if they exist
-func (e *MOV) Enrich(api *bitmovin.BitmovinApi, s provider.JobStatus) (provider.JobStatus, error) {
+func (e *MOV) Enrich(api *bitmovin.BitmovinApi, s provider.Status) (provider.Status, error) {
 	get := api.Encoding.Encodings.Muxings.ProgressiveMov.Information.Get
 	mux, err := ListMuxing(api, s.ProviderJobID)
 	if err != nil {
@@ -100,7 +100,7 @@ func (e *MOV) Enrich(api *bitmovin.BitmovinApi, s provider.JobStatus) (provider.
 }
 
 // Enrich populates information about MP4 outputs if they exist
-func (e *MP4) Enrich(api *bitmovin.BitmovinApi, s provider.JobStatus) (provider.JobStatus, error) {
+func (e *MP4) Enrich(api *bitmovin.BitmovinApi, s provider.Status) (provider.Status, error) {
 	get := api.Encoding.Encodings.Muxings.Mp4.Information.Get
 	mux, err := ListMuxing(api, s.ProviderJobID)
 	if err != nil {
@@ -117,7 +117,7 @@ func (e *MP4) Enrich(api *bitmovin.BitmovinApi, s provider.JobStatus) (provider.
 }
 
 // Enrich populates information about ProgressiveWebM outputs if they exist
-func (e *WEBM) Enrich(api *bitmovin.BitmovinApi, s provider.JobStatus) (provider.JobStatus, error) {
+func (e *WEBM) Enrich(api *bitmovin.BitmovinApi, s provider.Status) (provider.Status, error) {
 	get := api.Encoding.Encodings.Muxings.ProgressiveWebm.Information.Get
 	mux, err := ListMuxing(api, s.ProviderJobID)
 	if err != nil {
@@ -165,7 +165,7 @@ func ListMuxing(api *bitmovin.BitmovinApi, jobID string) ([]Muxing, error) {
 	return mux, nil
 }
 
-func (m Muxing) Output(s provider.JobStatus, t track) provider.OutputFile {
+func (m Muxing) Output(s provider.Status, t track) provider.File {
 	var (
 		height, width int64
 		codec         string
@@ -175,10 +175,10 @@ func (m Muxing) Output(s provider.JobStatus, t track) provider.OutputFile {
 		height, width = int64(*video[0].FrameHeight), int64(*video[0].FrameWidth)
 		codec = video[0].Codec
 	}
-	return provider.OutputFile{
+	return provider.File{
 		Path:       s.Output.Destination + m.Filename,
 		Container:  m.Type,
-		FileSize:   t.Filesize(),
+		Size:       t.Filesize(),
 		VideoCodec: codec,
 		Width:      width,
 		Height:     height,

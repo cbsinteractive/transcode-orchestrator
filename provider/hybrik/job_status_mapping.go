@@ -53,21 +53,20 @@ func init() {
 	}
 }
 
-func filesFrom(task hybrik.TaskResult) ([]provider.OutputFile, bool, error) {
+func filesFrom(task hybrik.TaskResult) (files []provider.File, ok bool, err error) {
 	// ensure the task type results in outputs
 	if !taskHasOutputs(task, tasksWithOutputsMatchers) {
 		return nil, false, nil
 	}
 
-	var files []provider.OutputFile
 	for _, document := range task.Documents {
 		for _, assetVersion := range document.ResultPayload.Payload.AssetVersions {
 			for _, component := range assetVersion.AssetComponents {
 				normalizedPath := strings.TrimRight(assetVersion.Location.Path, "/")
-				files = append(files, provider.OutputFile{
+				files = append(files, provider.File{
 					Path:      fmt.Sprintf("%s/%s", normalizedPath, component.Name),
 					Container: containerFrom(component),
-					FileSize:  int64(component.Descriptor.Size),
+					Size:      int64(component.Descriptor.Size),
 				})
 			}
 		}

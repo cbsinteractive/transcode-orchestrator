@@ -80,21 +80,21 @@ func hybrikTranscoderFactory(cfg *config.Config) (provider.Provider, error) {
 	}, nil
 }
 
-func (p *hybrikProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
+func (p *hybrikProvider) Create(ctx context.Context, job *db.Job) (*provider.Status, error) {
 	cj, err := p.createJobReqBodyFrom(ctx, job)
 	if err != nil {
-		return &provider.JobStatus{}, err
+		return &provider.Status{}, err
 	}
 
 	id, err := p.c.QueueJob(cj)
 	if err != nil {
-		return &provider.JobStatus{}, err
+		return &provider.Status{}, err
 	}
 
-	return &provider.JobStatus{
+	return &provider.Status{
 		ProviderName:  Name,
 		ProviderJobID: id,
-		Status:        provider.StatusQueued,
+		State:         provider.StateQueued,
 	}, nil
 }
 
@@ -225,40 +225,40 @@ func (p *hybrikProvider) destinationForJob(job *db.Job) string {
 	return p.config.Destination
 }
 
-func (p *hybrikProvider) JobStatus(_ context.Context, job *db.Job) (*provider.JobStatus, error) {
+func (p *hybrikProvider) Status(_ context.Context, job *db.Job) (*provider.Status, error) {
 	ji, err := p.c.GetJobInfo(job.ProviderJobID)
 	if err != nil {
-		return &provider.JobStatus{}, err
+		return &provider.Status{}, err
 	}
 
-	var status provider.Status
+	var status provider.State
 	switch ji.Status {
 	case active:
 		fallthrough
 	case activeRunning:
 		fallthrough
 	case activeWaiting:
-		status = provider.StatusStarted
+		status = provider.StateStarted
 	case queued:
-		status = provider.StatusQueued
+		status = provider.StateQueued
 	case completed:
-		status = provider.StatusFinished
+		status = provider.StateFinished
 	case failed:
-		status = provider.StatusFailed
+		status = provider.StateFailed
 	}
 
-	var output provider.JobOutput
-	if status == provider.StatusFailed || status == provider.StatusFinished {
+	var output provider.Output
+	if status == provider.StateFailed || status == provider.StateFinished {
 		result, err := p.c.GetJobResult(job.ProviderJobID)
 		if err != nil {
-			return &provider.JobStatus{}, err
+			return &provider.Status{}, err
 		}
 
-		output = provider.JobOutput{}
+		output = provider.Output{}
 		for _, task := range result.Tasks {
 			files, found, err := filesFrom(task)
 			if err != nil {
-				return &provider.JobStatus{}, err
+				return &provider.Status{}, err
 			}
 			if found {
 				output.Files = append(output.Files, files...)
@@ -266,11 +266,11 @@ func (p *hybrikProvider) JobStatus(_ context.Context, job *db.Job) (*provider.Jo
 		}
 	}
 
-	return &provider.JobStatus{
+	return &provider.Status{
 		ProviderJobID: job.ProviderJobID,
 		ProviderName:  p.String(),
 		Progress:      float64(ji.Progress),
-		Status:        status,
+		State:         status,
 		Output:        output,
 	}, nil
 }
@@ -309,7 +309,7 @@ func executionFeaturesFrom(job *db.Job, storageProvider storageProvider) (execut
 	return features, nil
 }
 
-func (p *hybrikProvider) CancelJob(_ context.Context, id string) error {
+func (p *hybrikProvider) Cancel(_ context.Context, id string) error {
 	return p.c.StopJob(id)
 }
 

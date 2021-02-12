@@ -59,20 +59,20 @@ func outputFrom(preset db.Preset, sourceInfo db.File) (mediaconvert.Output, erro
 	return output, nil
 }
 
-func providerStatusFrom(status mediaconvert.JobStatus) provider.Status {
+func state(status mediaconvert.JobStatus) provider.State {
 	switch status {
 	case mediaconvert.JobStatusSubmitted:
-		return provider.StatusQueued
+		return provider.StateQueued
 	case mediaconvert.JobStatusProgressing:
-		return provider.StatusStarted
+		return provider.StateStarted
 	case mediaconvert.JobStatusComplete:
-		return provider.StatusFinished
+		return provider.StateFinished
 	case mediaconvert.JobStatusCanceled:
-		return provider.StatusCanceled
+		return provider.StateCanceled
 	case mediaconvert.JobStatusError:
-		return provider.StatusFailed
+		return provider.StateFailed
 	default:
-		return provider.StatusUnknown
+		return provider.StateUnknown
 	}
 }
 
@@ -189,6 +189,86 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mediaconvert.VideoD
 	}
 
 	return &videoPreset, nil
+}
+
+var (
+	deinterlacerStandard = mediaconvert.Deinterlacer{
+		Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+		Control:   mediaconvert.DeinterlacerControlNormal,
+		Mode:      mediaconvert.DeinterlacerModeDeinterlace,
+	}
+	deinterlacerAdaptive = mediaconvert.Deinterlacer{
+		Algorithm: mediaconvert.DeinterlaceAlgorithmInterpolate,
+		Control:   mediaconvert.DeinterlacerControlNormal,
+		Mode:      mediaconvert.DeinterlacerModeAdaptive,
+	}
+)
+
+type setter struct {
+	dst db.Preset
+	src db.File
+}
+
+func (s setter) ScanType(v *mediaconvert.VideoDescription) *mediaconvert.VideoDescription {
+	const (
+		// constants have same value for src/dst, but different types...
+		progressive = string(db.ScanTypeProgressive)
+		interlaced  = string(db.ScanTypeInterlaced)
+	)
+	if v == nil {
+		v = &mediaconvert.VideoDescription{}
+	}
+	if v.VideoPreprocessors == nil {
+		v.VideoPreprocessors = &mediaconvert.VideoPreprocessor{}
+	}
+
+	switch s.dst.Video.InterlaceMode {
+	case interlaced:
+		switch string(s.src.ScanType) {
+		case progressive:
+		case interlaced:
+		default:
+		}
+	case progressive:
+		fallthrough
+	default: // progressive
+		switch string(s.src.ScanType) {
+		case progressive:
+		case interlaced:
+			v.VideoPreprocessors.Deinterlacer = &deinterlacerStandard
+		default:
+			v.VideoPreprocessors.Deinterlacer = &deinterlacerAdaptive
+		}
+	}
+	return v
+}
+
+func (s setter) Crop(v *mediaconvert.VideoDescription) *mediaconvert.VideoDescription {
+	if v == nil {
+		v = &mediaconvert.VideoDescription{}
+	}
+
+	var (
+		crop = s.dst.Video.Crop
+		h, w = int(s.src.Height), int(s.src.Width)
+	)
+	if crop.Empty() || h <= 0 || w <= 0 {
+		return v
+	}
+
+	roundEven := func(i, mod int) *int64 {
+		if i%2 != 0 {
+			i += mod
+		}
+		return aws.Int64(int64(i))
+	}
+	v.Crop = &mediaconvert.Rectangle{
+		Height: roundEven(h-crop.Top-crop.Bottom, -1),
+		Width:  roundEven(w-crop.Left-crop.Right, -1),
+		X:      roundEven(crop.Left, 1),
+		Y:      roundEven(crop.Top, 1),
+	}
+	return v
 }
 
 func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mediaconvert.VideoPreprocessor, error) {

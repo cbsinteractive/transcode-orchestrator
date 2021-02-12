@@ -5,19 +5,19 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 )
 
-func status(bitmovin model.Status) provider.Status {
+func state(bitmovin model.Status) provider.State {
 	switch bitmovin {
 	case model.Status_CREATED, model.Status_QUEUED:
-		return provider.StatusQueued
+		return provider.StateQueued
 	case model.Status_RUNNING:
-		return provider.StatusStarted
+		return provider.StateStarted
 	case model.Status_FINISHED:
-		return provider.StatusFinished
+		return provider.StateFinished
 	case model.Status_ERROR:
-		return provider.StatusFailed
+		return provider.StateFailed
 	case model.Status_CANCELED:
-		return provider.StatusCanceled
+		return provider.StateCanceled
 	default:
-		return provider.StatusUnknown
+		return provider.StateUnknown
 	}
 }

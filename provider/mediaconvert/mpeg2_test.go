@@ -11,8 +11,8 @@ import (
 func TestGenerateMPEG2(t *testing.T) {
 	p := db.Preset{}
 	p.Video.Codec = "hd422"
-	p.Video.GopSize = "6000"
-	p.Video.Bitrate = "6000"
+	p.Video.GopSize = 6000
+	p.Video.Bitrate = 6000
 	s, err := mpeg2XDCAM.generate(p)
 	if err != nil {
 		t.Fatalf("%v", err)

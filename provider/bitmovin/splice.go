@@ -9,7 +9,7 @@ import (
 	"github.com/cbsinteractive/pkg/timecode"
 )
 
-func (p *bitmovinProvider) trace(ctx context.Context, name string, err *error) func() {
+func (p *driver) trace(ctx context.Context, name string, err *error) func() {
 	x := p.tracer.BeginSubsegment(ctx, name)
 	return func() {
 		if err == nil {
@@ -20,7 +20,7 @@ func (p *bitmovinProvider) trace(ctx context.Context, name string, err *error) f
 	}
 }
 
-func (p *bitmovinProvider) splice(ctx context.Context, encID, stream0 string, splice timecode.Splice) (stream1 string, err error) {
+func (p *driver) splice(ctx context.Context, encID, stream0 string, splice timecode.Splice) (stream1 string, err error) {
 	defer p.trace(ctx, "bitmovin-create-concatenated-splice", &err)()
 
 	if len(splice) == 0 {

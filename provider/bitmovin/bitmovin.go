@@ -26,12 +26,12 @@ import (
 )
 
 func init() {
-	_ = provider.Register(Name, bitmovinFactory)
+	_ = provider.Register(Name, factory)
 }
 
 const (
-	// Name is the name used for registering the bitmovin provider in the
-	// registry of providers.
+	// Name is the name used for registering the bitmovin driver in the
+	// registry of drivers.
 	Name = "bitmovin"
 
 	codecVorbis = "vorbis"
@@ -47,19 +47,17 @@ const (
 	containerMOV  = "mov"
 )
 
-var errBitmovinInvalidConfig = provider.InvalidConfigError("Invalid configuration")
-
-func bitmovinFactory(cfg *config.Config) (provider.Provider, error) {
+func factory(cfg *config.Config) (provider.Provider, error) {
 	if cfg.Bitmovin.APIKey == "" {
-		return nil, errBitmovinInvalidConfig
+		return nil, fmt.Errorf("%w: no api key", provider.ErrConfig)
 	}
 
 	if _, ok := cloudRegions[model.CloudRegion(cfg.Bitmovin.EncodingRegion)]; !ok {
-		return nil, errBitmovinInvalidConfig
+		return nil, fmt.Errorf("%w: cloud: bad encoding region", provider.ErrConfig)
 	}
 
 	if _, ok := awsCloudRegions[model.AwsCloudRegion(cfg.Bitmovin.AWSStorageRegion)]; !ok {
-		return nil, errBitmovinInvalidConfig
+		return nil, fmt.Errorf("%w: cloud: bad storage region", provider.ErrConfig)
 	}
 
 	api, err := bitmovin.NewBitmovinApi(func(apiClient *common.ApiClient) {
@@ -75,20 +73,20 @@ func bitmovinFactory(cfg *config.Config) (provider.Provider, error) {
 		tracer = tracing.NoopTracer{}
 	}
 
-	return &bitmovinProvider{
-		api:         api,
-		providerCfg: cfg.Bitmovin,
-		tracer:      tracer,
+	return &driver{
+		api:    api,
+		cfg:    cfg.Bitmovin,
+		tracer: tracer,
 	}, nil
 }
 
-type bitmovinProvider struct {
-	api         *bitmovin.BitmovinApi
-	providerCfg *config.Bitmovin
-	tracer      tracing.Tracer
+type driver struct {
+	api    *bitmovin.BitmovinApi
+	cfg    *config.Bitmovin
+	tracer tracing.Tracer
 }
 
-func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
+func (p *driver) Create(ctx context.Context, job *db.Job) (*provider.Status, error) {
 	presets := make([]db.PresetSummary, len(job.Outputs))
 	for i, output := range job.Outputs {
 		if err := p.createPreset(ctx, output.Preset, &presets[i]); err != nil {
@@ -123,7 +121,7 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 		Name:           jobName,
 		CustomData:     &encCustomData,
 		CloudRegion:    encodingCloudRegion,
-		EncoderVersion: p.providerCfg.EncodingVersion,
+		EncoderVersion: p.cfg.EncodingVersion,
 		Infrastructure: infrastructureSettings,
 		Labels:         job.Labels,
 	})
@@ -203,14 +201,14 @@ func (p *bitmovinProvider) Transcode(ctx context.Context, job *db.Job) (*provide
 	}
 	subSeg.Close(nil)
 
-	return &provider.JobStatus{
+	return &provider.Status{
 		ProviderName:  Name,
 		ProviderJobID: encResp.Id,
-		Status:        provider.StatusQueued,
+		State:         provider.StateQueued,
 	}, nil
 }
 
-func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provider.JobStatus, error) {
+func (p *driver) Status(ctx context.Context, job *db.Job) (*provider.Status, error) {
 	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-get-encoding-status")
 	task, err := p.api.Encoding.Encodings.Status(job.ProviderJobID)
 	if err != nil {
@@ -224,21 +222,21 @@ func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provide
 		progress = float64(*task.Progress)
 	}
 
-	s := provider.JobStatus{
+	s := provider.Status{
 		ProviderName:  Name,
 		ProviderJobID: job.ProviderJobID,
-		Status:        status(task.Status),
+		State:         state(task.Status),
 		Progress:      progress,
 		ProviderStatus: map[string]interface{}{
 			"messages":       task.Messages,
 			"originalStatus": task.Status,
 		},
-		Output: provider.JobOutput{
+		Output: provider.Output{
 			Destination: strings.TrimRight(p.destinationForJob(job), "/") + "/" + job.RootFolder() + "/",
 		},
 	}
 
-	if s.Status == provider.StatusFinished {
+	if s.State == provider.StateFinished {
 		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-get-output-info")
 		s, err = p.enrichStreams(s)
 		if err != nil {
@@ -261,7 +259,7 @@ func (p *bitmovinProvider) JobStatus(ctx context.Context, job *db.Job) (*provide
 	return &s, nil
 }
 
-func (p *bitmovinProvider) CancelJob(ctx context.Context, id string) (err error) {
+func (p *driver) Cancel(ctx context.Context, id string) (err error) {
 	defer p.trace(ctx, "bitmovin-delete-job", &err)()
 	_, err = p.api.Encoding.Encodings.Stop(id)
 	return err
@@ -279,7 +277,7 @@ type outputCfg struct {
 	job                *db.Job
 }
 
-func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan error) {
+func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan error) {
 	defer wg.Done()
 	var audioMuxingStream, videoMuxingStream model.MuxingStream
 
@@ -345,7 +343,7 @@ func (p *bitmovinProvider) createOutput(cfg outputCfg, wg *sync.WaitGroup, error
 	}
 }
 
-func (p *bitmovinProvider) inputFrom(ctx context.Context, job *db.Job) (inputID string, srcPath string, err error) {
+func (p *driver) inputFrom(ctx context.Context, job *db.Job) (inputID string, srcPath string, err error) {
 	defer p.trace(ctx, "bitmovin-create-input", &err)()
 
 	srcPath, err = storage.PathFrom(job.SourceMedia)
@@ -362,7 +360,7 @@ func (p *bitmovinProvider) inputFrom(ctx context.Context, job *db.Job) (inputID 
 		GCS:   p.api.Encoding.Inputs.Gcs,
 		HTTP:  p.api.Encoding.Inputs.Http,
 		HTTPS: p.api.Encoding.Inputs.Https,
-	}, p.providerCfg)
+	}, p.cfg)
 	if err != nil {
 		return "", srcPath, err
 	}
@@ -370,7 +368,7 @@ func (p *bitmovinProvider) inputFrom(ctx context.Context, job *db.Job) (inputID 
 	return inputID, srcPath, nil
 }
 
-func (p *bitmovinProvider) outputFrom(ctx context.Context, job *db.Job) (inputID string, destPath string, err error) {
+func (p *driver) outputFrom(ctx context.Context, job *db.Job) (inputID string, destPath string, err error) {
 	defer p.trace(ctx, "bitmovin-create-output", &err)()
 
 	destBasePath := p.destinationForJob(job)
@@ -388,7 +386,7 @@ func (p *bitmovinProvider) outputFrom(ctx context.Context, job *db.Job) (inputID
 	outputID, err := storage.NewOutput(destBasePath, storage.OutputAPI{
 		S3:  p.api.Encoding.Outputs.S3,
 		GCS: p.api.Encoding.Outputs.Gcs,
-	}, p.providerCfg)
+	}, p.cfg)
 	if err != nil {
 		return "", destPath, err
 	}
@@ -396,7 +394,7 @@ func (p *bitmovinProvider) outputFrom(ctx context.Context, job *db.Job) (inputID
 	return outputID, destPath, nil
 }
 
-func (p *bitmovinProvider) encodingCloudRegionFrom(job *db.Job) (model.CloudRegion, error) {
+func (p *driver) encodingCloudRegionFrom(job *db.Job) (model.CloudRegion, error) {
 	if cloud, region := job.ExecutionEnv.Cloud, job.ExecutionEnv.Region; cloud+region != "" {
 		regions, found := regionByCloud[cloud]
 		if !found {
@@ -411,10 +409,10 @@ func (p *bitmovinProvider) encodingCloudRegionFrom(job *db.Job) (model.CloudRegi
 		return bitmovinRegion, nil
 	}
 
-	return model.CloudRegion(p.providerCfg.EncodingRegion), nil
+	return model.CloudRegion(p.cfg.EncodingRegion), nil
 }
 
-func (p *bitmovinProvider) encodingInfrastructureFrom(job *db.Job) (*model.InfrastructureSettings, model.CloudRegion, error) {
+func (p *driver) encodingInfrastructureFrom(job *db.Job) (*model.InfrastructureSettings, model.CloudRegion, error) {
 	encodingCloudRegion, err := p.encodingCloudRegionFrom(job)
 	if err != nil {
 		return nil, encodingCloudRegion, errors.Wrap(err, "validating and setting encoding cloud region")
@@ -430,7 +428,7 @@ func (p *bitmovinProvider) encodingInfrastructureFrom(job *db.Job) (*model.Infra
 	return nil, encodingCloudRegion, nil
 }
 
-func (p *bitmovinProvider) createExplicitKeyframes(encodingID string, offsets []float64) error {
+func (p *driver) createExplicitKeyframes(encodingID string, offsets []float64) error {
 	if len(offsets) == 0 {
 		return nil
 	}
@@ -460,7 +458,7 @@ func (p *bitmovinProvider) createExplicitKeyframes(encodingID string, offsets []
 	return nil
 }
 
-func (p *bitmovinProvider) createPreset(_ context.Context, preset db.Preset, summary *db.PresetSummary) error {
+func (p *driver) createPreset(_ context.Context, preset db.Preset, summary *db.PresetSummary) error {
 	vc, _ := codec.New(preset.Video.Codec, preset)
 	ac, _ := codec.New(preset.Audio.Codec, preset)
 	c := []codec.Codec{}
@@ -524,7 +522,7 @@ func (p *bitmovinProvider) createPreset(_ context.Context, preset db.Preset, sum
 	return nil
 }
 
-func (p *bitmovinProvider) enrichStreams(s provider.JobStatus) (provider.JobStatus, error) {
+func (p *driver) enrichStreams(s provider.Status) (provider.Status, error) {
 	inStreams, err := p.api.Encoding.Encodings.Streams.List(s.ProviderJobID, func(params *query.StreamListQueryParams) {
 		params.Limit = 1
 		params.Offset = 0
@@ -553,7 +551,7 @@ func (p *bitmovinProvider) enrichStreams(s provider.JobStatus) (provider.JobStat
 		height = int64(int32Value(vidStreamInput.Height))
 	}
 
-	s.SourceInfo = provider.SourceInfo{
+	s.Input = provider.File{
 		Duration:   time.Duration(floatValue(streamInput.Duration) * float64(time.Second)),
 		Width:      width,
 		Height:     height,
@@ -564,16 +562,16 @@ func (p *bitmovinProvider) enrichStreams(s provider.JobStatus) (provider.JobStat
 
 }
 
-func (p *bitmovinProvider) destinationForJob(job *db.Job) string {
+func (p *driver) destinationForJob(job *db.Job) string {
 	if path := job.DestinationBasePath; path != "" {
 		return path
 	}
-	return p.providerCfg.Destination
+	return p.cfg.Destination
 }
 
 // Healthcheck returns an error if a call to List Encodings with a limit of one
 // returns an error
-func (p *bitmovinProvider) Healthcheck() error {
+func (p *driver) Healthcheck() error {
 	_, err := p.api.Encoding.Encodings.List(func(params *query.EncodingListQueryParams) {
 		params.Limit = 1
 	})
@@ -584,8 +582,8 @@ func (p *bitmovinProvider) Healthcheck() error {
 	return nil
 }
 
-// Capabilities describes the capabilities of the provider.
-func (p *bitmovinProvider) Capabilities() provider.Capabilities {
+// Capabilities describes the capabilities of the driver.
+func (p *driver) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
 		InputFormats:  []string{"prores", "h264"},
 		OutputFormats: []string{containerMP4, containerMOV, containerWebM},

@@ -100,7 +100,7 @@ func Test_mediaconvertFactory(t *testing.T) {
 				return
 			}
 
-			p, ok := provider.(*mcProvider)
+			p, ok := provider.(*driver)
 			if !ok {
 				t.Error("factory didn't return a mediaconvert provider")
 				return
