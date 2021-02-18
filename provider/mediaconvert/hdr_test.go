@@ -3,9 +3,14 @@ package mediaconvert
 import (
 	"reflect"
 	"testing"
+
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/cbsinteractive/transcode-orchestrator/config"
+	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-func Test_parseMasterDisplay(t *testing.T) {
+func TestHDRMasterDisplay(t *testing.T) {
 	test := []struct {
 		name        string
 		encodedStr  string
@@ -13,7 +18,7 @@ func Test_parseMasterDisplay(t *testing.T) {
 		wantErr     bool
 	}{
 		{
-			name:       "a well-formed encoded string is parsed correctly",
+			name:       "GBRWPL",
 			encodedStr: "G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(100000000000,0)",
 			wantDisplay: masterDisplay{
 				greenPrimaryX: 8500,
@@ -29,7 +34,7 @@ func Test_parseMasterDisplay(t *testing.T) {
 			},
 		},
 		{
-			name:       "values are parsed correctly regardles of position in the encoded string",
+			name:       "BGLRWP",
 			encodedStr: "B(6550,2300)G(8500,39850)L(100000000000,0)R(35400,14600)WP(15635,16450)",
 			wantDisplay: masterDisplay{
 				greenPrimaryX: 8500,
@@ -45,12 +50,12 @@ func Test_parseMasterDisplay(t *testing.T) {
 			},
 		},
 		{
-			name:       "incomplete values return an error",
+			name:       "Incomplete",
 			encodedStr: "B(6550,2300)G(8500,39850)L(100000000000,0)",
 			wantErr:    true,
 		},
 		{
-			name:       "invalid values return an error",
+			name:       "Invalid",
 			encodedStr: "dsfdssdf",
 			wantErr:    true,
 		},
@@ -61,13 +66,48 @@ func Test_parseMasterDisplay(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			display, err := parseMasterDisplay(tt.encodedStr)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseMasterDisplay() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Fatalf("parseMasterDisplay() error = %v, wantErr %v", err, tt.wantErr)
 			}
-
 			if g, e := display, tt.wantDisplay; !reflect.DeepEqual(g, e) {
 				t.Fatalf("parseMasterDisplay(): wrong display returned\nWant %+v\nGot %+v", e, g)
 			}
 		})
+	}
+}
+
+func TestHDRRequest(t *testing.T) {
+	i := aws.Int64
+	display := "G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(100000000000,0)"
+	want := &mc.Hdr10Metadata{
+		GreenPrimaryX: i(8500), GreenPrimaryY: i(39850),
+		BluePrimaryX: i(6550), BluePrimaryY: i(2300),
+		RedPrimaryX: i(35400), RedPrimaryY: i(14600),
+		WhitePointX: i(15635), WhitePointY: i(16450),
+		MinLuminance: i(0), MaxLuminance: i(100000000000),
+		MaxContentLightLevel:      i(10000),
+		MaxFrameAverageLightLevel: i(400),
+	}
+
+	p := defaultPreset
+	p.Video.HDR10Settings.Enabled = true
+	p.Video.HDR10Settings.MaxCLL = 10000
+	p.Video.HDR10Settings.MaxFALL = 400
+	p.Video.HDR10Settings.MasterDisplay = display
+
+	d := &driver{cfg: config.MediaConvert{Destination: "s3://some_dest"}}
+	req, err := d.createRequest(nil, &db.Job{
+		Outputs: []db.TranscodeOutput{{Preset: p}},
+	})
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+
+	cc := req.Settings.OutputGroups[0].Outputs[0].VideoDescription.VideoPreprocessors.ColorCorrector
+	if g, e := cc.ColorSpaceConversion, mc.ColorSpaceConversionForceHdr10; g != e {
+		t.Fatalf("force hdr10: have %v, want %v", g, e)
+	}
+
+	if g, e := cc.Hdr10Metadata, want; !reflect.DeepEqual(g, e) {
+		t.Fatalf("metadata: have %v, want %v", g, e)
 	}
 }

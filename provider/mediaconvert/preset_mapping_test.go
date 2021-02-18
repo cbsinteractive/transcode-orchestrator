@@ -9,47 +9,22 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-func Test_vbrLevel(t *testing.T) {
-	tests := []struct {
-		name      string
-		bitrate   int64
-		wantLevel int64
+func TestBitrateLevel_vbrLevel(t *testing.T) {
+	for _, tt := range []struct {
+		n       string
+		bitrate int64
+		level   int64
 	}{
-		{
-			name:      "NotSet",
-			bitrate:   0,
-			wantLevel: 4,
-		},
-		{
-			name:      "45Kbps",
-			bitrate:   45000,
-			wantLevel: -1,
-		},
-		{
-			name:      "128Kbps",
-			bitrate:   128000,
-			wantLevel: 4,
-		},
-		{
-			name:      "196Kbps",
-			bitrate:   196000,
-			wantLevel: 6,
-		},
-		{
-			name:      "256Kbps",
-			bitrate:   256000,
-			wantLevel: 8,
-		},
-		{
-			name:      "500Kbps",
-			bitrate:   500000,
-			wantLevel: 10,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := vbrLevel(tt.bitrate); got != tt.wantLevel {
-				t.Errorf("vbrLevel() = %v, want %v", got, tt.wantLevel)
+		{"0Kbps", 0, +4},
+		{"45Kbps", 45000, -1},
+		{"128Kbps", 128000, +4},
+		{"196Kbps", 196000, +6},
+		{"256Kbps", 256000, +8},
+		{"500Kbps", 500000, +10},
+	} {
+		t.Run(tt.n, func(t *testing.T) {
+			if h := vbrLevel(tt.bitrate); h != tt.level {
+				t.Fatalf("have %v, want %v", h, tt.level)
 			}
 		})
 	}

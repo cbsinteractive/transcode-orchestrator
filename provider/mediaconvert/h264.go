@@ -9,6 +9,20 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
+// H265RateControlMode
+// H264RateControlMode
+var RateControl = map[string]string{
+	"":     "CBR",
+	"cbr":  "CBR",
+	"vbr":  "VBR",
+	"qvbr": "QVBR",
+}
+var GopUnits = map[string]string{
+	"":                "FRAMES",
+	db.GopUnitFrames:  "FRAMES",
+	db.GopUnitSeconds: "SECONDS",
+}
+
 func h264CodecSettingsFrom(preset db.Preset) (*mc.VideoCodecSettings, error) {
 	bitrate := preset.Video.Bitrate
 	gopSize := preset.Video.GopSize
@@ -50,21 +64,19 @@ func h264CodecSettingsFrom(preset db.Preset) (*mc.VideoCodecSettings, error) {
 	}, nil
 }
 
-func h264GopUnitFrom(gopUnit string) (mc.H264GopSizeUnits, error) {
-	gopUnit = strings.ToLower(gopUnit)
-	switch gopUnit {
+func h264GopUnitFrom(v string) (mc.H264GopSizeUnits, error) {
+	switch strings.ToLower(v) {
 	case "", db.GopUnitFrames:
 		return mc.H264GopSizeUnitsFrames, nil
 	case db.GopUnitSeconds:
 		return mc.H264GopSizeUnitsSeconds, nil
 	default:
-		return "", fmt.Errorf("gop unit %q is not supported with mediaconvert", gopUnit)
+		return "", fmt.Errorf("h264: %w: gop unit: %q", ErrUnsupported, v)
 	}
 }
 
-func h264RateControlModeFrom(rateControl string) (mc.H264RateControlMode, error) {
-	rateControl = strings.ToLower(rateControl)
-	switch rateControl {
+func h264RateControlModeFrom(v string) (mc.H264RateControlMode, error) {
+	switch strings.ToLower(v) {
 	case "vbr":
 		return mc.H264RateControlModeVbr, nil
 	case "", "cbr":
@@ -72,13 +84,12 @@ func h264RateControlModeFrom(rateControl string) (mc.H264RateControlMode, error)
 	case "qvbr":
 		return mc.H264RateControlModeQvbr, nil
 	default:
-		return "", fmt.Errorf("rate control mode %q is not supported with mediaconvert", rateControl)
+		return "", fmt.Errorf("h264: %w: rate control mode: %q", ErrUnsupported, v)
 	}
 }
 
-func h264CodecProfileFrom(profile string) (mc.H264CodecProfile, error) {
-	profile = strings.ToLower(profile)
-	switch profile {
+func h264CodecProfileFrom(v string) (mc.H264CodecProfile, error) {
+	switch strings.ToLower(v) {
 	case "baseline":
 		return mc.H264CodecProfileBaseline, nil
 	case "main":
@@ -86,6 +97,6 @@ func h264CodecProfileFrom(profile string) (mc.H264CodecProfile, error) {
 	case "", "high":
 		return mc.H264CodecProfileHigh, nil
 	default:
-		return "", fmt.Errorf("h264 profile %q is not supported with mediaconvert", profile)
+		return "", fmt.Errorf("h264: %w: profile: %q", ErrUnsupported, v)
 	}
 }

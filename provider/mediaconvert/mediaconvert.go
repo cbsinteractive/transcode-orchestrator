@@ -43,7 +43,7 @@ type mediaconvertClient interface {
 
 type driver struct {
 	client mediaconvertClient
-	cfg    *config.MediaConvert
+	cfg    config.MediaConvert
 }
 
 type outputCfg struct {
@@ -86,11 +86,9 @@ func (p *driver) createRequest(ctx context.Context, job *db.Job) (*mc.CreateJobI
 		})
 	}
 
-	var accelerationSettings *mc.AccelerationSettings
+	var acceleration *mc.AccelerationSettings
 	if p.requiresAcceleration(job.SourceInfo) {
-		accelerationSettings = &mc.AccelerationSettings{
-			Mode: mc.AccelerationModePreferred,
-		}
+		acceleration = &mc.AccelerationSettings{Mode: mc.AccelerationModePreferred}
 	}
 
 	audioSelector := mc.AudioSelector{
@@ -103,7 +101,7 @@ func (p *driver) createRequest(ctx context.Context, job *db.Job) (*mc.CreateJobI
 	}
 
 	return &mc.CreateJobInput{
-		AccelerationSettings: accelerationSettings,
+		AccelerationSettings: acceleration,
 		Queue:                queue,
 		HopDestinations:      hopDestinations,
 		Role:                 aws.String(p.cfg.Role),
@@ -121,10 +119,8 @@ func (p *driver) createRequest(ctx context.Context, job *db.Job) (*mc.CreateJobI
 					TimecodeSource: mc.InputTimecodeSourceZerobased,
 				},
 			},
-			OutputGroups: outputGroups,
-			TimecodeConfig: &mc.TimecodeConfig{
-				Source: mc.TimecodeSourceZerobased,
-			},
+			OutputGroups:   outputGroups,
+			TimecodeConfig: &mc.TimecodeConfig{Source: mc.TimecodeSourceZerobased},
 		},
 		Tags: p.tagsFrom(job.Labels),
 	}, nil
@@ -147,27 +143,26 @@ func (p *driver) Create(ctx context.Context, job *db.Job) (*provider.Status, err
 }
 
 func (p *driver) outputGroupsFrom(ctx context.Context, job *db.Job) ([]mc.OutputGroup, error) {
-	outputGroups := map[mc.ContainerType][]outputCfg{}
-	for _, output := range job.Outputs {
-		mcOutput, err := outputFrom(output.Preset, job.SourceInfo)
+	cfg := map[mc.ContainerType][]outputCfg{}
+	for _, out := range job.Outputs {
+		mc, err := outputFrom(out.Preset, job.SourceInfo)
 		if err != nil {
-			return nil, fmt.Errorf("could not determine output settings from db.Preset %v: %w",
-				output.Preset, err)
+			return nil, fmt.Errorf("output: %q: %w", out.Preset.Name, err)
 		}
 
-		cSettings := mcOutput.ContainerSettings
-		if cSettings == nil {
-			return nil, fmt.Errorf("no container was found on outout settings %+v", mcOutput)
+		settings := mc.ContainerSettings
+		if settings == nil {
+			return nil, fmt.Errorf("no container was found on outout settings %+v", mc)
 		}
 
-		outputGroups[cSettings.Container] = append(outputGroups[cSettings.Container], outputCfg{
-			output:   mcOutput,
-			filename: output.FileName,
+		cfg[settings.Container] = append(cfg[settings.Container], outputCfg{
+			output:   mc,
+			filename: out.FileName,
 		})
 	}
 
 	mcOutputGroups := []mc.OutputGroup{}
-	for container, outputs := range outputGroups {
+	for container, outputs := range cfg {
 		mcOutputGroup := mc.OutputGroup{}
 
 		mcOutputs := make([]mc.Output, len(outputs))
@@ -223,7 +218,7 @@ func (p *driver) outputGroupsFrom(ctx context.Context, job *db.Job) ([]mc.Output
 				},
 			}
 		default:
-			return nil, fmt.Errorf("container %s is not yet supported with mediaconvert", string(container))
+			return nil, fmt.Errorf("container: %w: %q", ErrUnsupported, string(container))
 		}
 
 		mcOutputGroups = append(mcOutputGroups, mcOutputGroup)
@@ -439,6 +434,6 @@ func mediaconvertFactory(cfg *config.Config) (provider.Provider, error) {
 
 	return &driver{
 		client: mc.New(mcCfg),
-		cfg:    cfg.MediaConvert,
+		cfg:    *cfg.MediaConvert,
 	}, nil
 }

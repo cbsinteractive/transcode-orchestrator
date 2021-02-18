@@ -32,7 +32,7 @@ var cfgWithCredsAndRegion = config.Config{
 	},
 }
 
-func Test_mediaconvertFactory(t *testing.T) {
+func TestFactory(t *testing.T) {
 	tests := []struct {
 		name       string
 		envVars    map[string]string
@@ -42,7 +42,7 @@ func Test_mediaconvertFactory(t *testing.T) {
 		wantErrMsg string
 	}{
 		{
-			name: "when a config specifies aws credentials and region, those credentials are used",
+			name: "AWSCredentialsConfig",
 			envVars: map[string]string{
 				"AWS_ACCESS_KEY_ID":     "env_access_key_id",
 				"AWS_SECRET_ACCESS_KEY": "env_secret_access_key",
@@ -57,8 +57,8 @@ func Test_mediaconvertFactory(t *testing.T) {
 			wantRegion: "us-cfg-region-1",
 		},
 		{
-			name: "when a config does not specify aws credentials, region, or profile, credentials and region are loaded " +
-				"from the environment",
+			// NODE(as); we should get rid of this in favor of explicit configuration
+			name: "AWSCredentialsEnvironment",
 			envVars: map[string]string{
 				"AWS_ACCESS_KEY_ID":     "env_access_key_id",
 				"AWS_SECRET_ACCESS_KEY": "env_secret_access_key",
@@ -72,11 +72,6 @@ func Test_mediaconvertFactory(t *testing.T) {
 				Source:          external.CredentialsSourceName,
 			},
 			wantRegion: "us-north-1",
-		},
-		{
-			name:       "an incomplete cfg results in an error returned",
-			cfg:        config.Config{MediaConvert: &config.MediaConvert{}},
-			wantErrMsg: "incomplete MediaConvert config",
 		},
 	}
 
@@ -94,35 +89,32 @@ func Test_mediaconvertFactory(t *testing.T) {
 			provider, err := mediaconvertFactory(&tt.cfg)
 			if err != nil {
 				if tt.wantErrMsg != err.Error() {
-					t.Errorf("mcProvider.CreatePreset() error = %v, wantErr %q", err, tt.wantErrMsg)
+					t.Fatalf("mcProvider.CreatePreset() error = %v, wantErr %q", err, tt.wantErrMsg)
 				}
-				return
 			}
 
 			p, ok := provider.(*driver)
 			if !ok {
-				t.Error("factory didn't return a mediaconvert provider")
-				return
+				t.Fatalf("factory didn't return a mediaconvert provider")
 			}
 
 			client, ok := p.client.(*mc.Client)
 			if !ok {
-				t.Error("factory returned a mediaconvert provider with a non-aws client implementation")
-				return
+				t.Fatalf("factory returned a mediaconvert provider with a non-aws client implementation")
 			}
 
 			creds, err := client.Credentials.Retrieve(context.Background())
 			if err != nil {
-				t.Errorf("error retrieving aws credentials: %v", err)
+				t.Fatalf("error retrieving aws credentials: %v", err)
 			}
 
 			if g, e := creds, tt.wantCreds; !reflect.DeepEqual(g, e) {
-				t.Errorf("unexpected credentials\nWant %+v\nGot %+v\nDiff %s",
+				t.Fatalf("unexpected credentials\nWant %+v\nGot %+v\nDiff %s",
 					e, g, cmp.Diff(e, g))
 			}
 
 			if g, e := client.Config.Region, tt.wantRegion; g != e {
-				t.Errorf("expected region %q, got %q", e, g)
+				t.Fatalf("expected region %q, got %q", e, g)
 			}
 		})
 	}

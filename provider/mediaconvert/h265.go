@@ -1,11 +1,18 @@
 package mediaconvert
 
 import (
+	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"strings"
+)
+
+var (
+	ErrUnsupported = errors.New("unsupported")
+	ErrInvalid     = errors.New("invalid")
 )
 
 func h265CodecSettingsFrom(preset db.Preset) (*mc.VideoCodecSettings, error) {
@@ -63,21 +70,19 @@ func h265CodecSettingsFrom(preset db.Preset) (*mc.VideoCodecSettings, error) {
 	}, nil
 }
 
-func h265GopUnitFrom(gopUnit string) (mc.H265GopSizeUnits, error) {
-	gopUnit = strings.ToLower(gopUnit)
-	switch gopUnit {
+func h265GopUnitFrom(v string) (mc.H265GopSizeUnits, error) {
+	switch strings.ToLower(v) {
 	case "", db.GopUnitFrames:
 		return mc.H265GopSizeUnitsFrames, nil
 	case db.GopUnitSeconds:
 		return mc.H265GopSizeUnitsSeconds, nil
 	default:
-		return "", fmt.Errorf("gop unit %q is not supported with mediaconvert", gopUnit)
+		return "", fmt.Errorf("h265: %w: gop unit %q", ErrUnsupported, v)
 	}
 }
 
-func h265RateControlModeFrom(rateControl string) (mc.H265RateControlMode, error) {
-	rateControl = strings.ToLower(rateControl)
-	switch rateControl {
+func h265RateControlModeFrom(v string) (mc.H265RateControlMode, error) {
+	switch strings.ToLower(v) {
 	case "vbr":
 		return mc.H265RateControlModeVbr, nil
 	case "", "cbr":
@@ -85,12 +90,12 @@ func h265RateControlModeFrom(rateControl string) (mc.H265RateControlMode, error)
 	case "qvbr":
 		return mc.H265RateControlModeQvbr, nil
 	default:
-		return "", fmt.Errorf("rate control mode %q is not supported with mediaconvert", rateControl)
+		return "", fmt.Errorf("h265: %w: rate control mode: %q", ErrUnsupported, v)
 	}
 }
 
-func h265CodecLevelFrom(level string) (mc.H265CodecLevel, error) {
-	switch level {
+func h265CodecLevelFrom(v string) (mc.H265CodecLevel, error) {
+	switch v {
 	case "":
 		return mc.H265CodecLevelAuto, nil
 	case "1", "1.0":
@@ -120,6 +125,6 @@ func h265CodecLevelFrom(level string) (mc.H265CodecLevel, error) {
 	case "6.2":
 		return mc.H265CodecLevelLevel62, nil
 	default:
-		return "", fmt.Errorf("h265 level %q is not supported with mediaconvert", level)
+		return "", fmt.Errorf("h265: %w: level: %q", ErrUnsupported, v)
 	}
 }

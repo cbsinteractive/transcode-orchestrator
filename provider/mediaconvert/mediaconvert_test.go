@@ -2,6 +2,9 @@ package mediaconvert
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -125,152 +128,142 @@ var (
 	}
 )
 
-func Test_driver_CreatePreset_fields(t *testing.T) {
-	tests := []struct {
-		name           string
-		presetModifier func(preset db.Preset) db.Preset
-		assertion      func(mc.Output, *testing.T)
-		wantErrMsg     string
-	}{
-		{
-			name: "hls presets are set correctly",
-			presetModifier: func(p db.Preset) db.Preset {
-				p.Container = "m3u8"
-				return p
-			},
-			assertion: func(output mc.Output, t *testing.T) {
-				if g, e := output.ContainerSettings.Container, mc.ContainerTypeM3u8; g != e {
-					t.Fatalf("got %q, expected %q", g, e)
-				}
-			},
-		},
-		{
-			name: "cmaf presets are set correctly",
-			presetModifier: func(p db.Preset) db.Preset {
-				p.Container = "cmaf"
-				return p
-			},
-			assertion: func(output mc.Output, t *testing.T) {
-				if g, e := output.ContainerSettings.Container, mc.ContainerTypeCmfc; g != e {
-					t.Fatalf("got %q, expected %q", g, e)
-				}
-			},
-		},
-		{
-			name: "hdr10 values in presets are set correctly",
-			presetModifier: func(p db.Preset) db.Preset {
-				p.Video.HDR10Settings.Enabled = true
-				p.Video.HDR10Settings.MaxCLL = 10000
-				p.Video.HDR10Settings.MaxFALL = 400
-				p.Video.HDR10Settings.MasterDisplay = "G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(100000000000,0)"
-				return p
-			},
-			assertion: func(output mc.Output, t *testing.T) {
-				colorSpaceConversion := output.VideoDescription.VideoPreprocessors.ColorCorrector.ColorSpaceConversion
-				if g, e := colorSpaceConversion, mc.ColorSpaceConversionForceHdr10; g != e {
-					t.Fatalf("got %q, expected %q", g, e)
-				}
-
-				wantHDR10Metadata := &mc.Hdr10Metadata{
-					BluePrimaryX:              aws.Int64(6550),
-					BluePrimaryY:              aws.Int64(2300),
-					GreenPrimaryX:             aws.Int64(8500),
-					GreenPrimaryY:             aws.Int64(39850),
-					RedPrimaryX:               aws.Int64(35400),
-					RedPrimaryY:               aws.Int64(14600),
-					WhitePointX:               aws.Int64(15635),
-					WhitePointY:               aws.Int64(16450),
-					MaxLuminance:              aws.Int64(100000000000),
-					MinLuminance:              aws.Int64(0),
-					MaxContentLightLevel:      aws.Int64(10000),
-					MaxFrameAverageLightLevel: aws.Int64(400),
-				}
-
-				gotHDR10Metadata := output.VideoDescription.VideoPreprocessors.ColorCorrector.Hdr10Metadata
-				if g, e := gotHDR10Metadata, wantHDR10Metadata; !reflect.DeepEqual(g, e) {
-					t.Fatalf("got %q, expected %q", g, e)
-				}
-			},
-		},
-		{
-			name: "unrecognized containers return an error",
-			presetModifier: func(p db.Preset) db.Preset {
-				p.Container = "unrecognized"
-				return p
-			},
-			wantErrMsg: `mapping preset container to MediaConvert container: container "unrecognized" not supported with mediaconvert`,
-		},
-		{
-			name: "unrecognized h264 codec returns an error",
-			presetModifier: func(p db.Preset) db.Preset {
-				p.Video.Codec = "vp9001"
-				return p
-			},
-			wantErrMsg: `generating video preset: video codec "vp9001" is not yet supported with mediaconvert`,
-		},
-		{
-			name: "unrecognized h264 codec profile returns an error",
-			presetModifier: func(p db.Preset) db.Preset {
-				p.Video.Profile = "8000"
-				return p
-			},
-			wantErrMsg: `generating video preset: building h264 codec settings: h264 profile "8000" is not supported with mediaconvert`,
-		},
-		{
-			name: "unrecognized h264 codec level returns an error",
-			presetModifier: func(p db.Preset) db.Preset {
-				p.Video.ProfileLevel = "9001"
-				return p
-			},
-			wantErrMsg: `generating video preset: building h264 codec settings: h264 level "9001" is not supported with mediaconvert`,
-		},
-		{
-			name: "unrecognized rate control mode returns an error",
-			presetModifier: func(p db.Preset) db.Preset {
-				p.RateControl = "not supported"
-				return p
-			},
-			wantErrMsg: `generating video preset: building h264 codec settings: rate control mode "not supported" is not supported with mediaconvert`,
-		},
-		{
-			name: "unrecognized interlace modes return an error",
-			presetModifier: func(p db.Preset) db.Preset {
-				p.Video.InterlaceMode = "unsupported mode"
-				return p
-			},
-			wantErrMsg: `generating video preset: building h264 codec settings: h264 interlace mode "unsupported mode" is not supported with mediaconvert`,
-		},
-		{},
-		{
-			name: "unrecognized audio codec returns an error",
-			presetModifier: func(p db.Preset) db.Preset {
-				p.Audio.Codec = "aab"
-				return p
-			},
-			wantErrMsg: `generating audio preset: audio codec "aab" is not yet supported with mediaconvert`,
-		},
+func TestHDR10(t *testing.T) {
+	i := aws.Int64
+	display := "G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(100000000000,0)"
+	want := &mc.Hdr10Metadata{
+		GreenPrimaryX: i(8500), GreenPrimaryY: i(39850),
+		BluePrimaryX: i(6550), BluePrimaryY: i(2300),
+		RedPrimaryX: i(35400), RedPrimaryY: i(14600),
+		WhitePointX: i(15635), WhitePointY: i(16450),
+		MinLuminance: i(0), MaxLuminance: i(100000000000),
+		MaxContentLightLevel:      i(10000),
+		MaxFrameAverageLightLevel: i(400),
 	}
-	for _, tt := range tests {
 
-		t.Run(tt.name, func(t *testing.T) {
-			p := &driver{cfg: &config.MediaConvert{Destination: "s3://some_dest"}}
+	p := defaultPreset
+	p.Video.HDR10Settings.Enabled = true
+	p.Video.HDR10Settings.MaxCLL = 10000
+	p.Video.HDR10Settings.MaxFALL = 400
+	p.Video.HDR10Settings.MasterDisplay = display
 
-			input, err := p.createRequest(context.Background(), &db.Job{
-				ID: "jobID", ProviderName: Name, SourceMedia: "s3://some/path.mp4",
-				Outputs: []db.TranscodeOutput{{Preset: db.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
-			})
-			if err != nil && !strings.Contains(err.Error(), tt.wantErrMsg) {
-				t.Fatalf("driver.Transcode() error = %v, wantErr %q", err, tt.wantErrMsg)
-			}
-			if tt.assertion != nil {
-				t.Logf("input: %#v", err)
-				tt.assertion(input.Settings.OutputGroups[0].Outputs[0], t)
-			}
-		})
+	d := &driver{cfg: config.MediaConvert{Destination: "s3://some_dest"}}
+	req, err := d.createRequest(nil, &db.Job{
+		Outputs: []db.TranscodeOutput{{Preset: p}},
+	})
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+
+	cc := req.Settings.OutputGroups[0].Outputs[0].VideoDescription.VideoPreprocessors.ColorCorrector
+	if g, e := cc.ColorSpaceConversion, mc.ColorSpaceConversionForceHdr10; g != e {
+		t.Fatalf("force hdr10: have %v, want %v", g, e)
+	}
+
+	if g, e := cc.Hdr10Metadata, want; !reflect.DeepEqual(g, e) {
+		t.Fatalf("metadata: have %v, want %v", g, e)
 	}
 }
 
-func TestCreate(t *testing.T) {
+func TestSupport(t *testing.T) {
+	d := &driver{}
+	run := func(p db.Preset) (*mc.CreateJobInput, error) {
+		return d.createRequest(nil, &db.Job{Outputs: []db.TranscodeOutput{{Preset: p}}})
+	}
+	warn := false
+	ck := func(ctx string, err error, want ...error) {
+		t.Helper()
+		w := error(nil)
+		if len(want) > 0 {
+			w = want[0]
+		}
+		if !errors.Is(err, w) {
+			if !warn {
+				t.Fatalf("%s: %v (want %v)", ctx, err, w)
+			}
+			t.Logf("%s: %v (want %v)", ctx, err, w)
+		}
+	}
+
+	t.Run("Container", func(t *testing.T) {
+		for _, box := range []string{"mp4", "m3u8", "mxf", "cmaf", "mov", "webm"} {
+			mc, err := run(db.Preset{Container: box})
+			ck(box, err)
+			have := string(mc.Settings.OutputGroups[0].Outputs[0].ContainerSettings.Container)
+			have = strings.ToLower(have)
+			if have != box {
+				t.Logf("container type mismatch: %v != %v", have, box)
+			}
+		}
+
+		for _, box := range []string{"mp4", "m3u8", "mxf", "cmaf", "mov", "webm"} {
+			for _, codec := range []string{"", "h264", "h265", "av1", "xdcam", "vp8"} {
+				_, err := run(db.Preset{Container: box, Video: db.VideoPreset{Codec: codec}})
+				ck(box+"/"+codec, err)
+			}
+		}
+	})
+
+	t.Run("Audio", func(t *testing.T) {
+		for i, tt := range []struct {
+			p   db.AudioPreset
+			err error
+		}{
+			{db.AudioPreset{Codec: "aac"}, nil},
+			{db.AudioPreset{Codec: "aad"}, ErrUnsupported},
+		} {
+			_, err := run(db.Preset{Container: "mp4", Audio: tt.p})
+			ck(fmt.Sprintf("%d", i), err, tt.err)
+		}
+	})
+
+	t.Run("Video", func(t *testing.T) {
+		for i, tt := range []struct {
+			p   db.VideoPreset
+			err error
+		}{
+			{db.VideoPreset{Codec: "vp9001"}, ErrUnsupported},
+			{db.VideoPreset{Codec: "h264", Profile: "8000"}, ErrUnsupported},
+			{db.VideoPreset{Codec: "h264", Profile: "main"}, nil},
+			{db.VideoPreset{Codec: "h264", Profile: "high"}, nil},
+			{db.VideoPreset{Codec: "h264", Profile: "main", ProfileLevel: "1812"}, nil},
+			{db.VideoPreset{Codec: "h264", Profile: "main", ProfileLevel: "@@@@"}, nil},
+			{db.VideoPreset{Codec: "h265", Profile: "main"}, nil},
+			{db.VideoPreset{Codec: "h265", Profile: "main", ProfileLevel: "1812"}, ErrUnsupported},
+			{db.VideoPreset{Codec: "h265", Profile: "main", ProfileLevel: "@@@@"}, ErrUnsupported},
+
+			// Below: flaky tests or behavior
+			// NOTE(as): we seem to have special logic for this because of HDR support
+			//		{db.VideoPreset{Codec: "h265", Profile: "9000"}, ErrUnsupported},
+			{db.VideoPreset{Codec: "h264", InterlaceMode: "efas"}, nil},
+			{db.VideoPreset{Codec: "h265", InterlaceMode: "?"}, nil},
+			{db.VideoPreset{Codec: "av1", Profile: "f"}, nil},
+		} {
+			_, err := run(db.Preset{Container: "mp4", Video: tt.p})
+			ck(fmt.Sprintf("video%d", i), err, tt.err)
+		}
+	})
+
+	t.Run("FlakyValidation", func(t *testing.T) {
+		warn = true
+		for _, codec := range []string{"h264", "h265", "av1", "xdcam", "vp8"} {
+			_, err := run(db.Preset{Container: "mp4", Video: db.VideoPreset{Codec: codec}, RateControl: "?"})
+			ck(codec+"/ratecontrol", err, ErrUnsupported)
+
+			_, err = run(db.Preset{Container: "mp4", Video: db.VideoPreset{Codec: codec, Profile: "?"}})
+			ck(codec+"/profile", err, ErrUnsupported)
+
+			_, err = run(db.Preset{Container: "mp4", Video: db.VideoPreset{Codec: codec, ProfileLevel: "?"}})
+			ck(codec+"/profilelevel", err, ErrUnsupported)
+
+			_, err = run(db.Preset{Container: "mp4", Video: db.VideoPreset{Codec: codec, InterlaceMode: "?"}})
+			ck(codec+"/interlace", err, ErrUnsupported)
+		}
+	})
+
+}
+
+func TestDriverCreate(t *testing.T) {
 	vp8Preset := func(audioCodec string) db.Preset {
 		return db.Preset{
 			Name:        "preset_name",
@@ -278,12 +271,13 @@ func TestCreate(t *testing.T) {
 			Container:   "webm",
 			RateControl: "VBR",
 			Video: db.VideoPreset{
-				Width:   300,
-				Height:  400,
-				Codec:   "vp8",
-				Bitrate: 400000,
-				GopSize: 120,
-				GopUnit: "frames",
+				Width:         300,
+				Height:        400,
+				Codec:         "vp8",
+				Bitrate:       400000,
+				GopSize:       120,
+				GopUnit:       "frames",
+				InterlaceMode: "progressive",
 			},
 			Audio: db.AudioPreset{
 				Codec:         audioCodec,
@@ -294,7 +288,7 @@ func TestCreate(t *testing.T) {
 	}
 
 	tests := []struct {
-		cfg         *config.MediaConvert
+		cfg         config.MediaConvert
 		name        string
 		job         *db.Job
 		preset      db.Preset
@@ -304,7 +298,7 @@ func TestCreate(t *testing.T) {
 	}{
 		{
 			name: "H264/AAC/MP4",
-			cfg: &config.MediaConvert{
+			cfg: config.MediaConvert{
 				Role:            "some-role",
 				DefaultQueueARN: "some:default:queue:arn",
 			},
@@ -991,8 +985,8 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		{
-			name: "a job is mapped correctly to a mediaconvert job input when a preferred queue is defined",
-			cfg: &config.MediaConvert{
+			name: "MapPreferredQueue",
+			cfg: config.MediaConvert{
 				DefaultQueueARN:   "some:default:queue:arn",
 				PreferredQueueARN: "some:preferred:queue:arn",
 			},
@@ -1099,7 +1093,7 @@ func TestCreate(t *testing.T) {
 		},
 		{
 			name: "JobWithAudioDownmixAndTimeCodeBurninForMovOutput",
-			cfg: &config.MediaConvert{
+			cfg: config.MediaConvert{
 				DefaultQueueARN:   "some:default:queue:arn",
 				PreferredQueueARN: "some:preferred:queue:arn",
 			},
@@ -1230,7 +1224,7 @@ func TestCreate(t *testing.T) {
 		},
 		//{
 		//	name: "acceleration is enabled and the default queue is used when a source has a large filesize",
-		//	cfg: &config.MediaConvert{
+		//	cfg: config.MediaConvert{
 		//		DefaultQueueARN:   "some:default:queue:arn",
 		//		PreferredQueueARN: "some:preferred:queue:arn",
 		//	},
@@ -1312,29 +1306,30 @@ func TestCreate(t *testing.T) {
 	for _, tt := range tests {
 
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.cfg == nil {
-				tt.cfg = &config.MediaConvert{Destination: tt.destination}
-			} else {
-				tt.cfg.Destination = tt.destination
-			}
+			tt.cfg.Destination = tt.destination
 
 			p := &driver{
 				cfg: tt.cfg,
 			}
+			tt.job.Outputs[0].Preset = tt.preset
 			input, err := p.createRequest(context.Background(), tt.job)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("driver.Transcode() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			if g, e := input, tt.wantJobReq; !reflect.DeepEqual(g, e) {
-				t.Fatalf("Transcode(): wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
-					g, cmp.Diff(e, g))
+			if g, e := input, &tt.wantJobReq; !reflect.DeepEqual(g, e) {
+				t.Fatalf("translation:\n\t\thave: %s\n\t\twant: %s", readable(g), readable(e))
 			}
 		})
 	}
 }
 
-func Test_driver_JobStatus(t *testing.T) {
+func readable(i interface{}) string {
+	data, _ := json.Marshal(i)
+	return string(data)
+}
+
+func TestDriverStatus(t *testing.T) {
 	tests := []struct {
 		name        string
 		destination string
@@ -1343,7 +1338,7 @@ func Test_driver_JobStatus(t *testing.T) {
 		wantErr     bool
 	}{
 		{
-			name:        "a job that has been queued returns the correct status",
+			name:        "Submitted",
 			destination: "s3://some/destination",
 			mcJob: mc.Job{
 				Status: mc.JobStatusSubmitted,
@@ -1357,7 +1352,7 @@ func Test_driver_JobStatus(t *testing.T) {
 			},
 		},
 		{
-			name:        "a job that is currently transcoding returns the correct status",
+			name:        "Progressing",
 			destination: "s3://some/destination",
 			mcJob: mc.Job{
 				Status:             mc.JobStatusProgressing,
@@ -1373,7 +1368,7 @@ func Test_driver_JobStatus(t *testing.T) {
 			},
 		},
 		{
-			name:        "a job that has finished transcoding returns the correct status",
+			name:        "Complete",
 			destination: "s3://some/destination",
 			mcJob: mc.Job{
 				Status: mc.JobStatusComplete,
@@ -1451,7 +1446,7 @@ func Test_driver_JobStatus(t *testing.T) {
 	for _, tt := range tests {
 
 		t.Run(tt.name, func(t *testing.T) {
-			p := &driver{cfg: &config.MediaConvert{
+			p := &driver{cfg: config.MediaConvert{
 				Destination: tt.destination,
 			}}
 

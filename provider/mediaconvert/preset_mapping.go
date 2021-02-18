@@ -25,14 +25,14 @@ var timecodePositionMap = map[int]mc.TimecodeBurninPosition{
 func outputFrom(preset db.Preset, sourceInfo db.File) (mc.Output, error) {
 	container, err := containerFrom(preset.Container)
 	if err != nil {
-		return mc.Output{}, errors.Wrap(err, "mapping preset container to MediaConvert container")
+		return mc.Output{}, fmt.Errorf("container: %w", err)
 	}
 
 	var videoPreset *mc.VideoDescription
 	if preset.Video != (db.VideoPreset{}) {
 		videoPreset, err = videoPresetFrom(preset, sourceInfo)
 		if err != nil {
-			return mc.Output{}, errors.Wrap(err, "generating video preset")
+			return mc.Output{}, fmt.Errorf("video: %w", err)
 		}
 	}
 
@@ -40,7 +40,7 @@ func outputFrom(preset db.Preset, sourceInfo db.File) (mc.Output, error) {
 	if preset.Audio != (db.AudioPreset{}) {
 		audioPreset, err := audioPresetFrom(preset)
 		if err != nil {
-			return mc.Output{}, errors.Wrap(err, "generating audio preset")
+			return mc.Output{}, fmt.Errorf("audio: %w", err)
 		}
 		if preset.Audio.DiscreteTracks {
 			audioPresets = audioSplit(audioPreset)
@@ -75,9 +75,8 @@ func state(status mc.JobStatus) provider.State {
 	}
 }
 
-func containerFrom(container string) (mc.ContainerType, error) {
-	container = strings.ToLower(container)
-	switch container {
+func containerFrom(v string) (mc.ContainerType, error) {
+	switch strings.ToLower(v) {
 	case "mxf":
 		return mc.ContainerTypeMxf, nil
 	case "m3u8":
@@ -91,7 +90,7 @@ func containerFrom(container string) (mc.ContainerType, error) {
 	case "webm":
 		return mc.ContainerTypeWebm, nil
 	default:
-		return "", fmt.Errorf("container %q not supported with mediaconvert", container)
+		return "", fmt.Errorf("%w: %q", ErrUnsupported, v)
 	}
 }
 
@@ -144,7 +143,9 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mc.VideoDescription
 	case "xdcam":
 		s, err = mpeg2XDCAM.generate(preset)
 		defer func() {
-			videoPreset.VideoPreprocessors.Deinterlacer = nil
+			if videoPreset.VideoPreprocessors != nil {
+				videoPreset.VideoPreprocessors.Deinterlacer = nil
+			}
 		}()
 	case "h264":
 		s, err = h264CodecSettingsFrom(preset)
@@ -155,7 +156,7 @@ func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mc.VideoDescription
 	case "av1":
 		s, err = av1CodecSettingsFrom(preset)
 	default:
-		return nil, fmt.Errorf("video codec %q is not yet supported with mediaconvert", codec)
+		return nil, fmt.Errorf("video: codec: %w: %q", ErrUnsupported, codec)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("building %s codec settings: %w", codec, err)
@@ -410,7 +411,7 @@ func audioPresetFrom(preset db.Preset) (mc.AudioDescription, error) {
 			},
 		}
 	default:
-		return mc.AudioDescription{}, fmt.Errorf("audio codec %q is not yet supported with mediaconvert", codec)
+		return mc.AudioDescription{}, fmt.Errorf("%w: %q", ErrUnsupported, codec)
 	}
 
 	return audioPreset, nil

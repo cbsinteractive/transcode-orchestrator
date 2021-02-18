@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func Test_mcProvider_audioSelectorFrom(t *testing.T) {
+func TestAudio(t *testing.T) {
 	audioSelectorKey := "Audio Selector 1"
 	defaultSelectorMap := map[string]mc.AudioSelector{
 		audioSelectorKey: {
@@ -24,7 +24,7 @@ func Test_mcProvider_audioSelectorFrom(t *testing.T) {
 		wantErr      bool
 	}{
 		{
-			name: "AudioDownMixSrcChannelsAre5.1SingleTrack",
+			name: "SingleTrack5.1",
 			audioDownmix: db.AudioDownmix{
 				SrcChannels: []db.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
@@ -45,7 +45,7 @@ func Test_mcProvider_audioSelectorFrom(t *testing.T) {
 			}),
 		},
 		{
-			name: "AudioDownMixSrcChannelsAre5.1DiscreteTracks",
+			name: "DiscreteTrack5.1",
 			audioDownmix: db.AudioDownmix{
 				SrcChannels: []db.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
@@ -66,7 +66,7 @@ func Test_mcProvider_audioSelectorFrom(t *testing.T) {
 			}),
 		},
 		{
-			name: "AudioDownMixSrcChannelsAre7.1DiscreteTrack",
+			name: "DiscreteTrack7.1",
 			audioDownmix: db.AudioDownmix{
 				SrcChannels: []db.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
@@ -89,7 +89,7 @@ func Test_mcProvider_audioSelectorFrom(t *testing.T) {
 			}),
 		},
 		{
-			name: "DestinationChannelLayoutNotStereo",
+			name: "NotStereo",
 			audioDownmix: db.AudioDownmix{
 				SrcChannels: []db.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
