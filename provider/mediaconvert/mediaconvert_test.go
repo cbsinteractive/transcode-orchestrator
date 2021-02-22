@@ -1317,10 +1317,10 @@ func TestDriverCreate(t *testing.T) {
 				t.Fatalf("driver.Transcode() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			t.Logf("want: `%s`,\n", readable(tt.wantJobReq))
-			req := mc.CreateJobInput{}
-			json.Unmarshal([]byte(readable(tt.wantJobReq)), &req)
-			if g, e := input, &req; !reflect.DeepEqual(g, e) {
+			//t.Logf("want: `%s`,\n", readable(tt.wantJobReq))
+			//req := mc.CreateJobInput{}
+			//json.Unmarshal([]byte(readable(tt.wantJobReq)), &req)
+			if g, e := input, &tt.wantJobReq; !reflect.DeepEqual(g, e) {
 				t.Fatalf("translation:\n\t\thave: %s\n\t\twant: %s", readable(g), readable(e))
 			}
 		})

@@ -9,7 +9,7 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-func TestBitrateLevel_vbrLevel(t *testing.T) {
+func TestBitrateLevel(t *testing.T) {
 	for _, tt := range []struct {
 		n       string
 		bitrate int64
@@ -30,7 +30,7 @@ func TestBitrateLevel_vbrLevel(t *testing.T) {
 	}
 }
 
-func TestSetterScanType(t *testing.T) {
+func TestScanType(t *testing.T) {
 	dst := db.Preset{}
 	src := db.File{}
 
