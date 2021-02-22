@@ -40,7 +40,7 @@ func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybr
 		preset := outputCfg.Preset
 
 		// removing audio so we can processing this separately
-		preset.Audio = db.AudioPreset{}
+		preset.Audio = db.Audio{}
 		presetsWithoutAudio[outputCfg.FileName] = preset
 	}
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestCodec(t *testing.T) {
-	p := db.Preset{Name: "test", Video: db.VideoPreset{Profile: "HIGH"}}
+	p := db.Preset{Name: "test", Video: db.Video{Profile: "HIGH"}}
 	c := CodecH264{}
 	c.set(p)
 	if c.Err() != nil {

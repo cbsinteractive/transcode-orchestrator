@@ -25,9 +25,9 @@ var (
 		Container:   "mp4",
 		RateControl: "VBR",
 		TwoPass:     true,
-		Video: db.VideoPreset{
+		Video: db.Video{
 			Profile:       "high",
-			ProfileLevel:  "4.1",
+			Level:         "4.1",
 			Width:         300,
 			Height:        400,
 			Codec:         "h264",
@@ -36,7 +36,7 @@ var (
 			GopUnit:       "frames",
 			InterlaceMode: "progressive",
 		},
-		Audio: db.AudioPreset{
+		Audio: db.Audio{
 			Codec:   "aac",
 			Bitrate: 20000,
 		},
@@ -48,7 +48,7 @@ var (
 		Container:   "mp4",
 		RateControl: "CBR",
 		TwoPass:     false,
-		Video: db.VideoPreset{
+		Video: db.Video{
 			Width:         300,
 			Height:        400,
 			Codec:         "h265",
@@ -64,7 +64,7 @@ var (
 		Description: "test_desc",
 		Container:   "mp4",
 		TwoPass:     false,
-		Video: db.VideoPreset{
+		Video: db.Video{
 			Width:         300,
 			Height:        400,
 			Codec:         "av1",
@@ -79,7 +79,7 @@ var (
 		Name:        "preset_name",
 		Description: "test_desc",
 		Container:   "mp4",
-		Audio: db.AudioPreset{
+		Audio: db.Audio{
 			Codec:   "aac",
 			Bitrate: 20000,
 		},
@@ -91,9 +91,9 @@ var (
 		Container:   "mov",
 		RateControl: "VBR",
 		TwoPass:     true,
-		Video: db.VideoPreset{
+		Video: db.Video{
 			Profile:       "high",
-			ProfileLevel:  "4.1",
+			Level:         "4.1",
 			Width:         300,
 			Height:        400,
 			Codec:         "h264",
@@ -109,7 +109,7 @@ var (
 				},
 			},
 		},
-		Audio: db.AudioPreset{
+		Audio: db.Audio{
 			Codec:   "aac",
 			Bitrate: 20000,
 		},
@@ -198,7 +198,7 @@ func TestSupport(t *testing.T) {
 
 		for _, box := range []string{"mp4", "m3u8", "mxf", "cmaf", "mov", "webm"} {
 			for _, codec := range []string{"", "h264", "h265", "av1", "xdcam", "vp8"} {
-				_, err := run(db.Preset{Container: box, Video: db.VideoPreset{Codec: codec}})
+				_, err := run(db.Preset{Container: box, Video: db.Video{Codec: codec}})
 				ck(box+"/"+codec, err)
 			}
 		}
@@ -206,11 +206,11 @@ func TestSupport(t *testing.T) {
 
 	t.Run("Audio", func(t *testing.T) {
 		for i, tt := range []struct {
-			p   db.AudioPreset
+			p   db.Audio
 			err error
 		}{
-			{db.AudioPreset{Codec: "aac"}, nil},
-			{db.AudioPreset{Codec: "aad"}, ErrUnsupported},
+			{db.Audio{Codec: "aac"}, nil},
+			{db.Audio{Codec: "aad"}, ErrUnsupported},
 		} {
 			_, err := run(db.Preset{Container: "mp4", Audio: tt.p})
 			ck(fmt.Sprintf("%d", i), err, tt.err)
@@ -219,25 +219,25 @@ func TestSupport(t *testing.T) {
 
 	t.Run("Video", func(t *testing.T) {
 		for i, tt := range []struct {
-			p   db.VideoPreset
+			p   db.Video
 			err error
 		}{
-			{db.VideoPreset{Codec: "vp9001"}, ErrUnsupported},
-			{db.VideoPreset{Codec: "h264", Profile: "8000"}, ErrUnsupported},
-			{db.VideoPreset{Codec: "h264", Profile: "main"}, nil},
-			{db.VideoPreset{Codec: "h264", Profile: "high"}, nil},
-			{db.VideoPreset{Codec: "h264", Profile: "main", ProfileLevel: "1812"}, nil},
-			{db.VideoPreset{Codec: "h264", Profile: "main", ProfileLevel: "@@@@"}, nil},
-			{db.VideoPreset{Codec: "h265", Profile: "main"}, nil},
-			{db.VideoPreset{Codec: "h265", Profile: "main", ProfileLevel: "1812"}, ErrUnsupported},
-			{db.VideoPreset{Codec: "h265", Profile: "main", ProfileLevel: "@@@@"}, ErrUnsupported},
+			{db.Video{Codec: "vp9001"}, ErrUnsupported},
+			{db.Video{Codec: "h264", Profile: "8000"}, ErrUnsupported},
+			{db.Video{Codec: "h264", Profile: "main"}, nil},
+			{db.Video{Codec: "h264", Profile: "high"}, nil},
+			{db.Video{Codec: "h264", Profile: "main", Level: "1812"}, nil},
+			{db.Video{Codec: "h264", Profile: "main", Level: "@@@@"}, nil},
+			{db.Video{Codec: "h265", Profile: "main"}, nil},
+			{db.Video{Codec: "h265", Profile: "main", Level: "1812"}, ErrUnsupported},
+			{db.Video{Codec: "h265", Profile: "main", Level: "@@@@"}, ErrUnsupported},
 
 			// Below: flaky tests or behavior
 			// NOTE(as): we seem to have special logic for this because of HDR support
-			//		{db.VideoPreset{Codec: "h265", Profile: "9000"}, ErrUnsupported},
-			{db.VideoPreset{Codec: "h264", InterlaceMode: "efas"}, nil},
-			{db.VideoPreset{Codec: "h265", InterlaceMode: "?"}, nil},
-			{db.VideoPreset{Codec: "av1", Profile: "f"}, nil},
+			//		{db.Video{Codec: "h265", Profile: "9000"}, ErrUnsupported},
+			{db.Video{Codec: "h264", InterlaceMode: "efas"}, nil},
+			{db.Video{Codec: "h265", InterlaceMode: "?"}, nil},
+			{db.Video{Codec: "av1", Profile: "f"}, nil},
 		} {
 			_, err := run(db.Preset{Container: "mp4", Video: tt.p})
 			ck(fmt.Sprintf("video%d", i), err, tt.err)
@@ -247,16 +247,16 @@ func TestSupport(t *testing.T) {
 	t.Run("FlakyValidation", func(t *testing.T) {
 		warn = true
 		for _, codec := range []string{"h264", "h265", "av1", "xdcam", "vp8"} {
-			_, err := run(db.Preset{Container: "mp4", Video: db.VideoPreset{Codec: codec}, RateControl: "?"})
+			_, err := run(db.Preset{Container: "mp4", Video: db.Video{Codec: codec}, RateControl: "?"})
 			ck(codec+"/ratecontrol", err, ErrUnsupported)
 
-			_, err = run(db.Preset{Container: "mp4", Video: db.VideoPreset{Codec: codec, Profile: "?"}})
+			_, err = run(db.Preset{Container: "mp4", Video: db.Video{Codec: codec, Profile: "?"}})
 			ck(codec+"/profile", err, ErrUnsupported)
 
-			_, err = run(db.Preset{Container: "mp4", Video: db.VideoPreset{Codec: codec, ProfileLevel: "?"}})
+			_, err = run(db.Preset{Container: "mp4", Video: db.Video{Codec: codec, Level: "?"}})
 			ck(codec+"/profilelevel", err, ErrUnsupported)
 
-			_, err = run(db.Preset{Container: "mp4", Video: db.VideoPreset{Codec: codec, InterlaceMode: "?"}})
+			_, err = run(db.Preset{Container: "mp4", Video: db.Video{Codec: codec, InterlaceMode: "?"}})
 			ck(codec+"/interlace", err, ErrUnsupported)
 		}
 	})
@@ -270,7 +270,7 @@ func TestDriverCreate(t *testing.T) {
 			Description: "test_desc",
 			Container:   "webm",
 			RateControl: "VBR",
-			Video: db.VideoPreset{
+			Video: db.Video{
 				Width:         300,
 				Height:        400,
 				Codec:         "vp8",
@@ -279,7 +279,7 @@ func TestDriverCreate(t *testing.T) {
 				GopUnit:       "frames",
 				InterlaceMode: "progressive",
 			},
-			Audio: db.AudioPreset{
+			Audio: db.Audio{
 				Codec:         audioCodec,
 				Bitrate:       96000,
 				Normalization: true,
@@ -1317,16 +1317,14 @@ func TestDriverCreate(t *testing.T) {
 				t.Fatalf("driver.Transcode() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			if g, e := input, &tt.wantJobReq; !reflect.DeepEqual(g, e) {
+			t.Logf("want: `%s`,\n", readable(tt.wantJobReq))
+			req := mc.CreateJobInput{}
+			json.Unmarshal([]byte(readable(tt.wantJobReq)), &req)
+			if g, e := input, &req; !reflect.DeepEqual(g, e) {
 				t.Fatalf("translation:\n\t\thave: %s\n\t\twant: %s", readable(g), readable(e))
 			}
 		})
 	}
-}
-
-func readable(i interface{}) string {
-	data, _ := json.Marshal(i)
-	return string(data)
 }
 
 func TestDriverStatus(t *testing.T) {
@@ -1456,5 +1454,30 @@ func TestDriverStatus(t *testing.T) {
 					g, cmp.Diff(e, g))
 			}
 		})
+	}
+}
+
+func readable(i interface{}) string {
+	data, _ := json.Marshal(i)
+	var v interface{}
+	json.Unmarshal(data, &v)
+	filterjunk(v)
+	data, _ = json.Marshal(v)
+	return string(data)
+}
+func filterjunk(v interface{}) {
+	switch t := v.(type) {
+	case map[string]interface{}:
+		for k, v := range t {
+			if v == nil || len(fmt.Sprint(v)) == 0 {
+				delete(t, k)
+			} else {
+				filterjunk(v)
+			}
+		}
+	case []interface{}:
+		for _, v := range t {
+			filterjunk(v)
+		}
 	}
 }

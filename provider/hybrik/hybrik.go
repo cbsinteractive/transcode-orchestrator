@@ -313,8 +313,8 @@ func (p *hybrikProvider) Cancel(_ context.Context, id string) error {
 	return p.c.StopJob(id)
 }
 
-func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.VideoTarget, error) {
-	if (preset == db.VideoPreset{}) {
+func videoTargetFrom(preset db.Video, rateControl string) (*hwrapper.VideoTarget, error) {
+	if (preset == db.Video{}) {
 		return nil, nil
 	}
 
@@ -329,7 +329,7 @@ func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.Video
 	}
 
 	videoProfile := strings.ToLower(preset.Profile)
-	videoLevel := preset.ProfileLevel
+	videoLevel := preset.Level
 
 	// TODO: Understand video-transcoding-api profile + level settings in relation to vp8
 	// For now, we will omit and leave to encoder defaults
@@ -355,8 +355,8 @@ func videoTargetFrom(preset db.VideoPreset, rateControl string) (*hwrapper.Video
 	}, nil
 }
 
-func audioTargetFrom(preset db.AudioPreset) ([]hwrapper.AudioTarget, error) {
-	if (preset == db.AudioPreset{}) {
+func audioTargetFrom(preset db.Audio) ([]hwrapper.AudioTarget, error) {
+	if (preset == db.Audio{}) {
 		return []hwrapper.AudioTarget{}, nil
 	}
 	return []hwrapper.AudioTarget{

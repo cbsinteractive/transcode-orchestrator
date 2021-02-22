@@ -34,7 +34,7 @@ func h265CodecSettingsFrom(preset db.Preset) (*mc.VideoCodecSettings, error) {
 		profile = mc.H265CodecProfileMain10Main
 	}
 
-	level, err := h265CodecLevelFrom(preset.Video.ProfileLevel)
+	level, err := h265CodecLevelFrom(preset.Video.Level)
 	if err != nil {
 		return nil, err
 	}

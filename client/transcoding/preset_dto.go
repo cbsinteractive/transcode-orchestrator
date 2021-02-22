@@ -56,7 +56,7 @@ type OutputOptions struct {
 // VideoPreset defines the set of parameters for video on a given preset
 type VideoPreset struct {
 	Profile             string              `json:"profile,omitempty"`
-	ProfileLevel        string              `json:"profileLevel,omitempty"`
+	Level               string              `json:"profileLevel,omitempty"`
 	Width               string              `json:"width,omitempty"`
 	Height              string              `json:"height,omitempty"`
 	Codec               string              `json:"codec,omitempty"`

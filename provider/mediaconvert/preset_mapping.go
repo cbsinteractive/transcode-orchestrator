@@ -29,7 +29,7 @@ func outputFrom(preset db.Preset, sourceInfo db.File) (mc.Output, error) {
 	}
 
 	var videoPreset *mc.VideoDescription
-	if preset.Video != (db.VideoPreset{}) {
+	if preset.Video != (db.Video{}) {
 		videoPreset, err = videoPresetFrom(preset, sourceInfo)
 		if err != nil {
 			return mc.Output{}, fmt.Errorf("video: %w", err)
@@ -37,7 +37,7 @@ func outputFrom(preset db.Preset, sourceInfo db.File) (mc.Output, error) {
 	}
 
 	var audioPresets []mc.AudioDescription
-	if preset.Audio != (db.AudioPreset{}) {
+	if preset.Audio != (db.Audio{}) {
 		audioPreset, err := audioPresetFrom(preset)
 		if err != nil {
 			return mc.Output{}, fmt.Errorf("audio: %w", err)
@@ -271,7 +271,7 @@ func (s setter) Crop(v *mc.VideoDescription) *mc.VideoDescription {
 	return v
 }
 
-func videoPreprocessorsFrom(videoPreset db.VideoPreset) (*mc.VideoPreprocessor, error) {
+func videoPreprocessorsFrom(videoPreset db.Video) (*mc.VideoPreprocessor, error) {
 	videoPreprocessor := &mc.VideoPreprocessor{}
 
 	if videoPreset.Overlays != nil && videoPreset.Overlays.TimecodeBurnin != nil {

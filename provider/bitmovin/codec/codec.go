@@ -102,7 +102,7 @@ func (c *codec) setVideo(cfg VideoPTR, p db.Preset) bool {
 		}
 	}
 	if cfg.Level != nil {
-		if err := c.Levels.Set(p.Video.ProfileLevel, cfg.Level); err != nil {
+		if err := c.Levels.Set(p.Video.Level, cfg.Level); err != nil {
 			return c.errorf("%s: level: %w", *cfg.Name, err)
 		}
 	}

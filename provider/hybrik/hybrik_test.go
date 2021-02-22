@@ -8,7 +8,6 @@ import (
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/cbsinteractive/transcode-orchestrator/db/dbtest"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -19,9 +18,9 @@ var (
 		Container:   "mp4",
 		RateControl: "CBR",
 		TwoPass:     true,
-		Video: db.VideoPreset{
+		Video: db.Video{
 			Profile:       "high",
-			ProfileLevel:  "4.1",
+			Level:         "4.1",
 			Width:         "300",
 			Height:        "400",
 			Codec:         "h264",
@@ -29,7 +28,7 @@ var (
 			GopSize:       "120",
 			InterlaceMode: "progressive",
 		},
-		Audio: db.AudioPreset{
+		Audio: db.Audio{
 			Codec:   "aac",
 			Bitrate: "20000",
 		},
@@ -582,7 +581,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 		//		Name:        defaultPreset.Name,
 		//		Description: defaultPreset.Description,
 		//		Container:   "mp4",
-		//		Video: db.VideoPreset{
+		//		Video: db.Video{
 		//			Profile:       "main10",
 		//			Width:         "300",
 		//			Codec:         "h265",
@@ -706,7 +705,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 				Name:        defaultPreset.Name,
 				Description: defaultPreset.Description,
 				Container:   "mp4",
-				Video: db.VideoPreset{
+				Video: db.Video{
 					Profile:       "main10",
 					Width:         "300",
 					Codec:         "h265",

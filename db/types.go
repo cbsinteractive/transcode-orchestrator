@@ -9,6 +9,46 @@ import (
 	"github.com/gofrs/uuid"
 )
 
+const old0 = `{
+	"providers": ["mediaconvert"],
+	"preset": {
+		"name": "whatever",
+		"container": "mxf",
+		"rateControl": "CBR",
+		"video": {"height": "1080","width": "1920","codec": "xdcam","profile": "hd422","bitrate": "5000000","gopSize": "60","gopMode": "fixed","interlaceMode": "interlaced"},
+		"audio": {"codec": "pcm","discreteTracks": true}
+	}
+}`
+const old1 = `{
+	"provider": "mediaconvert",
+	"source": "s3://vtg-as-test-bucket/mxf/test/in.mp4",
+	"destinationBasePath": "s3://vtg-as-test-bucket/mxf/test",
+	"outputs": [
+		{
+			"preset": "whatever",
+			"fileName": "out.mxf"
+		}
+	]
+}`
+
+const new0 = `{
+	"jobID": "0000001",
+	"provider": "mediaconvert",
+	"source": "s3://vtg-as-test-bucket/mxf/test/in.mp4",
+	"destinationBasePath": "s3://vtg-as-test-bucket/mxf/test",
+	"outputs": [{
+			"preset": {
+				"name": "whatever",
+				"container": "mxf",
+				"rateControl": "CBR",
+				"video": {"height": "1080","width": "1920","codec": "xdcam","profile": "hd422","bitrate": "5000000","gopSize": "60","gopMode": "fixed","interlaceMode": "interlaced"},
+				"audio": {"codec": "pcm","discreteTracks": true}
+			},
+			"fileName": "out.mxf"
+		}
+	]
+}`
+
 // Job represents the job that is persisted in the repository of the Transcoding
 // API.
 type Job struct {
@@ -183,28 +223,31 @@ type LocalPreset struct {
 
 // Preset defines the set of parameters of a given preset
 type Preset struct {
-	Name            string      `json:"name,omitempty"`
-	Description     string      `json:"description,omitempty"`
-	SourceContainer string      `json:"sourceContainer,omitempty"`
-	Container       string      `json:"container,omitempty"`
-	RateControl     string      `json:"rateControl,omitempty"`
-	TwoPass         bool        `json:"twoPass"`
-	Video           VideoPreset `json:"video"`
-	Audio           AudioPreset `json:"audio"`
+	Name            string `json:"name,omitempty"`
+	Description     string `json:"description,omitempty"`
+	SourceContainer string `json:"sourceContainer,omitempty"`
+	Container       string `json:"container,omitempty"`
+	RateControl     string `json:"rateControl,omitempty"`
+	TwoPass         bool   `json:"twoPass"`
+	Video           Video  `json:"video"`
+	Audio           Audio  `json:"audio"`
 }
 
-// VideoPreset defines the set of parameters for video on a given preset
-type VideoPreset struct {
-	Profile             string              `json:"profile,omitempty"`
-	ProfileLevel        string              `json:"profileLevel,omitempty"`
-	Codec               string              `json:"codec,omitempty"`
-	Width               int                 `json:"width,omitempty"`
-	Height              int                 `json:"height,omitempty"`
-	Bitrate             int                 `json:"bitrate,omitempty"`
-	GopSize             float64             `json:"gopSize,omitempty"`
-	GopUnit             string              `json:"gopUnit,omitempty"`
-	GopMode             string              `json:"gopMode,omitempty"`
-	InterlaceMode       string              `json:"interlaceMode,omitempty"`
+// Video transcoding parameters
+type Video struct {
+	Codec   string `json:"codec,omitempty"`
+	Profile string `json:"profile,omitempty"`
+	Level   string `json:"profileLevel,omitempty"`
+
+	Width   int `json:"width,omitempty"`
+	Height  int `json:"height,omitempty"`
+	Bitrate int `json:"bitrate,omitempty"`
+
+	GopSize       float64 `json:"gopSize,omitempty"`
+	GopUnit       string  `json:"gopUnit,omitempty"`
+	GopMode       string  `json:"gopMode,omitempty"`
+	InterlaceMode string  `json:"interlaceMode,omitempty"`
+
 	HDR10Settings       HDR10Settings       `json:"hdr10"`
 	DolbyVisionSettings DolbyVisionSettings `json:"dolbyVision"`
 	Overlays            *Overlays           `json:"overlays,omitempty"`
@@ -253,8 +296,8 @@ type DolbyVisionSettings struct {
 	Enabled bool `json:"enabled"`
 }
 
-// AudioPreset defines the set of parameters for audio on a given preset
-type AudioPreset struct {
+// Audio defines audio transcoding parameters
+type Audio struct {
 	Codec          string `json:"codec,omitempty"`
 	Bitrate        int    `json:"bitrate,omitempty"`
 	Normalization  bool   `json:"normalization,omitempty"`
