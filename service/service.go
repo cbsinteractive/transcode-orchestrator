@@ -10,6 +10,7 @@ import (
 
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 	transcoding "github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/cbsinteractive/transcode-orchestrator/service/exceptions"
 	"github.com/sirupsen/logrus"
@@ -77,7 +78,7 @@ func (s *Server) provider0(job *job.Job) (transcoding.Provider, error) {
 	return fn(s.Config)
 }
 
-func (s *Server) putJob0(job *job.Job) (*transcoding.Status, error) {
+func (s *Server) putJob0(job *job.Job) (*job.Status, error) {
 	p, err := s.provider0(job)
 	if err != nil {
 		return nil, err
@@ -95,7 +96,7 @@ func (s *Server) putJob0(job *job.Job) (*transcoding.Status, error) {
 	return stat, nil
 }
 
-func (s *Server) getJob0(job *job.Job, del bool) (*transcoding.Status, error) {
+func (s *Server) getJob0(job *job.Job, del bool) (*job.Status, error) {
 	if err := s.DB.Get(job.ID, &job); err != nil {
 		return nil, err
 	}
