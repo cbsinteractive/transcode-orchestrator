@@ -8,6 +8,7 @@ import (
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -28,7 +29,7 @@ var (
 			GopSize:       120,
 			InterlaceMode: "progressive",
 		},
-		Audio: db.Audio{
+		Audio: job.Audio{
 			Codec:   "aac",
 			Bitrate: 20000,
 		},
@@ -190,7 +191,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 				p.Video.Codec = "h265"
 				p.Video.Profile = ""
 
-				p.Video.HDR10Settings = db.HDR10Settings{
+				p.Video.HDR10Settings = job.HDR10{
 					Enabled:       true,
 					MaxCLL:        10000,
 					MaxFALL:       400,
@@ -272,7 +273,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 				p.Video.Codec = "h265"
 				p.Video.Profile = ""
 				p.SourceContainer = "mxf"
-				p.Video.HDR10Settings = db.HDR10Settings{
+				p.Video.HDR10Settings = job.HDR10{
 					Enabled:       true,
 					MaxCLL:        10000,
 					MaxFALL:       400,

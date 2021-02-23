@@ -5,6 +5,7 @@ import (
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/mitchellh/hashstructure"
 	"github.com/pkg/errors"
 )
@@ -52,7 +53,7 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Ele
 		presets[outputCfg.FileName] = preset
 
 		// removing audio so we can processing this separately
-		preset.Audio = db.Audio{}
+		preset.Audio = job.Audio{}
 		presetsWithoutAudio[outputCfg.FileName] = preset
 	}
 
@@ -171,7 +172,7 @@ func (p *hybrikProvider) dolbyVisionMezzQCElementFrom(mezzQCComputeTag string, c
 	return mezzQCElement
 }
 
-func audioTargetFromPreset(preset job.Preset) (db.Audio, bool, error) {
+func audioTargetFromPreset(preset job.Preset) (job.Audio, bool, error) {
 	audioCfg := preset.Audio
-	return audioCfg, audioCfg != (db.Audio{}), nil
+	return audioCfg, audioCfg != (job.Audio{}), nil
 }

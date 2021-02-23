@@ -5,6 +5,7 @@ import (
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/mitchellh/hashstructure"
 	"github.com/pkg/errors"
 )
@@ -153,7 +154,7 @@ func transcodePayloadModifiersFor(preset job.Preset) []transcodePayloadModifier 
 }
 
 func (p *hybrikProvider) audioElementsFrom(presets map[string]job.Preset, cfg jobCfg) ([]hybrik.Element, map[uint64]string, error) {
-	audioConfigurations := map[uint64]db.Audio{}
+	audioConfigurations := map[uint64]job.Audio{}
 	for _, preset := range presets {
 		audioCfg, found, err := audioTargetFromPreset(preset)
 		if err != nil {
@@ -189,7 +190,7 @@ func (p *hybrikProvider) audioElementsFrom(presets map[string]job.Preset, cfg jo
 	return audioElements, audioPresetsToFilename, nil
 }
 
-func (p *hybrikProvider) transcodeAudioElementFromPreset(target db.Audio, outputFilename string, idx int,
+func (p *hybrikProvider) transcodeAudioElementFromPreset(target job.Audio, outputFilename string, idx int,
 	cfg jobCfg, container string) (hybrik.Element, error) {
 	transcodeComputeTags := []string{}
 	if tag, found := cfg.computeTags[db.ComputeClassTranscodeDefault]; found {

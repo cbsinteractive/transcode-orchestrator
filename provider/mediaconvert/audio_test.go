@@ -1,12 +1,13 @@
 package mediaconvert
 
 import (
-	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/google/go-cmp/cmp"
 	"reflect"
 	"testing"
+
+	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestAudio(t *testing.T) {
@@ -19,14 +20,14 @@ func TestAudio(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		audioDownmix db.AudioDownmix
+		audioDownmix job.AudioDownmix
 		want         mc.AudioSelector
 		wantErr      bool
 	}{
 		{
 			name: "SingleTrack5.1",
-			audioDownmix: db.AudioDownmix{
-				SrcChannels: []db.AudioChannel{
+			audioDownmix: job.AudioDownmix{
+				SrcChannels: []job.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 					{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},
@@ -34,7 +35,7 @@ func TestAudio(t *testing.T) {
 					{TrackIdx: 1, ChannelIdx: 5, Layout: "Ls"},
 					{TrackIdx: 1, ChannelIdx: 6, Layout: "Rs"},
 				},
-				DestChannels: []db.AudioChannel{
+				DestChannels: []job.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 				},
@@ -46,8 +47,8 @@ func TestAudio(t *testing.T) {
 		},
 		{
 			name: "DiscreteTrack5.1",
-			audioDownmix: db.AudioDownmix{
-				SrcChannels: []db.AudioChannel{
+			audioDownmix: job.AudioDownmix{
+				SrcChannels: []job.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 2, ChannelIdx: 1, Layout: "R"},
 					{TrackIdx: 3, ChannelIdx: 1, Layout: "C"},
@@ -55,7 +56,7 @@ func TestAudio(t *testing.T) {
 					{TrackIdx: 5, ChannelIdx: 1, Layout: "Ls"},
 					{TrackIdx: 6, ChannelIdx: 1, Layout: "Rs"},
 				},
-				DestChannels: []db.AudioChannel{
+				DestChannels: []job.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 				},
@@ -67,8 +68,8 @@ func TestAudio(t *testing.T) {
 		},
 		{
 			name: "DiscreteTrack7.1",
-			audioDownmix: db.AudioDownmix{
-				SrcChannels: []db.AudioChannel{
+			audioDownmix: job.AudioDownmix{
+				SrcChannels: []job.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 2, ChannelIdx: 1, Layout: "R"},
 					{TrackIdx: 3, ChannelIdx: 1, Layout: "C"},
@@ -78,7 +79,7 @@ func TestAudio(t *testing.T) {
 					{TrackIdx: 7, ChannelIdx: 1, Layout: "Lb"},
 					{TrackIdx: 8, ChannelIdx: 1, Layout: "Rb"},
 				},
-				DestChannels: []db.AudioChannel{
+				DestChannels: []job.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 				},
@@ -90,8 +91,8 @@ func TestAudio(t *testing.T) {
 		},
 		{
 			name: "NotStereo",
-			audioDownmix: db.AudioDownmix{
-				SrcChannels: []db.AudioChannel{
+			audioDownmix: job.AudioDownmix{
+				SrcChannels: []job.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 2, ChannelIdx: 1, Layout: "R"},
 					{TrackIdx: 3, ChannelIdx: 1, Layout: "C"},
@@ -101,7 +102,7 @@ func TestAudio(t *testing.T) {
 					{TrackIdx: 7, ChannelIdx: 1, Layout: "Lb"},
 					{TrackIdx: 8, ChannelIdx: 1, Layout: "Rb"},
 				},
-				DestChannels: []db.AudioChannel{
+				DestChannels: []job.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 					{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},

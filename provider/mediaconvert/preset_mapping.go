@@ -2,12 +2,13 @@ package mediaconvert
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/cbsinteractive/transcode-orchestrator/provider"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/pkg/errors"
-	"strings"
 )
 
 var timecodePositionMap = map[int]mc.TimecodeBurninPosition{
@@ -37,7 +38,7 @@ func outputFrom(preset job.Preset, sourceInfo db.File) (mc.Output, error) {
 	}
 
 	var audioPresets []mc.AudioDescription
-	if preset.Audio != (db.Audio{}) {
+	if preset.Audio != (job.Audio{}) {
 		audioPreset, err := audioPresetFrom(preset)
 		if err != nil {
 			return mc.Output{}, fmt.Errorf("audio: %w", err)

@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/google/go-cmp/cmp"
 )
@@ -36,7 +37,7 @@ var (
 			GopUnit:       "frames",
 			InterlaceMode: "progressive",
 		},
-		Audio: db.Audio{
+		Audio: job.Audio{
 			Codec:   "aac",
 			Bitrate: 20000,
 		},
@@ -79,7 +80,7 @@ var (
 		Name:        "preset_name",
 		Description: "test_desc",
 		Container:   "mp4",
-		Audio: db.Audio{
+		Audio: job.Audio{
 			Codec:   "aac",
 			Bitrate: 20000,
 		},
@@ -109,7 +110,7 @@ var (
 				},
 			},
 		},
-		Audio: db.Audio{
+		Audio: job.Audio{
 			Codec:   "aac",
 			Bitrate: 20000,
 		},
@@ -206,11 +207,11 @@ func TestSupport(t *testing.T) {
 
 	t.Run("Audio", func(t *testing.T) {
 		for i, tt := range []struct {
-			p   db.Audio
+			p   job.Audio
 			err error
 		}{
-			{db.Audio{Codec: "aac"}, nil},
-			{db.Audio{Codec: "aad"}, ErrUnsupported},
+			{job.Audio{Codec: "aac"}, nil},
+			{job.Audio{Codec: "aad"}, ErrUnsupported},
 		} {
 			_, err := run(job.Preset{Container: "mp4", Audio: tt.p})
 			ck(fmt.Sprintf("%d", i), err, tt.err)
@@ -279,7 +280,7 @@ func TestDriverCreate(t *testing.T) {
 				GopUnit:       "frames",
 				InterlaceMode: "progressive",
 			},
-			Audio: db.Audio{
+			Audio: job.Audio{
 				Codec:         audioCodec,
 				Bitrate:       96000,
 				Normalization: true,
@@ -1102,8 +1103,8 @@ func TestDriverCreate(t *testing.T) {
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mov",
 				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: tcBurninPreset.Name}, FileName: "file1.mov"}},
-				AudioDownmix: &db.AudioDownmix{
-					SrcChannels: []db.AudioChannel{
+				AudioDownmix: &job.AudioDownmix{
+					SrcChannels: []job.AudioChannel{
 						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 						{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 						{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},
@@ -1111,7 +1112,7 @@ func TestDriverCreate(t *testing.T) {
 						{TrackIdx: 1, ChannelIdx: 5, Layout: "Ls"},
 						{TrackIdx: 1, ChannelIdx: 6, Layout: "Rs"},
 					},
-					DestChannels: []db.AudioChannel{
+					DestChannels: []job.AudioChannel{
 						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 						{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 					},

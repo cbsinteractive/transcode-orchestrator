@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
 type hdrType = string
@@ -103,7 +103,7 @@ func hdrTypeFromPreset(preset job.Preset) (hdrType, bool) {
 	return "", false
 }
 
-func enrichVideoTargetWithHDR10Metadata(video *hwrapper.VideoTarget, hdr10 db.HDR10Settings) {
+func enrichVideoTargetWithHDR10Metadata(video *hwrapper.VideoTarget, hdr10 job.HDR10) {
 	hdr10Metadata := &hwrapper.HDR10Settings{}
 
 	// signal that the HDR metadata is being pulled from the source media

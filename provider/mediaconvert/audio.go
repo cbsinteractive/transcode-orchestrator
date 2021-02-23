@@ -3,7 +3,7 @@ package mediaconvert
 import (
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/cbsinteractive/transcode-orchestrator/service"
 )
 
@@ -16,7 +16,7 @@ var (
 	}
 )
 
-func audioSelectorFrom(audioDownmix *db.AudioDownmix, audioSelector *mc.AudioSelector) error {
+func audioSelectorFrom(audioDownmix *job.AudioDownmix, audioSelector *mc.AudioSelector) error {
 	audioSelector.Offset = aws.Int64(0)
 	audioSelector.ProgramSelection = aws.Int64(1)
 	audioSelector.SelectorType = mc.AudioSelectorTypeTrack
@@ -36,7 +36,7 @@ func audioSelectorFrom(audioDownmix *db.AudioDownmix, audioSelector *mc.AudioSel
 	return nil
 }
 
-func trackListFrom(audioDownmix db.AudioDownmix) (tracks []int64) {
+func trackListFrom(audioDownmix job.AudioDownmix) (tracks []int64) {
 	uniqueTracks := make(map[int]struct{})
 
 	for _, channel := range audioDownmix.SrcChannels {
@@ -49,7 +49,7 @@ func trackListFrom(audioDownmix db.AudioDownmix) (tracks []int64) {
 	return tracks
 }
 
-func audioChannelMappingFrom(audioDownmix db.AudioDownmix) (*mc.ChannelMapping, error) {
+func audioChannelMappingFrom(audioDownmix job.AudioDownmix) (*mc.ChannelMapping, error) {
 	var outputChannelMapping []mc.OutputChannelMapping
 
 	mapping, err := service.AudioDownmixMapping(audioDownmix)
