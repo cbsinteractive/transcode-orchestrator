@@ -167,12 +167,12 @@ func ListMuxing(api *bitmovin.BitmovinApi, jobID string) ([]Muxing, error) {
 
 func (m Muxing) Output(s job.Status, t track) job.File {
 	var (
-		height, width int64
+		height, width int
 		codec         string
 	)
 	video := t.Video()
 	if len(video) > 0 {
-		height, width = int64(*video[0].FrameHeight), int64(*video[0].FrameWidth)
+		height, width = int(*video[0].FrameHeight), int(*video[0].FrameWidth)
 		codec = video[0].Codec
 	}
 	return job.File{

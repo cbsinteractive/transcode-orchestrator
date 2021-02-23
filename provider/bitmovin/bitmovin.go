@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/codec"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/storage"
@@ -29,8 +29,11 @@ func init() {
 	_ = provider.Register(Name, factory)
 }
 
-// Preset is a bitmovin Preset, formerly known as "PresetSummary"
-type Preset = codec.Preset
+type (
+	Preset = codec.Preset
+	Job    = job.Job
+	Status = job.Status
+)
 
 const (
 	// Name is the name used for registering the bitmovin driver in the
@@ -89,33 +92,33 @@ type driver struct {
 	tracer tracing.Tracer
 }
 
-func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) {
-	presets := make([]job.PresetSummary, len(job.Outputs))
-	for i, output := range job.Outputs {
+func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
+	presets := make([]Preset, len(j.Outputs))
+	for i, output := range j.Outputs {
 		if err := p.createPreset(ctx, output.Preset, &presets[i]); err != nil {
 			return nil, fmt.Errorf("output[%d]: preset: %w", i, err)
 		}
 	}
 
-	inputID, mediaPath, err := p.inputFrom(ctx, job)
+	inputID, mediaPath, err := p.inputFrom(ctx, j)
 	if err != nil {
 		return nil, err
 	}
 
-	outputID, destPath, err := p.outputFrom(ctx, job)
+	outputID, destPath, err := p.outputFrom(ctx, j)
 	if err != nil {
 		return nil, err
 	}
 
 	encCustomData := make(map[string]map[string]interface{})
 
-	infrastructureSettings, encodingCloudRegion, err := p.encodingInfrastructureFrom(job)
+	infrastructureSettings, encodingCloudRegion, err := p.encodingInfrastructureFrom(j)
 	if err != nil {
 		return nil, errors.Wrap(err, "validating and setting encoding infrastructure")
 	}
 
-	jobName := job.ID
-	if name := job.Name; name != "" {
+	jobName := j.ID
+	if name := j.Name; name != "" {
 		jobName = name
 	}
 
@@ -126,7 +129,7 @@ func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) 
 		CloudRegion:    encodingCloudRegion,
 		EncoderVersion: p.cfg.EncodingVersion,
 		Infrastructure: infrastructureSettings,
-		Labels:         job.Labels,
+		Labels:         j.Labels,
 	})
 	if err != nil {
 		subSeg.Close(err)
@@ -151,7 +154,7 @@ func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) 
 		return nil, fmt.Errorf("ingest: %v", err)
 	}
 
-	inputID, err = p.splice(ctx, enc.Id, inputID, job.SourceSplice)
+	inputID, err = p.splice(ctx, enc.Id, inputID, j.SourceSplice)
 	if err != nil {
 		return nil, fmt.Errorf("splice: %w", err)
 	}
@@ -160,7 +163,7 @@ func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) 
 	errorc := make(chan error)
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-outputs")
-	for idx, o := range job.Outputs {
+	for idx, o := range j.Outputs {
 		wg.Add(1)
 		go p.createOutput(outputCfg{
 			preset:         presets[idx],
@@ -170,7 +173,7 @@ func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) 
 			outputID:       outputID,
 			outputFilename: o.FileName,
 			destPath:       destPath,
-			job:            job,
+			job:            j,
 		}, &wg, errorc)
 	}
 
@@ -187,7 +190,7 @@ func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) 
 	}
 	subSeg.Close(nil)
 
-	if o := job.ExplicitKeyframeOffsets; len(o) > 0 {
+	if o := j.ExplicitKeyframeOffsets; len(o) > 0 {
 		subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-keyframes")
 		if err = p.createExplicitKeyframes(enc.Id, o); err != nil {
 			subSeg.Close(err)
@@ -204,16 +207,16 @@ func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) 
 	}
 	subSeg.Close(nil)
 
-	return &job.Status{
+	return &Status{
 		ProviderName:  Name,
 		ProviderJobID: encResp.Id,
 		State:         job.StateQueued,
 	}, nil
 }
 
-func (p *driver) Status(ctx context.Context, job *job.Job) (*job.Status, error) {
+func (p *driver) Status(ctx context.Context, j *Job) (*Status, error) {
 	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-get-encoding-status")
-	task, err := p.api.Encoding.Encodings.Status(job.ProviderJobID)
+	task, err := p.api.Encoding.Encodings.Status(j.ProviderJobID)
 	if err != nil {
 		subSeg.Close(err)
 		return nil, errors.Wrap(err, "retrieving encoding status")
@@ -225,17 +228,17 @@ func (p *driver) Status(ctx context.Context, job *job.Job) (*job.Status, error) 
 		progress = float64(*task.Progress)
 	}
 
-	s := job.Status{
+	s := Status{
 		ProviderName:  Name,
-		ProviderJobID: job.ProviderJobID,
+		ProviderJobID: j.ProviderJobID,
 		State:         state(task.Status),
 		Progress:      progress,
 		ProviderStatus: map[string]interface{}{
 			"messages":       task.Messages,
 			"originalStatus": task.Status,
 		},
-		Output: provider.Output{
-			Destination: strings.TrimRight(p.destinationForJob(job), "/") + "/" + job.RootFolder() + "/",
+		Output: job.Output{
+			Destination: strings.TrimRight(p.destinationForJob(j), "/") + "/" + j.RootFolder() + "/",
 		},
 	}
 
@@ -269,7 +272,7 @@ func (p *driver) Cancel(ctx context.Context, id string) (err error) {
 }
 
 type outputCfg struct {
-	preset             job.PresetSummary
+	preset             Preset
 	encodingID         string
 	videoIn, audioIn   string
 	outputID           string
@@ -277,7 +280,7 @@ type outputCfg struct {
 	outputFilename     string
 	manifestID         string
 	manifestMasterPath string
-	job                *job.Job
+	job                *Job
 }
 
 func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan error) {
@@ -346,7 +349,7 @@ func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan err
 	}
 }
 
-func (p *driver) inputFrom(ctx context.Context, job *job.Job) (inputID string, srcPath string, err error) {
+func (p *driver) inputFrom(ctx context.Context, job *Job) (inputID string, srcPath string, err error) {
 	defer p.trace(ctx, "bitmovin-create-input", &err)()
 
 	srcPath, err = storage.PathFrom(job.SourceMedia)
@@ -371,7 +374,7 @@ func (p *driver) inputFrom(ctx context.Context, job *job.Job) (inputID string, s
 	return inputID, srcPath, nil
 }
 
-func (p *driver) outputFrom(ctx context.Context, job *job.Job) (inputID string, destPath string, err error) {
+func (p *driver) outputFrom(ctx context.Context, job *Job) (inputID string, destPath string, err error) {
 	defer p.trace(ctx, "bitmovin-create-output", &err)()
 
 	destBasePath := p.destinationForJob(job)
@@ -397,8 +400,8 @@ func (p *driver) outputFrom(ctx context.Context, job *job.Job) (inputID string, 
 	return outputID, destPath, nil
 }
 
-func (p *driver) encodingCloudRegionFrom(job *job.Job) (model.CloudRegion, error) {
-	if cloud, region := job.ExecutionEnv.Cloud, job.ExecutionEnv.Region; cloud+region != "" {
+func (p *driver) encodingCloudRegionFrom(j *Job) (model.CloudRegion, error) {
+	if cloud, region := j.ExecutionEnv.Cloud, j.ExecutionEnv.Region; cloud+region != "" {
 		regions, found := regionByCloud[cloud]
 		if !found {
 			return "", fmt.Errorf("unsupported cloud %q", cloud)
@@ -415,13 +418,13 @@ func (p *driver) encodingCloudRegionFrom(job *job.Job) (model.CloudRegion, error
 	return model.CloudRegion(p.cfg.EncodingRegion), nil
 }
 
-func (p *driver) encodingInfrastructureFrom(job *job.Job) (*model.InfrastructureSettings, model.CloudRegion, error) {
-	encodingCloudRegion, err := p.encodingCloudRegionFrom(job)
+func (p *driver) encodingInfrastructureFrom(j *Job) (*model.InfrastructureSettings, model.CloudRegion, error) {
+	encodingCloudRegion, err := p.encodingCloudRegionFrom(j)
 	if err != nil {
 		return nil, encodingCloudRegion, errors.Wrap(err, "validating and setting encoding cloud region")
 	}
 
-	if tag, found := job.ExecutionEnv.ComputeTags[db.ComputeClassTranscodeDefault]; found {
+	if tag, found := j.ExecutionEnv.ComputeTags[job.ComputeClassTranscodeDefault]; found {
 		return &model.InfrastructureSettings{
 			InfrastructureId: tag,
 			CloudRegion:      encodingCloudRegion,
@@ -461,7 +464,7 @@ func (p *driver) createExplicitKeyframes(encodingID string, offsets []float64) e
 	return nil
 }
 
-func (p *driver) createPreset(_ context.Context, preset job.Preset, summary *job.PresetSummary) error {
+func (p *driver) createPreset(_ context.Context, preset job.Preset, summary *Preset) error {
 	vc, _ := codec.New(preset.Video.Codec, preset)
 	ac, _ := codec.New(preset.Audio.Codec, preset)
 	c := []codec.Codec{}
@@ -525,7 +528,7 @@ func (p *driver) createPreset(_ context.Context, preset job.Preset, summary *job
 	return nil
 }
 
-func (p *driver) enrichStreams(s job.Status) (job.Status, error) {
+func (p *driver) enrichStreams(s Status) (Status, error) {
 	inStreams, err := p.api.Encoding.Encodings.Streams.List(s.ProviderJobID, func(params *query.StreamListQueryParams) {
 		params.Limit = 1
 		params.Offset = 0
@@ -545,13 +548,13 @@ func (p *driver) enrichStreams(s job.Status) (job.Status, error) {
 
 	var (
 		vidCodec      string
-		width, height int64
+		width, height int
 	)
 	if len(streamInput.VideoStreams) > 0 {
 		vidStreamInput := streamInput.VideoStreams[0]
 		vidCodec = vidStreamInput.Codec
-		width = int64(int32Value(vidStreamInput.Width))
-		height = int64(int32Value(vidStreamInput.Height))
+		width = int(int32Value(vidStreamInput.Width))
+		height = int(int32Value(vidStreamInput.Height))
 	}
 
 	s.Input = job.File{
@@ -565,7 +568,7 @@ func (p *driver) enrichStreams(s job.Status) (job.Status, error) {
 
 }
 
-func (p *driver) destinationForJob(job *job.Job) string {
+func (p *driver) destinationForJob(job *Job) string {
 	if path := job.DestinationBasePath; path != "" {
 		return path
 	}
