@@ -68,7 +68,7 @@ func enrichTranscodePayloadWithHDRMetadata(payload hwrapper.TranscodePayload, pr
 
 		switch hdr {
 		case hdrTypeHDR10:
-			enrichVideoTargetWithHDR10Metadata(target.Video, preset.Video.HDR10Settings)
+			enrichVideoTargetWithHDR10Metadata(target.Video, preset.Video.HDR10)
 		case hdrTypeDolbyVision:
 			// append ffmpeg `-strict` arg
 			target.Video.FFMPEGArgs = fmt.Sprintf("%s -strict %s", target.Video.FFMPEGArgs,
@@ -94,9 +94,9 @@ func enrichTranscodePayloadWithHDRMetadata(payload hwrapper.TranscodePayload, pr
 }
 
 func hdrTypeFromPreset(preset job.Preset) (hdrType, bool) {
-	if preset.Video.HDR10Settings.Enabled {
+	if preset.Video.HDR10.Enabled {
 		return hdrTypeHDR10, true
-	} else if preset.Video.DolbyVisionSettings.Enabled {
+	} else if preset.Video.DolbyVision.Enabled {
 		return hdrTypeDolbyVision, true
 	}
 
@@ -136,7 +136,7 @@ func dolbyVisionEnabledOnAllPresets(cfgs map[string]outputCfg) (bool, error) {
 	record := struct{ doViPresetFound, nonDoViPresetFound bool }{}
 
 	for _, cfg := range cfgs {
-		if enabled := cfg.Preset.Video.DolbyVisionSettings.Enabled; enabled {
+		if enabled := cfg.Preset.Video.DolbyVision.Enabled; enabled {
 			record.doViPresetFound = true
 		} else {
 			record.nonDoViPresetFound = true

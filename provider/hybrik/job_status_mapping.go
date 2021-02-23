@@ -17,7 +17,7 @@ type taskWithOutputMatcher struct {
 
 var match = regexp.MustCompile
 
-var tasksWithOutputsMatchers = []struct {
+var outputMatchers = []struct {
 	kind     string
 	uidRegex *regexp.Regexp
 }{
@@ -28,9 +28,22 @@ var tasksWithOutputsMatchers = []struct {
 	{"Combine Segments", match(`combiner_[\d]+$`)},
 }
 
+func hasOutputs(task hybrik.TaskResult) bool {
+	for _, matcher := range outputMatchers {
+		if matcher.kind != task.Kind {
+			continue
+		}
+		if matcher.uidRegex.Match([]byte(task.UID)) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func filesFrom(task hybrik.TaskResult) (files []job.File, ok bool, err error) {
 	// ensure the task type results in outputs
-	if !taskHasOutputs(task, tasksWithOutputsMatchers) {
+	if !hasOutputs(task) {
 		return nil, false, nil
 	}
 
@@ -62,18 +75,4 @@ func containerFrom(component hybrik.AssetComponentResult) string {
 	}
 
 	return strings.Replace(path.Ext(component.Name), ".", "", -1)
-}
-
-func taskHasOutputs(task hybrik.TaskResult, matchers []taskWithOutputMatcher) bool {
-	for _, matcher := range matchers {
-		if matcher.kind != task.Kind {
-			continue
-		}
-
-		if matcher.uidRegex.Match([]byte(task.UID)) {
-			return true
-		}
-	}
-
-	return false
 }

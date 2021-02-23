@@ -21,7 +21,7 @@ func modifyTranscodePayloadForMXFSources(payload hybrik.TranscodePayload, preset
 			target.NumPasses = 2
 		}
 
-		if preset.Video.HDR10Settings.Enabled {
+		if preset.Video.HDR10.Enabled {
 			// overriding this value to tell hybrik where to fetch the HDR metadata
 			target.Video.HDR10.Source = "source_metadata"
 		}

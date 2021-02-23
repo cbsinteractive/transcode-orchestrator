@@ -7,7 +7,6 @@ import (
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/google/go-cmp/cmp"
 )
@@ -79,7 +78,7 @@ func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
 		wantErr              bool
 	}{
 		{
-			name: "a valid h264/aac mp4 preset results in the expected preset sent to the Hybrik API",
+			name: "MP4/H264/AAC",
 			provider: &hybrikProvider{
 				config: &config.Hybrik{
 					PresetPath:        "some_preset_path",
@@ -177,7 +176,7 @@ func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
 	}
 }
 
-func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
+func TestTranscodePreset(t *testing.T) {
 	tests := []struct {
 		name           string
 		presetModifier func(preset job.Preset) job.Preset
@@ -191,7 +190,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 				p.Video.Codec = "h265"
 				p.Video.Profile = ""
 
-				p.Video.HDR10Settings = job.HDR10{
+				p.Video.HDR10 = job.HDR10{
 					Enabled:       true,
 					MaxCLL:        10000,
 					MaxFALL:       400,
@@ -273,7 +272,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 				p.Video.Codec = "h265"
 				p.Video.Profile = ""
 				p.SourceContainer = "mxf"
-				p.Video.HDR10Settings = job.HDR10{
+				p.Video.HDR10 = job.HDR10{
 					Enabled:       true,
 					MaxCLL:        10000,
 					MaxFALL:       400,
@@ -425,17 +424,17 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 	}
 }
 
-func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
+func TestPresetConversion(t *testing.T) {
 	tests := []struct {
 		name    string
-		job     *job.Job
+		job     job.Job
 		preset  job.Preset
 		wantJob hybrik.CreateJob
 		wantErr string
 	}{
 		{
-			name:   "a valid mp4 transcode job is mapped correctly to a hybrik job input",
-			job:    &defaultJob,
+			name:   "MP4",
+			job:    defaultJob,
 			preset: defaultPreset,
 			wantJob: hybrik.CreateJob{
 				Name: "Job jobID [path.mp4]",
@@ -502,7 +501,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 		},
 		{
 			name:   "a valid mp4 transcode job with gop unit in seconds is mapped correctly to a hybrik job input",
-			job:    &defaultJob,
+			job:    defaultJob,
 			preset: updateGopStruct(2, "seconds"),
 			wantJob: hybrik.CreateJob{
 				Name: "Job jobID [path.mp4]",
@@ -694,7 +693,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 		// TODO remove once Hybrik fixes bug and we can re-enable the new structure
 		{
 			name: "a valid mp4 hevc dolbyVision transcode job is mapped correctly to a hybrik job input",
-			job:  &defaultJob,
+			job:  defaultJob,
 			preset: job.Preset{
 				Name:        defaultPreset.Name,
 				Description: defaultPreset.Description,
@@ -707,7 +706,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 					GopSize:       120,
 					GopMode:       "fixed",
 					InterlaceMode: "progressive",
-					DolbyVisionSettings: job.DolbyVisionSettings{
+					DolbyVision: job.DolbyVision{
 						Enabled: true,
 					},
 				},
@@ -855,7 +854,8 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 				},
 			}
 
-			got, err := p.createJobReqFrom(context.Background(), tt.job)
+			tt.job.Outputs[0].Preset = tt.preset
+			got, err := p.createJobReqFrom(context.Background(), &tt.job)
 			if err != nil {
 				if tt.wantErr != err.Error() {
 					t.Errorf("hybrikProvider.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErr)
@@ -872,7 +872,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 	}
 }
 
-func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
+func TestTranscodeJobFields(t *testing.T) {
 	tests := []struct {
 		name        string
 		jobModifier func(job job.Job) job.Job
@@ -880,13 +880,13 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 		wantErrMsg  string
 	}{
 		{
-			name: "when a dolby vision sidecar asset is included, it is correctly added to the source element",
-			jobModifier: func(job job.Job) job.Job {
-				job.SidecarAssets = map[job.SidecarAssetKind]string{
+			name: "dolbyVision",
+			jobModifier: func(j job.Job) job.Job {
+				j.SidecarAssets = map[job.SidecarAssetKind]string{
 					job.SidecarAssetKindDolbyVisionMetadata: "s3://test_sidecar_location/path/file.xml",
 				}
 
-				return job
+				return j
 			},
 			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
 				gotSource := createJob.Payload.Elements[0]
@@ -919,8 +919,7 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			},
 		},
 		{
-			name: "when a destination base path is defined, the defined destination is used instead of the" +
-				" globally configured one",
+			name: "pathOverride",
 			jobModifier: func(job job.Job) job.Job {
 				job.DestinationBasePath = "s3://per-job-defined-bucket/some/base/path"
 				return job
@@ -944,13 +943,13 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			},
 		},
 		{
-			name: "when custom compute tags are specified, the right tags are added to the output",
-			jobModifier: func(job job.Job) job.Job {
-				job.ExecutionEnv.ComputeTags = map[job.ComputeClass]string{
+			name: "tags",
+			jobModifier: func(j job.Job) job.Job {
+				j.ExecutionEnv.ComputeTags = map[job.ComputeClass]string{
 					job.ComputeClassTranscodeDefault: "custom_tag",
 				}
 
-				return job
+				return j
 			},
 			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
 				gotTask := createJob.Payload.Elements[1].Task
@@ -964,18 +963,18 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			},
 		},
 		{
-			name: "when HLS packaging is specified, a package task is added with the correct values",
-			jobModifier: func(job job.Job) job.Job {
-				job.StreamingParams = job.StreamingParams{
+			name: "HLS",
+			jobModifier: func(j job.Job) job.Job {
+				j.StreamingParams = job.StreamingParams{
 					SegmentDuration: 4,
 					Protocol:        "hls",
 				}
 
-				job.ExecutionEnv.ComputeTags = map[job.ComputeClass]string{
+				j.ExecutionEnv.ComputeTags = map[job.ComputeClass]string{
 					job.ComputeClassTranscodeDefault: "default_transcode_class",
 				}
 
-				return job
+				return j
 			},
 			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
 				gotTask := createJob.Payload.Elements[len(createJob.Payload.Elements)-1]
@@ -1009,14 +1008,14 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			},
 		},
 		{
-			name: "when DASH packaging is specified, a package task is added with the correct values",
-			jobModifier: func(job job.Job) job.Job {
-				job.StreamingParams = job.StreamingParams{
+			name: "DASH",
+			jobModifier: func(j job.Job) job.Job {
+				j.StreamingParams = job.StreamingParams{
 					SegmentDuration: 4,
 					Protocol:        "dash",
 				}
 
-				return job
+				return j
 			},
 			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
 				gotTask := createJob.Payload.Elements[len(createJob.Payload.Elements)-1]
@@ -1047,14 +1046,14 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			},
 		},
 		{
-			name: "sources coming from s3 support segmented rendering",
-			jobModifier: func(job job.Job) job.Job {
-				job.SourceMedia = "s3://bucket/path/file.mp4"
-				job.ExecutionFeatures = job.ExecutionFeatures{
+			name: "segmentedRenderingS3",
+			jobModifier: func(j job.Job) job.Job {
+				j.SourceMedia = "s3://bucket/path/file.mp4"
+				j.ExecutionFeatures = job.ExecutionFeatures{
 					featureSegmentedRendering: SegmentedRendering{Duration: 50},
 				}
 
-				return job
+				return j
 			},
 			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
 				elements := createJob.Payload.Elements
@@ -1077,14 +1076,13 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			},
 		},
 		{
-			name: "sources coming from gcs support segmented rendering",
-			jobModifier: func(job job.Job) job.Job {
-				job.SourceMedia = "gs://bucket/path/file.mp4"
-				job.ExecutionFeatures = job.ExecutionFeatures{
+			name: "segmentedRenderingGCS",
+			jobModifier: func(j job.Job) job.Job {
+				j.SourceMedia = "gs://bucket/path/file.mp4"
+				j.ExecutionFeatures = job.ExecutionFeatures{
 					featureSegmentedRendering: SegmentedRendering{Duration: 50},
 				}
-
-				return job
+				return j
 			},
 			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
 				elements := createJob.Payload.Elements
@@ -1107,14 +1105,14 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			},
 		},
 		{
-			name: "sources coming from http do not support segmented rendering",
-			jobModifier: func(job job.Job) job.Job {
-				job.SourceMedia = "http://example.com/path/file.mp4"
-				job.ExecutionFeatures = job.ExecutionFeatures{
+			name: "segmentedRenderingHTTP",
+			jobModifier: func(j job.Job) job.Job {
+				j.SourceMedia = "http://example.com/path/file.mp4"
+				j.ExecutionFeatures = job.ExecutionFeatures{
 					featureSegmentedRendering: SegmentedRendering{Duration: 50},
 				}
 
-				return job
+				return j
 			},
 			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
 				elements := createJob.Payload.Elements
@@ -1142,9 +1140,10 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 					PresetPath:  "some_preset_path",
 				},
 			}
-
-			modifiedJob := tt.jobModifier(defaultJob)
-			got, err := p.createJobReqFrom(context.Background(), &modifiedJob)
+			j := defaultJob
+			j.Outputs[0].Preset = defaultPreset
+			j = tt.jobModifier(j)
+			got, err := p.createJobReqFrom(context.Background(), &j)
 			if err != nil && tt.wantErrMsg != err.Error() {
 				t.Errorf("hybrikProvider.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErrMsg)
 				return

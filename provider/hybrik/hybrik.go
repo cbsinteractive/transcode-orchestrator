@@ -333,9 +333,16 @@ func videoTargetFrom(preset job.Video, rateControl string) (*hwrapper.VideoTarge
 		videoLevel = ""
 	}
 
+	w, h := &preset.Width, &preset.Height
+	if *w == 0 {
+		w = nil
+	}
+	if *h == 0 {
+		h = nil
+	}
 	return &hwrapper.VideoTarget{
-		Width:             &preset.Width,
-		Height:            &preset.Height,
+		Width:             w,
+		Height:            h,
 		BitrateMode:       strings.ToLower(rateControl),
 		BitrateKb:         preset.Bitrate / 1000,
 		Preset:            presetSlow,

@@ -11,7 +11,7 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 )
 
-func TestFlock_CancelJob(t *testing.T) {
+func TestFlockCancel(t *testing.T) {
 	tests := []struct {
 		name         string
 		cfg          config.Flock
@@ -21,7 +21,7 @@ func TestFlock_CancelJob(t *testing.T) {
 		expectErr    string
 	}{
 		{
-			name:       "the correct url is requested to flock on cancel",
+			name:       "URL",
 			providerID: "some-id",
 			cfg:        config.Flock{Endpoint: "http://flock.com"},
 			reqAssertion: func(t *testing.T, r *http.Request) {
@@ -32,7 +32,7 @@ func TestFlock_CancelJob(t *testing.T) {
 			},
 		},
 		{
-			name: "the correct HTTP method is used to cancel a job",
+			name: "Method",
 			reqAssertion: func(t *testing.T, r *http.Request) {
 				wantMethod := http.MethodDelete
 				if g, e := r.Method, wantMethod; g != e {
@@ -41,7 +41,7 @@ func TestFlock_CancelJob(t *testing.T) {
 			},
 		},
 		{
-			name: "the credential is added to the request to flock on cancel",
+			name: "Credential",
 			cfg:  config.Flock{Credential: "some-credential"},
 			reqAssertion: func(t *testing.T, r *http.Request) {
 				wantCredential := "some-credential"
@@ -51,7 +51,7 @@ func TestFlock_CancelJob(t *testing.T) {
 			},
 		},
 		{
-			name: "if the backend returns a non 2xx status code, a useful error is returned",
+			name: "Err500",
 			response: http.Response{
 				StatusCode: 500,
 				Body:       ioutil.NopCloser(strings.NewReader("oops something went wrong")),
@@ -59,14 +59,14 @@ func TestFlock_CancelJob(t *testing.T) {
 			expectErr: "received non 2xx status code, got 500 with body: oops something went wrong",
 		},
 		{
-			name: "if we fail to read the resp body, a useful error is returned",
+			name: "ErrBody",
 			response: http.Response{
 				Body: ioutil.NopCloser(errReader{}),
 			},
 			expectErr: "reading resp body: error forced by mock reader",
 		},
 		{
-			name:      "if the flock endpoint is malformed, a useful error is returned",
+			name:      "ErrMalformed",
 			cfg:       config.Flock{Endpoint: ":::"},
 			expectErr: `parse ":::/api/v1/jobs/": missing protocol scheme`,
 		},

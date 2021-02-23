@@ -34,8 +34,8 @@ const (
 	srcOptionResolveManifestKey = "resolve_manifest"
 )
 
-func (p *hybrikProvider) srcFrom(job *Job, src storageLocation) (hybrik.Element, error) {
-	sourceAsset := p.assetPayloadFrom(src.provider, src.path, nil, job.ExecutionEnv.InputAlias)
+func (p *hybrikProvider) srcFrom(j *Job, src storageLocation) (hybrik.Element, error) {
+	sourceAsset := p.assetPayloadFrom(src.provider, src.path, nil, j.ExecutionEnv.InputAlias)
 
 	if strings.ToLower(filepath.Ext(src.path)) == imfManifestExtension {
 		sourceAsset.Options = map[string]interface{}{
@@ -45,7 +45,7 @@ func (p *hybrikProvider) srcFrom(job *Job, src storageLocation) (hybrik.Element,
 
 	assets := []hybrik.AssetPayload{sourceAsset}
 
-	if sidecarLocation, ok := job.SidecarAssets[job.SidecarAssetKindDolbyVisionMetadata]; ok {
+	if sidecarLocation, ok := j.SidecarAssets[job.SidecarAssetKindDolbyVisionMetadata]; ok {
 		sidecarStorageProvider, err := storageProviderFrom(sidecarLocation)
 		if err != nil {
 			return hybrik.Element{}, err
@@ -56,7 +56,7 @@ func (p *hybrikProvider) srcFrom(job *Job, src storageLocation) (hybrik.Element,
 			Payload: hybrik.AssetContentsPayload{
 				Standard: assetContentsStandardDolbyVisionMetadata,
 			},
-		}}, job.ExecutionEnv.InputAlias))
+		}}, j.ExecutionEnv.InputAlias))
 	}
 
 	return hybrik.Element{

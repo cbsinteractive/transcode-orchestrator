@@ -22,7 +22,7 @@ var ErrStorage = errors.New("storage error")
 
 type Server struct {
 	Config      *config.Config
-	DB          *job.Client
+	DB          *db.Client
 	logger      *logrus.Logger
 	errReporter exceptions.Reporter
 	tracer      tracing.Tracer
