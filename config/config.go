@@ -1,8 +1,6 @@
 package config
 
 import (
-	"github.com/NYTimes/gizmo/server"
-	logging "github.com/fsouza/gizmo-stackdriver-logging"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/zsiec/pkg/tracing"
 )
@@ -10,7 +8,6 @@ import (
 // Config is a struct to contain all the needed configuration for the
 // Transcoding API.
 type Config struct {
-	Server                 *server.Config
 	DefaultSegmentDuration uint   `envconfig:"DEFAULT_SEGMENT_DURATION" default:"5"`
 	SentryDSN              string `envconfig:"SENTRY_DSN"`
 	Env                    string `envconfig:"ENV" default:"dev"`
@@ -24,7 +21,6 @@ type Config struct {
 	Bitmovin               *Bitmovin
 	MediaConvert           *MediaConvert
 	Flock                  *Flock
-	Log                    *logging.Config
 	Tracer                 tracing.Tracer `ignored:"true"`
 }
 

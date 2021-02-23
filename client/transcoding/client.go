@@ -26,20 +26,17 @@ type Client struct {
 
 // Create a job
 func (c *Client) Create(ctx context.Context, job Job) (r Status, err error) {
-	c.ensure()
-	return r, c.postResource(ctx, job, &r, "/jobs")
+	return r, c.do(ctx, "POST", "/job", job, &r)
+}
+
+// Status for the job id
+func (c *Client) Status(ctx context.Context, id string) (r Status, err error) {
+	return r, c.do(ctx, "GET", "/job/"+id, nil, &r)
 }
 
 // Cancel a job
 func (c *Client) Cancel(ctx context.Context, id string) (r Status, err error) {
-	c.ensure()
-	return r, c.postResource(ctx, nil, &r, "/jobs/"+id+"/cancel")
-}
-
-// DescribeJob returns details about a single job
-func (c *Client) Status(ctx context.Context, id string) (r Status, err error) {
-	c.ensure()
-	return r, c.postResource(ctx, nil, &r, "/jobs/"+id)
+	return r, c.do(ctx, "DELETE", "/job/"+id, nil, &r)
 }
 
 func (c *Client) ensure() {

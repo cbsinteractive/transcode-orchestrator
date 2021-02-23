@@ -11,6 +11,9 @@ import (
 	"testing"
 )
 
+// TODO(as): these aren't really testing our api contracts at all
+// they are testing mostly the standard library and our do function
+
 type testReqBody struct {
 	SomeReqProp propType `json:"some_req_prop"`
 }
@@ -55,7 +58,7 @@ func Test_reqWithMethodAndPayload(t *testing.T) {
 		assertions []RespAssertion
 	}{
 		{
-			title: "client marshalls responses correctly",
+			title: "marshal",
 			backend: func(w http.ResponseWriter, r *http.Request) {
 				writeProp(w, "test_name")
 			},
@@ -67,7 +70,7 @@ func Test_reqWithMethodAndPayload(t *testing.T) {
 			})),
 		},
 		{
-			title: "client sends requests to the correct path",
+			title: "path",
 			backend: func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/test_path" {
 					writeSuccess(w)
@@ -78,7 +81,7 @@ func Test_reqWithMethodAndPayload(t *testing.T) {
 			assertions: assert(respIsSuccess()),
 		},
 		{
-			title: "client sends request body correctly",
+			title: "body",
 			backend: func(w http.ResponseWriter, r *http.Request) {
 				reqBody := testReqBody{}
 				err := json.NewDecoder(r.Body).Decode(&reqBody)
@@ -94,7 +97,7 @@ func Test_reqWithMethodAndPayload(t *testing.T) {
 			assertions: assert(respIsSuccess()),
 		},
 		{
-			title: "client uses the correct HTTP method",
+			title: "method",
 			backend: func(w http.ResponseWriter, r *http.Request) {
 				if r.Method == http.MethodPost {
 					writeSuccess(w)
@@ -118,7 +121,7 @@ func Test_reqWithMethodAndPayload(t *testing.T) {
 			client.ensure()
 
 			respObj := testResp{}
-			err = client.reqWithMethodAndPayload(context.Background(), tt.method, tt.path, &respObj, tt.reqBody)
+			err = client.do(context.Background(), tt.method, tt.path, tt.reqBody, &respObj)
 			if err != nil {
 				t.Error(err)
 			}
