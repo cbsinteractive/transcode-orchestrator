@@ -7,7 +7,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
@@ -31,7 +30,7 @@ func h265CodecSettingsFrom(preset job.Preset) (*mc.VideoCodecSettings, error) {
 	}
 
 	profile := mc.H265CodecProfileMainMain
-	if preset.Video.HDR10Settings.Enabled {
+	if preset.Video.HDR10.Enabled {
 		profile = mc.H265CodecProfileMain10Main
 	}
 

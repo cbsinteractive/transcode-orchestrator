@@ -24,6 +24,11 @@ const (
 	defaultQueueHopTimeoutMins = 1
 )
 
+type (
+	Status = job.Status
+	Job    = job.Job
+)
+
 func init() {
 	err := provider.Register(Name, mediaconvertFactory)
 	if err != nil {
@@ -70,8 +75,8 @@ func splice2clippings(s timecode.Splice, fps float64) (ic []mc.InputClipping) {
 	return ic
 }
 
-func (p *driver) createRequest(ctx context.Context, job *job.Job) (*mc.CreateJobInput, error) {
-	outputGroups, err := p.outputGroupsFrom(ctx, job)
+func (p *driver) createRequest(ctx context.Context, j *Job) (*mc.CreateJobInput, error) {
+	outputGroups, err := p.outputGroupsFrom(j)
 	if err != nil {
 		return nil, fmt.Errorf("mediaconvert: output group generator: %w", err)
 	}
@@ -79,7 +84,7 @@ func (p *driver) createRequest(ctx context.Context, job *job.Job) (*mc.CreateJob
 	queue := aws.String(p.cfg.DefaultQueueARN)
 
 	var hopDestinations []mc.HopDestination
-	if preferred := p.cfg.PreferredQueueARN; p.canUsePreferredQueue(job.SourceInfo) && preferred != "" {
+	if preferred := p.cfg.PreferredQueueARN; p.canUsePreferredQueue(j.SourceInfo) && preferred != "" {
 		queue = aws.String(preferred)
 		hopDestinations = append(hopDestinations, mc.HopDestination{
 			WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins),
@@ -87,15 +92,15 @@ func (p *driver) createRequest(ctx context.Context, job *job.Job) (*mc.CreateJob
 	}
 
 	var acceleration *mc.AccelerationSettings
-	if p.requiresAcceleration(job.SourceInfo) {
+	if p.requiresAcceleration(j.SourceInfo) {
 		acceleration = &mc.AccelerationSettings{Mode: mc.AccelerationModePreferred}
 	}
 
 	audioSelector := mc.AudioSelector{
 		DefaultSelection: mc.AudioDefaultSelectionDefault,
 	}
-	if job.AudioDownmix != nil {
-		if err = audioSelectorFrom(job.AudioDownmix, &audioSelector); err != nil {
+	if j.AudioDownmix != nil {
+		if err = audioSelectorFrom(j.AudioDownmix, &audioSelector); err != nil {
 			return nil, fmt.Errorf("mediaconvert: audio selectors generator: %w", err)
 		}
 	}
@@ -108,8 +113,8 @@ func (p *driver) createRequest(ctx context.Context, job *job.Job) (*mc.CreateJob
 		Settings: &mc.JobSettings{
 			Inputs: []mc.Input{
 				{
-					InputClippings: splice2clippings(job.SourceSplice, 0), // TODO(as): Find FPS in job
-					FileInput:      aws.String(job.SourceMedia),
+					InputClippings: splice2clippings(j.SourceSplice, 0), // TODO(as): Find FPS in job
+					FileInput:      aws.String(j.SourceMedia),
 					AudioSelectors: map[string]mc.AudioSelector{
 						"Audio Selector 1": audioSelector,
 					},
@@ -122,12 +127,12 @@ func (p *driver) createRequest(ctx context.Context, job *job.Job) (*mc.CreateJob
 			OutputGroups:   outputGroups,
 			TimecodeConfig: &mc.TimecodeConfig{Source: mc.TimecodeSourceZerobased},
 		},
-		Tags: p.tagsFrom(job.Labels),
+		Tags: p.tagsFrom(j.Labels),
 	}, nil
 }
 
-func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) {
-	input, err := p.createRequest(ctx, job)
+func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
+	input, err := p.createRequest(ctx, j)
 	if err != nil {
 		return nil, err
 	}
@@ -135,17 +140,17 @@ func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &job.Status{
+	return &Status{
 		ProviderName:  Name,
 		ProviderJobID: aws.StringValue(resp.Job.Id),
 		State:         job.StateQueued,
 	}, nil
 }
 
-func (p *driver) outputGroupsFrom(ctx context.Context, job *job.Job) ([]mc.OutputGroup, error) {
+func (p *driver) outputGroupsFrom(j *Job) ([]mc.OutputGroup, error) {
 	cfg := map[mc.ContainerType][]outputCfg{}
-	for _, out := range job.Outputs {
-		mc, err := outputFrom(out.Preset, job.SourceInfo)
+	for _, out := range j.Outputs {
+		mc, err := outputFrom(out.Preset, j.SourceInfo)
 		if err != nil {
 			return nil, fmt.Errorf("output: %q: %w", out.Preset.Name, err)
 		}
@@ -181,7 +186,7 @@ func (p *driver) outputGroupsFrom(ctx context.Context, job *job.Job) ([]mc.Outpu
 		}
 		mcOutputGroup.Outputs = mcOutputs
 
-		destination := p.destinationPathFrom(job)
+		destination := p.destinationPathFrom(j)
 
 		switch container {
 		case mc.ContainerTypeCmfc:
@@ -189,10 +194,10 @@ func (p *driver) outputGroupsFrom(ctx context.Context, job *job.Job) ([]mc.Outpu
 				Type: mc.OutputGroupTypeCmafGroupSettings,
 				CmafGroupSettings: &mc.CmafGroupSettings{
 					Destination:            aws.String(destination),
-					FragmentLength:         aws.Int64(int64(job.StreamingParams.SegmentDuration)),
+					FragmentLength:         aws.Int64(int64(j.StreamingParams.SegmentDuration)),
 					ManifestDurationFormat: mc.CmafManifestDurationFormatFloatingPoint,
 					SegmentControl:         mc.CmafSegmentControlSegmentedFiles,
-					SegmentLength:          aws.Int64(int64(job.StreamingParams.SegmentDuration)),
+					SegmentLength:          aws.Int64(int64(j.StreamingParams.SegmentDuration)),
 					WriteDashManifest:      mc.CmafWriteDASHManifestEnabled,
 					WriteHlsManifest:       mc.CmafWriteHLSManifestEnabled,
 				},
@@ -202,7 +207,7 @@ func (p *driver) outputGroupsFrom(ctx context.Context, job *job.Job) ([]mc.Outpu
 				Type: mc.OutputGroupTypeHlsGroupSettings,
 				HlsGroupSettings: &mc.HlsGroupSettings{
 					Destination:            aws.String(destination),
-					SegmentLength:          aws.Int64(int64(job.StreamingParams.SegmentDuration)),
+					SegmentLength:          aws.Int64(int64(j.StreamingParams.SegmentDuration)),
 					MinSegmentLength:       aws.Int64(0),
 					DirectoryStructure:     mc.HlsDirectoryStructureSingleDirectory,
 					ManifestDurationFormat: mc.HlsManifestDurationFormatFloatingPoint,
@@ -227,35 +232,35 @@ func (p *driver) outputGroupsFrom(ctx context.Context, job *job.Job) ([]mc.Outpu
 	return mcOutputGroups, nil
 }
 
-func (p *driver) destinationPathFrom(job *job.Job) string {
+func (p *driver) destinationPathFrom(j *Job) string {
 	var basePath string
-	if cfgBasePath := job.DestinationBasePath; cfgBasePath != "" {
+	if cfgBasePath := j.DestinationBasePath; cfgBasePath != "" {
 		basePath = cfgBasePath
 	} else {
 		basePath = p.cfg.Destination
 	}
-	return fmt.Sprintf("%s/%s/", strings.TrimRight(basePath, "/"), job.RootFolder())
+	return fmt.Sprintf("%s/%s/", strings.TrimRight(basePath, "/"), j.RootFolder())
 }
 
-func (p *driver) Status(ctx context.Context, job *job.Job) (*job.Status, error) {
+func (p *driver) Status(ctx context.Context, job *Job) (*Status, error) {
 	jobResp, err := p.client.GetJobRequest(&mc.GetJobInput{
 		Id: aws.String(job.ProviderJobID),
 	}).Send(ctx)
 	if err != nil {
-		return &job.Status{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
+		return &Status{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
 	}
 
 	return p.status(job, jobResp.Job), nil
 }
 
-func (p *driver) status(job *job.Job, mcJob *mc.Job) *job.Status {
-	status := &job.Status{
-		ProviderJobID: job.ProviderJobID,
+func (p *driver) status(j *Job, mcJob *mc.Job) *Status {
+	status := &Status{
+		ProviderJobID: j.ProviderJobID,
 		ProviderName:  Name,
 		State:         state(mcJob.Status),
 		Message:       message(mcJob),
-		Output: provider.Output{
-			Destination: p.destinationPathFrom(job),
+		Output: job.Output{
+			Destination: p.destinationPathFrom(j),
 		},
 	}
 
@@ -287,11 +292,11 @@ func (p *driver) status(job *job.Job, mcJob *mc.Job) *job.Status {
 
 				if video := output.VideoDescription; video != nil {
 					if height := video.Height; height != nil {
-						file.Height = *height
+						file.Height = int(*height)
 					}
 
 					if width := video.Width; width != nil {
-						file.Width = *width
+						file.Width = int(*width)
 					}
 				}
 

@@ -7,7 +7,6 @@ import (
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
@@ -90,10 +89,10 @@ func TestHDRRequest(t *testing.T) {
 	}
 
 	p := defaultPreset
-	p.Video.HDR10Settings.Enabled = true
-	p.Video.HDR10Settings.MaxCLL = 10000
-	p.Video.HDR10Settings.MaxFALL = 400
-	p.Video.HDR10Settings.MasterDisplay = display
+	p.Video.HDR10.Enabled = true
+	p.Video.HDR10.MaxCLL = 10000
+	p.Video.HDR10.MaxFALL = 400
+	p.Video.HDR10.MasterDisplay = display
 
 	d := &driver{cfg: config.MediaConvert{Destination: "s3://some_dest"}}
 	req, err := d.createRequest(nil, &job.Job{

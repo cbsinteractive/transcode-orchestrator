@@ -6,7 +6,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/pkg/errors"
 )
@@ -285,7 +284,7 @@ func videoPreprocessorsFrom(videoPreset job.Video) (*mc.VideoPreprocessor, error
 		}
 	}
 
-	if hdr10 := videoPreset.HDR10Settings; hdr10.Enabled {
+	if hdr10 := videoPreset.HDR10; hdr10.Enabled {
 		mcHDR10Metadata := &mc.Hdr10Metadata{}
 		if hdr10.MasterDisplay != "" {
 			display, err := parseMasterDisplay(hdr10.MasterDisplay)

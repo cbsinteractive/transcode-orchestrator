@@ -13,9 +13,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
-	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -143,10 +141,10 @@ func TestHDR10(t *testing.T) {
 	}
 
 	p := defaultPreset
-	p.Video.HDR10Settings.Enabled = true
-	p.Video.HDR10Settings.MaxCLL = 10000
-	p.Video.HDR10Settings.MaxFALL = 400
-	p.Video.HDR10Settings.MasterDisplay = display
+	p.Video.HDR10.Enabled = true
+	p.Video.HDR10.MaxCLL = 10000
+	p.Video.HDR10.MaxFALL = 400
+	p.Video.HDR10.MasterDisplay = display
 
 	d := &driver{cfg: config.MediaConvert{Destination: "s3://some_dest"}}
 	req, err := d.createRequest(nil, &job.Job{
@@ -1345,7 +1343,7 @@ func TestDriverStatus(t *testing.T) {
 			wantStatus: job.Status{
 				State:        job.StateQueued,
 				ProviderName: Name,
-				Output: provider.Output{
+				Output: job.Output{
 					Destination: "s3://some/destination/jobID/",
 				},
 			},
@@ -1361,7 +1359,7 @@ func TestDriverStatus(t *testing.T) {
 				State:        job.StateStarted,
 				ProviderName: Name,
 				Progress:     42,
-				Output: provider.Output{
+				Output: job.Output{
 					Destination: "s3://some/destination/jobID/",
 				},
 			},
@@ -1423,7 +1421,7 @@ func TestDriverStatus(t *testing.T) {
 				State:        job.StateFinished,
 				ProviderName: Name,
 				Progress:     100,
-				Output: provider.Output{
+				Output: job.Output{
 					Destination: "s3://some/destination/jobID/",
 					Files: []job.File{
 						{
