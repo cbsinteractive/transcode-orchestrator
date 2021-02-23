@@ -26,7 +26,7 @@ var (
 		Container:   "mp4",
 		RateControl: "VBR",
 		TwoPass:     true,
-		Video: db.Video{
+		Video: job.Video{
 			Profile:       "high",
 			Level:         "4.1",
 			Width:         300,
@@ -49,7 +49,7 @@ var (
 		Container:   "mp4",
 		RateControl: "CBR",
 		TwoPass:     false,
-		Video: db.Video{
+		Video: job.Video{
 			Width:         300,
 			Height:        400,
 			Codec:         "h265",
@@ -65,7 +65,7 @@ var (
 		Description: "test_desc",
 		Container:   "mp4",
 		TwoPass:     false,
-		Video: db.Video{
+		Video: job.Video{
 			Width:         300,
 			Height:        400,
 			Codec:         "av1",
@@ -92,7 +92,7 @@ var (
 		Container:   "mov",
 		RateControl: "VBR",
 		TwoPass:     true,
-		Video: db.Video{
+		Video: job.Video{
 			Profile:       "high",
 			Level:         "4.1",
 			Width:         300,
@@ -102,8 +102,8 @@ var (
 			GopSize:       120,
 			GopUnit:       "frames",
 			InterlaceMode: "progressive",
-			Overlays: &db.Overlays{
-				TimecodeBurnin: &db.TimecodeBurnin{
+			Overlays: &job.Overlays{
+				TimecodeBurnin: &job.TimecodeBurnin{
 					Enabled:  true,
 					FontSize: 12,
 					Position: 7,
@@ -120,12 +120,12 @@ var (
 		ID:           "jobID",
 		ProviderName: Name,
 		SourceMedia:  "s3://some/path.mp4",
-		SourceInfo:   db.File{ScanType: db.ScanTypeUnknown},
-		Outputs: []db.TranscodeOutput{
+		SourceInfo:   job.File{ScanType: job.ScanTypeUnknown},
+		Outputs: []job.TranscodeOutput{
 			{Preset: job.Preset{Name: "preset_name"}, FileName: "file1.mp4"},
 			{Preset: job.Preset{Name: "another_preset_name"}, FileName: "file2.mp4"},
 		},
-		StreamingParams: db.StreamingParams{SegmentDuration: 6},
+		StreamingParams: job.StreamingParams{SegmentDuration: 6},
 	}
 )
 
@@ -150,7 +150,7 @@ func TestHDR10(t *testing.T) {
 
 	d := &driver{cfg: config.MediaConvert{Destination: "s3://some_dest"}}
 	req, err := d.createRequest(nil, &job.Job{
-		Outputs: []db.TranscodeOutput{{Preset: p}},
+		Outputs: []job.TranscodeOutput{{Preset: p}},
 	})
 	if err != nil {
 		t.Fatalf("error: %v", err)
@@ -169,7 +169,7 @@ func TestHDR10(t *testing.T) {
 func TestSupport(t *testing.T) {
 	d := &driver{}
 	run := func(p job.Preset) (*mc.CreateJobInput, error) {
-		return d.createRequest(nil, &job.Job{Outputs: []db.TranscodeOutput{{Preset: p}}})
+		return d.createRequest(nil, &job.Job{Outputs: []job.TranscodeOutput{{Preset: p}}})
 	}
 	warn := false
 	ck := func(ctx string, err error, want ...error) {
@@ -199,7 +199,7 @@ func TestSupport(t *testing.T) {
 
 		for _, box := range []string{"mp4", "m3u8", "mxf", "cmaf", "mov", "webm"} {
 			for _, codec := range []string{"", "h264", "h265", "av1", "xdcam", "vp8"} {
-				_, err := run(job.Preset{Container: box, Video: db.Video{Codec: codec}})
+				_, err := run(job.Preset{Container: box, Video: job.Video{Codec: codec}})
 				ck(box+"/"+codec, err)
 			}
 		}
@@ -220,25 +220,25 @@ func TestSupport(t *testing.T) {
 
 	t.Run("Video", func(t *testing.T) {
 		for i, tt := range []struct {
-			p   db.Video
+			p   job.Video
 			err error
 		}{
-			{db.Video{Codec: "vp9001"}, ErrUnsupported},
-			{db.Video{Codec: "h264", Profile: "8000"}, ErrUnsupported},
-			{db.Video{Codec: "h264", Profile: "main"}, nil},
-			{db.Video{Codec: "h264", Profile: "high"}, nil},
-			{db.Video{Codec: "h264", Profile: "main", Level: "1812"}, nil},
-			{db.Video{Codec: "h264", Profile: "main", Level: "@@@@"}, nil},
-			{db.Video{Codec: "h265", Profile: "main"}, nil},
-			{db.Video{Codec: "h265", Profile: "main", Level: "1812"}, ErrUnsupported},
-			{db.Video{Codec: "h265", Profile: "main", Level: "@@@@"}, ErrUnsupported},
+			{job.Video{Codec: "vp9001"}, ErrUnsupported},
+			{job.Video{Codec: "h264", Profile: "8000"}, ErrUnsupported},
+			{job.Video{Codec: "h264", Profile: "main"}, nil},
+			{job.Video{Codec: "h264", Profile: "high"}, nil},
+			{job.Video{Codec: "h264", Profile: "main", Level: "1812"}, nil},
+			{job.Video{Codec: "h264", Profile: "main", Level: "@@@@"}, nil},
+			{job.Video{Codec: "h265", Profile: "main"}, nil},
+			{job.Video{Codec: "h265", Profile: "main", Level: "1812"}, ErrUnsupported},
+			{job.Video{Codec: "h265", Profile: "main", Level: "@@@@"}, ErrUnsupported},
 
 			// Below: flaky tests or behavior
 			// NOTE(as): we seem to have special logic for this because of HDR support
-			//		{db.Video{Codec: "h265", Profile: "9000"}, ErrUnsupported},
-			{db.Video{Codec: "h264", InterlaceMode: "efas"}, nil},
-			{db.Video{Codec: "h265", InterlaceMode: "?"}, nil},
-			{db.Video{Codec: "av1", Profile: "f"}, nil},
+			//		{job.Video{Codec: "h265", Profile: "9000"}, ErrUnsupported},
+			{job.Video{Codec: "h264", InterlaceMode: "efas"}, nil},
+			{job.Video{Codec: "h265", InterlaceMode: "?"}, nil},
+			{job.Video{Codec: "av1", Profile: "f"}, nil},
 		} {
 			_, err := run(job.Preset{Container: "mp4", Video: tt.p})
 			ck(fmt.Sprintf("video%d", i), err, tt.err)
@@ -248,16 +248,16 @@ func TestSupport(t *testing.T) {
 	t.Run("FlakyValidation", func(t *testing.T) {
 		warn = true
 		for _, codec := range []string{"h264", "h265", "av1", "xdcam", "vp8"} {
-			_, err := run(job.Preset{Container: "mp4", Video: db.Video{Codec: codec}, RateControl: "?"})
+			_, err := run(job.Preset{Container: "mp4", Video: job.Video{Codec: codec}, RateControl: "?"})
 			ck(codec+"/ratecontrol", err, ErrUnsupported)
 
-			_, err = run(job.Preset{Container: "mp4", Video: db.Video{Codec: codec, Profile: "?"}})
+			_, err = run(job.Preset{Container: "mp4", Video: job.Video{Codec: codec, Profile: "?"}})
 			ck(codec+"/profile", err, ErrUnsupported)
 
-			_, err = run(job.Preset{Container: "mp4", Video: db.Video{Codec: codec, Level: "?"}})
+			_, err = run(job.Preset{Container: "mp4", Video: job.Video{Codec: codec, Level: "?"}})
 			ck(codec+"/profilelevel", err, ErrUnsupported)
 
-			_, err = run(job.Preset{Container: "mp4", Video: db.Video{Codec: codec, InterlaceMode: "?"}})
+			_, err = run(job.Preset{Container: "mp4", Video: job.Video{Codec: codec, InterlaceMode: "?"}})
 			ck(codec+"/interlace", err, ErrUnsupported)
 		}
 	})
@@ -271,7 +271,7 @@ func TestDriverCreate(t *testing.T) {
 			Description: "test_desc",
 			Container:   "webm",
 			RateControl: "VBR",
-			Video: db.Video{
+			Video: job.Video{
 				Width:         300,
 				Height:        400,
 				Codec:         "vp8",
@@ -307,7 +307,7 @@ func TestDriverCreate(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				Outputs:      []job.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
 				Labels:       []string{"bill:some-bu", "some-more-labels"},
 			},
 			preset:      defaultPreset,
@@ -413,10 +413,10 @@ func TestDriverCreate(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				SourceInfo: db.File{
-					ScanType: db.ScanTypeInterlaced,
+				SourceInfo: job.File{
+					ScanType: job.ScanTypeInterlaced,
 				},
-				Outputs: []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				Outputs: []job.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -518,10 +518,10 @@ func TestDriverCreate(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				SourceInfo: db.File{
-					ScanType: db.ScanTypeProgressive,
+				SourceInfo: job.File{
+					ScanType: job.ScanTypeProgressive,
 				},
-				Outputs: []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				Outputs: []job.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -617,7 +617,7 @@ func TestDriverCreate(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: h265Preset.Name}, FileName: "file1.mp4"}},
+				Outputs:      []job.TranscodeOutput{{Preset: job.Preset{Name: h265Preset.Name}, FileName: "file1.mp4"}},
 			},
 			preset:      h265Preset,
 			destination: "s3://some/destination",
@@ -713,7 +713,7 @@ func TestDriverCreate(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: av1Preset.Name}, FileName: "file1.mp4"}},
+				Outputs:      []job.TranscodeOutput{{Preset: job.Preset{Name: av1Preset.Name}, FileName: "file1.mp4"}},
 			},
 			preset:      av1Preset,
 			destination: "s3://some/destination",
@@ -797,7 +797,7 @@ func TestDriverCreate(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.webm",
-				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.webm"}},
+				Outputs:      []job.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.webm"}},
 			},
 			preset:      vp8Preset("vorbis"),
 			destination: "s3://some/destination",
@@ -894,7 +894,7 @@ func TestDriverCreate(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.webm",
-				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.webm"}},
+				Outputs:      []job.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.webm"}},
 			},
 			preset:      vp8Preset("opus"),
 			destination: "s3://some/destination",
@@ -995,7 +995,7 @@ func TestDriverCreate(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				Outputs:      []job.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -1102,7 +1102,7 @@ func TestDriverCreate(t *testing.T) {
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mov",
-				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: tcBurninPreset.Name}, FileName: "file1.mov"}},
+				Outputs:      []job.TranscodeOutput{{Preset: job.Preset{Name: tcBurninPreset.Name}, FileName: "file1.mov"}},
 				AudioDownmix: &job.AudioDownmix{
 					SrcChannels: []job.AudioChannel{
 						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
@@ -1233,8 +1233,8 @@ func TestDriverCreate(t *testing.T) {
 		//		ID:           "jobID",
 		//		ProviderName: Name,
 		//		SourceMedia:  "s3://some/path.mp4",
-		//		SourceInfo:   db.File{FileSize: 1_000_000_000},
-		//		Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
+		//		SourceInfo:   job.File{FileSize: 1_000_000_000},
+		//		Outputs:      []job.TranscodeOutput{{Preset: job.Preset{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
 		//	},
 		//	preset:      audioOnlyPreset,
 		//	destination: "s3://some/destination",

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 )
@@ -92,19 +91,19 @@ type JobResponseOutput struct {
 	UpdateTimestamp float64 `json:"update_timestamp"`
 }
 
-func (p *flock) Create(ctx context.Context, job *job.Job) (*job.Status, error) {
-	jobReq, err := p.flockJobRequestFrom(job)
+func (p *flock) Create(ctx context.Context, j *job.Job) (*job.Status, error) {
+	jr, err := p.flockJobRequestFrom(j)
 	if err != nil {
 		return nil, fmt.Errorf("generating flock job request: %w", err)
 	}
 
-	jsonValue, err := json.Marshal(jobReq)
+	data, err := json.Marshal(jr)
 	if err != nil {
-		return nil, fmt.Errorf("marshaling job request %+v to json: %w", jobReq, err)
+		return nil, fmt.Errorf("marshaling job request %+v to json: %w", jr, err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		fmt.Sprintf("%s/api/v1/jobs", p.cfg.Endpoint), bytes.NewBuffer(jsonValue))
+		fmt.Sprintf("%s/api/v1/jobs", p.cfg.Endpoint), bytes.NewBuffer(data))
 	if err != nil {
 		return nil, fmt.Errorf("creating job request: %w", err)
 	}
@@ -135,23 +134,23 @@ func (p *flock) Create(ctx context.Context, job *job.Job) (*job.Status, error) {
 	}, nil
 }
 
-func (p *flock) flockJobRequestFrom(job *job.Job) (*JobRequest, error) {
+func (p *flock) flockJobRequestFrom(j *job.Job) (*JobRequest, error) {
 	presets := []job.Preset{}
-	for _, output := range job.Outputs {
+	for _, output := range j.Outputs {
 		presets = append(presets, output.Preset)
 	}
 
 	var jobReq JobRequest
-	jobReq.Job.Source = job.SourceMedia
+	jobReq.Job.Source = j.SourceMedia
 
-	for _, label := range job.Labels {
+	for _, label := range j.Labels {
 		jobReq.Job.Labels = append(jobReq.Job.Labels, label)
 	}
 
-	jobOuts := make([]JobOutput, 0, len(job.Outputs))
-	for i, output := range job.Outputs {
+	jobOuts := make([]JobOutput, 0, len(j.Outputs))
+	for i, output := range j.Outputs {
 		var jobOut JobOutput
-		jobOut.Destination = joinBaseAndParts(job.DestinationBasePath, job.RootFolder(), output.FileName)
+		jobOut.Destination = joinBaseAndParts(j.DestinationBasePath, j.RootFolder(), output.FileName)
 		jobOut.AudioCodec = presets[i].Audio.Codec
 		jobOut.VideoCodec = presets[i].Video.Codec
 		jobOut.Preset = "slow"
@@ -160,7 +159,7 @@ func (p *flock) flockJobRequestFrom(job *job.Job) (*JobRequest, error) {
 		if jobOut.VideoCodec == "hevc" {
 			jobOut.Tag = "hvc1"
 		}
-		if presets[i].Video.GopUnit == db.GopUnitSeconds {
+		if presets[i].Video.GopUnit == job.GopUnitSeconds {
 			jobOut.KeyframesPerSecond = int(presets[i].Video.GopSize)
 		} else {
 			jobOut.KeyframeInterval = int(presets[i].Video.GopSize)
@@ -221,9 +220,9 @@ func (p *flock) Status(ctx context.Context, job *job.Job) (*job.Status, error) {
 	return p.jobStatusFrom(job, &jobResp), nil
 }
 
-func (p *flock) jobStatusFrom(job *job.Job, jobResp *JobResponse) *job.Status {
+func (p *flock) jobStatusFrom(j *job.Job, jobResp *JobResponse) *job.Status {
 	status := &job.Status{
-		ProviderJobID: job.ProviderJobID,
+		ProviderJobID: j.ProviderJobID,
 		ProviderName:  Name,
 		ProviderStatus: map[string]interface{}{
 			"create_timestamp": jobResp.CreateTimestamp,
@@ -233,10 +232,10 @@ func (p *flock) jobStatusFrom(job *job.Job, jobResp *JobResponse) *job.Status {
 			"status":           jobResp.Status,
 		},
 		State: state(jobResp),
-		Output: provider.Output{
-			Destination: joinBaseAndParts(job.DestinationBasePath, job.RootFolder()),
+		Output: job.Output{
+			Destination: joinBaseAndParts(j.DestinationBasePath, j.RootFolder()),
 		},
-		Labels: job.Labels,
+		Labels: j.Labels,
 	}
 
 	outputsStatus := make([]map[string]interface{}, 0, len(jobResp.Outputs))
@@ -267,8 +266,8 @@ func joinBaseAndParts(base string, elem ...string) string {
 	return strings.Join(parts, "/")
 }
 
-func state(job *JobResponse) job.State {
-	switch job.Status {
+func state(j *JobResponse) job.State {
+	switch j.Status {
 	case "submitted":
 		return job.StateQueued
 	case "assigned", "transcoding":

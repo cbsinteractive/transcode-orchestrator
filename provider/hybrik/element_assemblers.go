@@ -58,7 +58,7 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Ele
 	}
 
 	mezzQCComputeTag := computeTagMezzQCDefault
-	if tag, found := cfg.computeTags[db.ComputeClassDolbyVisionPreprocess]; found {
+	if tag, found := cfg.computeTags[job.ComputeClassDolbyVisionPreprocess]; found {
 		mezzQCComputeTag = tag
 	}
 
@@ -76,7 +76,7 @@ func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Ele
 	elementGroups = append(elementGroups, preTranscodeElements)
 
 	preprocComputeTag := computeTagPreProcDefault
-	if tag, found := cfg.computeTags[db.ComputeClassDolbyVisionPreprocess]; found {
+	if tag, found := cfg.computeTags[job.ComputeClassDolbyVisionPreprocess]; found {
 		preprocComputeTag = tag
 	}
 

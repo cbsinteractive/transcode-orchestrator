@@ -20,7 +20,7 @@ var addr = flag.String("addr", ":"+os.Getenv("HTTP_PORT"), "http listen address"
 
 func main() {
 	cfg := config.LoadConfig()
-	store, err := db.NewClient(nil)
+	store, err := job.NewClient(nil)
 	if err != nil {
 		log.Fatalf("initializing db: %v", err)
 	}

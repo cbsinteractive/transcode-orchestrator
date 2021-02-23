@@ -82,7 +82,7 @@ func (p *hybrikProvider) enrichCreateJobWithPackagingCfg(cj hybrik.CreateJob, jo
 		Payload: packagePayload,
 	}
 
-	if tag, found := jobCfg.computeTags[db.ComputeClassTranscodeDefault]; found {
+	if tag, found := jobCfg.computeTags[job.ComputeClassTranscodeDefault]; found {
 		packageElement.Task = &hybrik.ElementTaskOptions{Tags: []string{tag}}
 	}
 

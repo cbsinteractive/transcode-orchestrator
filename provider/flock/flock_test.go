@@ -81,7 +81,7 @@ func TestFlock_CancelJob(t *testing.T) {
 				client: &http.Client{Transport: mockTransport},
 			}
 
-			err := provider.CancelJob(context.Background(), tt.providerID)
+			err := provider.Cancel(context.Background(), tt.providerID)
 			if err != nil {
 				if g, e := err.Error(), tt.expectErr; g != e {
 					t.Errorf("CancelJob() wrong error returned, got: %v, want: %v", g, e)

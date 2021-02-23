@@ -33,9 +33,9 @@ func av1CodecSettingsFrom(preset job.Preset) (*mc.VideoCodecSettings, error) {
 
 func av1GopSizeFrom(gopUnit string, gopSize float64) (float64, error) {
 	switch strings.ToLower(gopUnit) {
-	case "", db.GopUnitFrames:
+	case "", job.GopUnitFrames:
 		return gopSize, nil
-	case db.GopUnitSeconds:
+	case job.GopUnitSeconds:
 		return 0, fmt.Errorf("gop unit %q is not supported with mediaconvert and AV1", gopUnit)
 	default:
 		return 0, fmt.Errorf("gop unit %q is not supported with mediaconvert", gopUnit)

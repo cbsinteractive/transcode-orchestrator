@@ -66,7 +66,7 @@ func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybr
 	}
 
 	preprocComputeTag := computeTagPreProcDefault
-	if tag, found := cfg.computeTags[db.ComputeClassDolbyVisionPreprocess]; found {
+	if tag, found := cfg.computeTags[job.ComputeClassDolbyVisionPreprocess]; found {
 		preprocComputeTag = tag
 	}
 

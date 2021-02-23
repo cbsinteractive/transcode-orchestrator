@@ -45,7 +45,7 @@ func (p *hybrikProvider) srcFrom(job *Job, src storageLocation) (hybrik.Element,
 
 	assets := []hybrik.AssetPayload{sourceAsset}
 
-	if sidecarLocation, ok := job.SidecarAssets[db.SidecarAssetKindDolbyVisionMetadata]; ok {
+	if sidecarLocation, ok := job.SidecarAssets[job.SidecarAssetKindDolbyVisionMetadata]; ok {
 		sidecarStorageProvider, err := storageProviderFrom(sidecarLocation)
 		if err != nil {
 			return hybrik.Element{}, err

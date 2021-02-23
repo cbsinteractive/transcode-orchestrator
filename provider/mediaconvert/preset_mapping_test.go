@@ -33,7 +33,7 @@ func TestBitrateLevel(t *testing.T) {
 
 func TestScanType(t *testing.T) {
 	dst := job.Preset{}
-	src := db.File{}
+	src := job.File{}
 
 	for _, tt := range []struct {
 		name, src, dst string
@@ -47,7 +47,7 @@ func TestScanType(t *testing.T) {
 		{"p2p", "progressive", "progressive", nil},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			src.ScanType = db.ScanType(tt.src)
+			src.ScanType = job.ScanType(tt.src)
 			dst.Video.InterlaceMode = tt.dst
 			v := setter{dst, src}.ScanType(nil)
 			if have := v.VideoPreprocessors.Deinterlacer; have != tt.want {

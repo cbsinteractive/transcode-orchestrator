@@ -110,7 +110,7 @@ func (p *hybrikProvider) transcodeElementFromPreset(preset job.Preset, uid strin
 	}
 
 	transcodeComputeTags := []string{}
-	if tag, found := cfg.computeTags[db.ComputeClassTranscodeDefault]; found {
+	if tag, found := cfg.computeTags[job.ComputeClassTranscodeDefault]; found {
 		transcodeComputeTags = append(transcodeComputeTags, tag)
 	}
 
@@ -136,7 +136,7 @@ func transcodePayloadModifiersFor(preset job.Preset) []transcodePayloadModifier 
 	modifiers := []transcodePayloadModifier{}
 
 	// Rate control
-	if preset.RateControl != "" && preset.Video != (db.Video{}) {
+	if preset.RateControl != "" && preset.Video != (job.Video{}) {
 		modifiers = append(modifiers, transcodePayloadModifier{name: "rateControl", runFunc: enrichTranscodePayloadWithRateControl})
 	}
 
@@ -193,7 +193,7 @@ func (p *hybrikProvider) audioElementsFrom(presets map[string]job.Preset, cfg jo
 func (p *hybrikProvider) transcodeAudioElementFromPreset(target job.Audio, outputFilename string, idx int,
 	cfg jobCfg, container string) (hybrik.Element, error) {
 	transcodeComputeTags := []string{}
-	if tag, found := cfg.computeTags[db.ComputeClassTranscodeDefault]; found {
+	if tag, found := cfg.computeTags[job.ComputeClassTranscodeDefault]; found {
 		transcodeComputeTags = append(transcodeComputeTags, tag)
 	}
 

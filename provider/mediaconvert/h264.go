@@ -19,9 +19,9 @@ var RateControl = map[string]string{
 	"qvbr": "QVBR",
 }
 var GopUnits = map[string]string{
-	"":                "FRAMES",
-	db.GopUnitFrames:  "FRAMES",
-	db.GopUnitSeconds: "SECONDS",
+	"":                 "FRAMES",
+	job.GopUnitFrames:  "FRAMES",
+	job.GopUnitSeconds: "SECONDS",
 }
 
 func h264CodecSettingsFrom(preset job.Preset) (*mc.VideoCodecSettings, error) {
@@ -67,9 +67,9 @@ func h264CodecSettingsFrom(preset job.Preset) (*mc.VideoCodecSettings, error) {
 
 func h264GopUnitFrom(v string) (mc.H264GopSizeUnits, error) {
 	switch strings.ToLower(v) {
-	case "", db.GopUnitFrames:
+	case "", job.GopUnitFrames:
 		return mc.H264GopSizeUnitsFrames, nil
-	case db.GopUnitSeconds:
+	case job.GopUnitSeconds:
 		return mc.H264GopSizeUnitsSeconds, nil
 	default:
 		return "", fmt.Errorf("h264: %w: gop unit: %q", ErrUnsupported, v)

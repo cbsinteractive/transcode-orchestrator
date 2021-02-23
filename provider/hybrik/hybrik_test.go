@@ -19,7 +19,7 @@ var (
 		Container:   "mp4",
 		RateControl: "CBR",
 		TwoPass:     true,
-		Video: db.Video{
+		Video: job.Video{
 			Profile:       "high",
 			Level:         "4.1",
 			Width:         300,
@@ -39,7 +39,7 @@ var (
 		ID:           "jobID",
 		ProviderName: Name,
 		SourceMedia:  "s3://some/path.mp4",
-		Outputs: []db.TranscodeOutput{
+		Outputs: []job.TranscodeOutput{
 			{
 				Preset:   defaultPreset,
 				FileName: "file1.mp4",
@@ -49,14 +49,14 @@ var (
 )
 
 // preset job.Preset, uid string, destination storageLocation, filename string,
-//	execFeatures executionFeatures, computeTags map[db.ComputeClass]string
+//	execFeatures executionFeatures, computeTags map[job.ComputeClass]string
 type transcodeCfg struct {
 	uid                  string
 	destination          storageLocation
 	filename             string
 	execFeatures         executionFeatures
-	computeTags          map[db.ComputeClass]string
-	executionEnvironment db.ExecutionEnvironment
+	computeTags          map[job.ComputeClass]string
+	executionEnvironment job.ExecutionEnvironment
 }
 
 // updates default preset for quick test of gop structs
@@ -99,8 +99,8 @@ func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
 						Duration: 60,
 					},
 				},
-				computeTags: map[db.ComputeClass]string{
-					db.ComputeClassTranscodeDefault: "transcode_default_tag",
+				computeTags: map[job.ComputeClass]string{
+					job.ComputeClassTranscodeDefault: "transcode_default_tag",
 				},
 			},
 			wantTranscodeElement: hybrik.TranscodePayload{
@@ -361,7 +361,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 					provider: storageProviderS3,
 					path:     "s3://some_bucket/encodes",
 				},
-				executionEnvironment: db.ExecutionEnvironment{
+				executionEnvironment: job.ExecutionEnvironment{
 					OutputAlias: "test_alias",
 				},
 			},
@@ -383,7 +383,7 @@ func TestHybrikProvider_transcodeElementFromPreset_fields(t *testing.T) {
 					path:     "gs://some_bucket/encodes",
 				},
 				filename: "output.mp4",
-				executionEnvironment: db.ExecutionEnvironment{
+				executionEnvironment: job.ExecutionEnvironment{
 					OutputAlias: "test_alias",
 				},
 			},
@@ -575,7 +575,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 		//		Name:        defaultPreset.Name,
 		//		Description: defaultPreset.Description,
 		//		Container:   "mp4",
-		//		Video: db.Video{
+		//		Video: job.Video{
 		//			Profile:       "main10",
 		//			Width:         "300",
 		//			Codec:         "h265",
@@ -583,7 +583,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 		//			GopSize:       "120",
 		//			GopMode:       "fixed",
 		//			InterlaceMode: "progressive",
-		//			DolbyVisionSettings: db.DolbyVisionSettings{
+		//			DolbyVisionSettings: job.DolbyVisionSettings{
 		//				Enabled: true,
 		//			},
 		//		},
@@ -699,7 +699,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 				Name:        defaultPreset.Name,
 				Description: defaultPreset.Description,
 				Container:   "mp4",
-				Video: db.Video{
+				Video: job.Video{
 					Profile:       "main10",
 					Width:         300,
 					Codec:         "h265",
@@ -707,7 +707,7 @@ func TestHybrikProvider_presetsToTranscodeJob(t *testing.T) {
 					GopSize:       120,
 					GopMode:       "fixed",
 					InterlaceMode: "progressive",
-					DolbyVisionSettings: db.DolbyVisionSettings{
+					DolbyVisionSettings: job.DolbyVisionSettings{
 						Enabled: true,
 					},
 				},
@@ -882,8 +882,8 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 		{
 			name: "when a dolby vision sidecar asset is included, it is correctly added to the source element",
 			jobModifier: func(job job.Job) job.Job {
-				job.SidecarAssets = map[db.SidecarAssetKind]string{
-					db.SidecarAssetKindDolbyVisionMetadata: "s3://test_sidecar_location/path/file.xml",
+				job.SidecarAssets = map[job.SidecarAssetKind]string{
+					job.SidecarAssetKindDolbyVisionMetadata: "s3://test_sidecar_location/path/file.xml",
 				}
 
 				return job
@@ -946,8 +946,8 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 		{
 			name: "when custom compute tags are specified, the right tags are added to the output",
 			jobModifier: func(job job.Job) job.Job {
-				job.ExecutionEnv.ComputeTags = map[db.ComputeClass]string{
-					db.ComputeClassTranscodeDefault: "custom_tag",
+				job.ExecutionEnv.ComputeTags = map[job.ComputeClass]string{
+					job.ComputeClassTranscodeDefault: "custom_tag",
 				}
 
 				return job
@@ -966,13 +966,13 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 		{
 			name: "when HLS packaging is specified, a package task is added with the correct values",
 			jobModifier: func(job job.Job) job.Job {
-				job.StreamingParams = db.StreamingParams{
+				job.StreamingParams = job.StreamingParams{
 					SegmentDuration: 4,
 					Protocol:        "hls",
 				}
 
-				job.ExecutionEnv.ComputeTags = map[db.ComputeClass]string{
-					db.ComputeClassTranscodeDefault: "default_transcode_class",
+				job.ExecutionEnv.ComputeTags = map[job.ComputeClass]string{
+					job.ComputeClassTranscodeDefault: "default_transcode_class",
 				}
 
 				return job
@@ -1011,7 +1011,7 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 		{
 			name: "when DASH packaging is specified, a package task is added with the correct values",
 			jobModifier: func(job job.Job) job.Job {
-				job.StreamingParams = db.StreamingParams{
+				job.StreamingParams = job.StreamingParams{
 					SegmentDuration: 4,
 					Protocol:        "dash",
 				}
@@ -1050,7 +1050,7 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			name: "sources coming from s3 support segmented rendering",
 			jobModifier: func(job job.Job) job.Job {
 				job.SourceMedia = "s3://bucket/path/file.mp4"
-				job.ExecutionFeatures = db.ExecutionFeatures{
+				job.ExecutionFeatures = job.ExecutionFeatures{
 					featureSegmentedRendering: SegmentedRendering{Duration: 50},
 				}
 
@@ -1080,7 +1080,7 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			name: "sources coming from gcs support segmented rendering",
 			jobModifier: func(job job.Job) job.Job {
 				job.SourceMedia = "gs://bucket/path/file.mp4"
-				job.ExecutionFeatures = db.ExecutionFeatures{
+				job.ExecutionFeatures = job.ExecutionFeatures{
 					featureSegmentedRendering: SegmentedRendering{Duration: 50},
 				}
 
@@ -1110,7 +1110,7 @@ func TestHybrikProvider_presetsToTranscodeJob_fields(t *testing.T) {
 			name: "sources coming from http do not support segmented rendering",
 			jobModifier: func(job job.Job) job.Job {
 				job.SourceMedia = "http://example.com/path/file.mp4"
-				job.ExecutionFeatures = db.ExecutionFeatures{
+				job.ExecutionFeatures = job.ExecutionFeatures{
 					featureSegmentedRendering: SegmentedRendering{Duration: 50},
 				}
 

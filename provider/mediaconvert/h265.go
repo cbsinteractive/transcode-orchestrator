@@ -73,9 +73,9 @@ func h265CodecSettingsFrom(preset job.Preset) (*mc.VideoCodecSettings, error) {
 
 func h265GopUnitFrom(v string) (mc.H265GopSizeUnits, error) {
 	switch strings.ToLower(v) {
-	case "", db.GopUnitFrames:
+	case "", job.GopUnitFrames:
 		return mc.H265GopSizeUnitsFrames, nil
-	case db.GopUnitSeconds:
+	case job.GopUnitSeconds:
 		return mc.H265GopSizeUnitsSeconds, nil
 	default:
 		return "", fmt.Errorf("h265: %w: gop unit %q", ErrUnsupported, v)

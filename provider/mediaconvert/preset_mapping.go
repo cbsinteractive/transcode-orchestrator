@@ -23,14 +23,14 @@ var timecodePositionMap = map[int]mc.TimecodeBurninPosition{
 	8: mc.TimecodeBurninPositionBottomRight,
 }
 
-func outputFrom(preset job.Preset, sourceInfo db.File) (mc.Output, error) {
+func outputFrom(preset job.Preset, sourceInfo job.File) (mc.Output, error) {
 	container, err := containerFrom(preset.Container)
 	if err != nil {
 		return mc.Output{}, fmt.Errorf("container: %w", err)
 	}
 
 	var videoPreset *mc.VideoDescription
-	if preset.Video != (db.Video{}) {
+	if preset.Video != (job.Video{}) {
 		videoPreset, err = videoPresetFrom(preset, sourceInfo)
 		if err != nil {
 			return mc.Output{}, fmt.Errorf("video: %w", err)
@@ -121,7 +121,7 @@ func containerSettingsFrom(container mc.ContainerType) *mc.ContainerSettings {
 	return cs
 }
 
-func videoPresetFrom(preset job.Preset, sourceInfo db.File) (*mc.VideoDescription, error) {
+func videoPresetFrom(preset job.Preset, sourceInfo job.File) (*mc.VideoDescription, error) {
 	videoPreset := mc.VideoDescription{
 		ScalingBehavior:   mc.ScalingBehaviorDefault,
 		TimecodeInsertion: mc.VideoTimecodeInsertionDisabled,
@@ -174,8 +174,8 @@ func videoPresetFrom(preset job.Preset, sourceInfo db.File) (*mc.VideoDescriptio
 		return &videoPreset, nil
 	}
 	switch sourceInfo.ScanType {
-	case db.ScanTypeProgressive:
-	case db.ScanTypeInterlaced:
+	case job.ScanTypeProgressive:
+	case job.ScanTypeInterlaced:
 		videoPreset.VideoPreprocessors.Deinterlacer = &mc.Deinterlacer{
 			Algorithm: mc.DeinterlaceAlgorithmInterpolate,
 			Control:   mc.DeinterlacerControlNormal,
@@ -207,14 +207,14 @@ var (
 
 type setter struct {
 	dst job.Preset
-	src db.File
+	src job.File
 }
 
 func (s setter) ScanType(v *mc.VideoDescription) *mc.VideoDescription {
 	const (
 		// constants have same value for src/dst, but different types...
-		progressive = string(db.ScanTypeProgressive)
-		interlaced  = string(db.ScanTypeInterlaced)
+		progressive = string(job.ScanTypeProgressive)
+		interlaced  = string(job.ScanTypeInterlaced)
 	)
 	if v == nil {
 		v = &mc.VideoDescription{}
@@ -272,7 +272,7 @@ func (s setter) Crop(v *mc.VideoDescription) *mc.VideoDescription {
 	return v
 }
 
-func videoPreprocessorsFrom(videoPreset db.Video) (*mc.VideoPreprocessor, error) {
+func videoPreprocessorsFrom(videoPreset job.Video) (*mc.VideoPreprocessor, error) {
 	videoPreprocessor := &mc.VideoPreprocessor{}
 
 	if videoPreset.Overlays != nil && videoPreset.Overlays.TimecodeBurnin != nil {
