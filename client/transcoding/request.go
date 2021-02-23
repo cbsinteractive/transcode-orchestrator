@@ -9,19 +9,19 @@ import (
 	"net/http"
 )
 
-func (c *DefaultClient) getResource(ctx context.Context, result interface{}, path string) error {
+func (c *Client) getResource(ctx context.Context, result interface{}, path string) error {
 	return c.reqWithMethodAndPayload(ctx, http.MethodGet, path, result, nil)
 }
 
-func (c *DefaultClient) postResource(ctx context.Context, resource interface{}, result interface{}, path string) error {
+func (c *Client) postResource(ctx context.Context, resource interface{}, result interface{}, path string) error {
 	return c.reqWithMethodAndPayload(ctx, http.MethodPost, path, result, resource)
 }
 
-func (c *DefaultClient) removeResource(ctx context.Context, result interface{}, path string) error {
+func (c *Client) removeResource(ctx context.Context, result interface{}, path string) error {
 	return c.reqWithMethodAndPayload(ctx, http.MethodDelete, path, result, nil)
 }
 
-func (c *DefaultClient) reqWithMethodAndPayload(ctx context.Context, method string, path string, result interface{}, reqBody interface{}) error {
+func (c *Client) reqWithMethodAndPayload(ctx context.Context, method string, path string, result interface{}, reqBody interface{}) error {
 	var req *http.Request
 	var err error
 
@@ -31,9 +31,9 @@ func (c *DefaultClient) reqWithMethodAndPayload(ctx context.Context, method stri
 		if err != nil {
 			return err
 		}
-		req, err = http.NewRequestWithContext(ctx, method, c.BaseURL.String()+path, body)
+		req, err = http.NewRequestWithContext(ctx, method, c.Base.String()+path, body)
 	} else {
-		req, err = http.NewRequestWithContext(ctx, method, c.BaseURL.String()+path, nil)
+		req, err = http.NewRequestWithContext(ctx, method, c.Base.String()+path, nil)
 	}
 
 	if err != nil {

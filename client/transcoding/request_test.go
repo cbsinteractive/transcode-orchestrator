@@ -114,7 +114,7 @@ func Test_reqWithMethodAndPayload(t *testing.T) {
 				t.Error(err)
 			}
 
-			client := DefaultClient{BaseURL: backendURL}
+			client := Client{Base: backendURL}
 			client.ensure()
 
 			respObj := testResp{}
