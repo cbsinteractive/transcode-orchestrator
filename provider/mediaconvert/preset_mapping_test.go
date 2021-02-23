@@ -31,7 +31,7 @@ func TestBitrateLevel(t *testing.T) {
 }
 
 func TestScanType(t *testing.T) {
-	dst := db.Preset{}
+	dst := job.Preset{}
 	src := db.File{}
 
 	for _, tt := range []struct {

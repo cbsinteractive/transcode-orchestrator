@@ -70,7 +70,7 @@ func splice2clippings(s timecode.Splice, fps float64) (ic []mc.InputClipping) {
 	return ic
 }
 
-func (p *driver) createRequest(ctx context.Context, job *db.Job) (*mc.CreateJobInput, error) {
+func (p *driver) createRequest(ctx context.Context, job *job.Job) (*mc.CreateJobInput, error) {
 	outputGroups, err := p.outputGroupsFrom(ctx, job)
 	if err != nil {
 		return nil, fmt.Errorf("mediaconvert: output group generator: %w", err)
@@ -126,7 +126,7 @@ func (p *driver) createRequest(ctx context.Context, job *db.Job) (*mc.CreateJobI
 	}, nil
 }
 
-func (p *driver) Create(ctx context.Context, job *db.Job) (*provider.Status, error) {
+func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) {
 	input, err := p.createRequest(ctx, job)
 	if err != nil {
 		return nil, err
@@ -135,14 +135,14 @@ func (p *driver) Create(ctx context.Context, job *db.Job) (*provider.Status, err
 	if err != nil {
 		return nil, err
 	}
-	return &provider.Status{
+	return &job.Status{
 		ProviderName:  Name,
 		ProviderJobID: aws.StringValue(resp.Job.Id),
-		State:         provider.StateQueued,
+		State:         job.StateQueued,
 	}, nil
 }
 
-func (p *driver) outputGroupsFrom(ctx context.Context, job *db.Job) ([]mc.OutputGroup, error) {
+func (p *driver) outputGroupsFrom(ctx context.Context, job *job.Job) ([]mc.OutputGroup, error) {
 	cfg := map[mc.ContainerType][]outputCfg{}
 	for _, out := range job.Outputs {
 		mc, err := outputFrom(out.Preset, job.SourceInfo)
@@ -227,7 +227,7 @@ func (p *driver) outputGroupsFrom(ctx context.Context, job *db.Job) ([]mc.Output
 	return mcOutputGroups, nil
 }
 
-func (p *driver) destinationPathFrom(job *db.Job) string {
+func (p *driver) destinationPathFrom(job *job.Job) string {
 	var basePath string
 	if cfgBasePath := job.DestinationBasePath; cfgBasePath != "" {
 		basePath = cfgBasePath
@@ -237,19 +237,19 @@ func (p *driver) destinationPathFrom(job *db.Job) string {
 	return fmt.Sprintf("%s/%s/", strings.TrimRight(basePath, "/"), job.RootFolder())
 }
 
-func (p *driver) Status(ctx context.Context, job *db.Job) (*provider.Status, error) {
+func (p *driver) Status(ctx context.Context, job *job.Job) (*job.Status, error) {
 	jobResp, err := p.client.GetJobRequest(&mc.GetJobInput{
 		Id: aws.String(job.ProviderJobID),
 	}).Send(ctx)
 	if err != nil {
-		return &provider.Status{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
+		return &job.Status{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
 	}
 
 	return p.status(job, jobResp.Job), nil
 }
 
-func (p *driver) status(job *db.Job, mcJob *mc.Job) *provider.Status {
-	status := &provider.Status{
+func (p *driver) status(job *job.Job, mcJob *mc.Job) *job.Status {
+	status := &job.Status{
 		ProviderJobID: job.ProviderJobID,
 		ProviderName:  Name,
 		State:         state(mcJob.Status),
@@ -259,13 +259,13 @@ func (p *driver) status(job *db.Job, mcJob *mc.Job) *provider.Status {
 		},
 	}
 
-	if status.State == provider.StateFinished {
+	if status.State == job.StateFinished {
 		status.Progress = 100
 	} else if p := mcJob.JobPercentComplete; p != nil {
 		status.Progress = float64(*p)
 	}
 
-	var files []provider.File
+	var files []job.File
 	if settings := mcJob.Settings; settings != nil {
 		for _, group := range settings.OutputGroups {
 			groupDestination, err := outputGroupDestinationFrom(group)
@@ -273,7 +273,7 @@ func (p *driver) status(job *db.Job, mcJob *mc.Job) *provider.Status {
 				continue
 			}
 			for _, output := range group.Outputs {
-				file := provider.File{}
+				file := job.File{}
 
 				if modifier := output.NameModifier; modifier != nil {
 					if extension, err := fileExtensionFromContainer(output.ContainerSettings); err == nil {

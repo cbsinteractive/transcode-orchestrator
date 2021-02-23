@@ -36,7 +36,7 @@ const (
 	tuneGrain = "grain"
 )
 
-func enrichTranscodePayloadWithHDRMetadata(payload hwrapper.TranscodePayload, preset db.Preset) (hwrapper.TranscodePayload, error) {
+func enrichTranscodePayloadWithHDRMetadata(payload hwrapper.TranscodePayload, preset job.Preset) (hwrapper.TranscodePayload, error) {
 	hdr, hdrEnabled := hdrTypeFromPreset(preset)
 	if !hdrEnabled {
 		return payload, nil
@@ -93,7 +93,7 @@ func enrichTranscodePayloadWithHDRMetadata(payload hwrapper.TranscodePayload, pr
 	return payload, nil
 }
 
-func hdrTypeFromPreset(preset db.Preset) (hdrType, bool) {
+func hdrTypeFromPreset(preset job.Preset) (hdrType, bool) {
 	if preset.Video.HDR10Settings.Enabled {
 		return hdrTypeHDR10, true
 	} else if preset.Video.DolbyVisionSettings.Enabled {

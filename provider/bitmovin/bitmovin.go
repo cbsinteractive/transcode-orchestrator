@@ -29,6 +29,9 @@ func init() {
 	_ = provider.Register(Name, factory)
 }
 
+// Preset is a bitmovin Preset, formerly known as "PresetSummary"
+type Preset = codec.Preset
+
 const (
 	// Name is the name used for registering the bitmovin driver in the
 	// registry of drivers.
@@ -86,8 +89,8 @@ type driver struct {
 	tracer tracing.Tracer
 }
 
-func (p *driver) Create(ctx context.Context, job *db.Job) (*provider.Status, error) {
-	presets := make([]db.PresetSummary, len(job.Outputs))
+func (p *driver) Create(ctx context.Context, job *job.Job) (*job.Status, error) {
+	presets := make([]job.PresetSummary, len(job.Outputs))
 	for i, output := range job.Outputs {
 		if err := p.createPreset(ctx, output.Preset, &presets[i]); err != nil {
 			return nil, fmt.Errorf("output[%d]: preset: %w", i, err)
@@ -201,14 +204,14 @@ func (p *driver) Create(ctx context.Context, job *db.Job) (*provider.Status, err
 	}
 	subSeg.Close(nil)
 
-	return &provider.Status{
+	return &job.Status{
 		ProviderName:  Name,
 		ProviderJobID: encResp.Id,
-		State:         provider.StateQueued,
+		State:         job.StateQueued,
 	}, nil
 }
 
-func (p *driver) Status(ctx context.Context, job *db.Job) (*provider.Status, error) {
+func (p *driver) Status(ctx context.Context, job *job.Job) (*job.Status, error) {
 	subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-create-get-encoding-status")
 	task, err := p.api.Encoding.Encodings.Status(job.ProviderJobID)
 	if err != nil {
@@ -222,7 +225,7 @@ func (p *driver) Status(ctx context.Context, job *db.Job) (*provider.Status, err
 		progress = float64(*task.Progress)
 	}
 
-	s := provider.Status{
+	s := job.Status{
 		ProviderName:  Name,
 		ProviderJobID: job.ProviderJobID,
 		State:         state(task.Status),
@@ -236,7 +239,7 @@ func (p *driver) Status(ctx context.Context, job *db.Job) (*provider.Status, err
 		},
 	}
 
-	if s.State == provider.StateFinished {
+	if s.State == job.StateFinished {
 		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-get-output-info")
 		s, err = p.enrichStreams(s)
 		if err != nil {
@@ -266,7 +269,7 @@ func (p *driver) Cancel(ctx context.Context, id string) (err error) {
 }
 
 type outputCfg struct {
-	preset             db.PresetSummary
+	preset             job.PresetSummary
 	encodingID         string
 	videoIn, audioIn   string
 	outputID           string
@@ -274,7 +277,7 @@ type outputCfg struct {
 	outputFilename     string
 	manifestID         string
 	manifestMasterPath string
-	job                *db.Job
+	job                *job.Job
 }
 
 func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan error) {
@@ -343,7 +346,7 @@ func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan err
 	}
 }
 
-func (p *driver) inputFrom(ctx context.Context, job *db.Job) (inputID string, srcPath string, err error) {
+func (p *driver) inputFrom(ctx context.Context, job *job.Job) (inputID string, srcPath string, err error) {
 	defer p.trace(ctx, "bitmovin-create-input", &err)()
 
 	srcPath, err = storage.PathFrom(job.SourceMedia)
@@ -368,7 +371,7 @@ func (p *driver) inputFrom(ctx context.Context, job *db.Job) (inputID string, sr
 	return inputID, srcPath, nil
 }
 
-func (p *driver) outputFrom(ctx context.Context, job *db.Job) (inputID string, destPath string, err error) {
+func (p *driver) outputFrom(ctx context.Context, job *job.Job) (inputID string, destPath string, err error) {
 	defer p.trace(ctx, "bitmovin-create-output", &err)()
 
 	destBasePath := p.destinationForJob(job)
@@ -394,7 +397,7 @@ func (p *driver) outputFrom(ctx context.Context, job *db.Job) (inputID string, d
 	return outputID, destPath, nil
 }
 
-func (p *driver) encodingCloudRegionFrom(job *db.Job) (model.CloudRegion, error) {
+func (p *driver) encodingCloudRegionFrom(job *job.Job) (model.CloudRegion, error) {
 	if cloud, region := job.ExecutionEnv.Cloud, job.ExecutionEnv.Region; cloud+region != "" {
 		regions, found := regionByCloud[cloud]
 		if !found {
@@ -412,7 +415,7 @@ func (p *driver) encodingCloudRegionFrom(job *db.Job) (model.CloudRegion, error)
 	return model.CloudRegion(p.cfg.EncodingRegion), nil
 }
 
-func (p *driver) encodingInfrastructureFrom(job *db.Job) (*model.InfrastructureSettings, model.CloudRegion, error) {
+func (p *driver) encodingInfrastructureFrom(job *job.Job) (*model.InfrastructureSettings, model.CloudRegion, error) {
 	encodingCloudRegion, err := p.encodingCloudRegionFrom(job)
 	if err != nil {
 		return nil, encodingCloudRegion, errors.Wrap(err, "validating and setting encoding cloud region")
@@ -458,7 +461,7 @@ func (p *driver) createExplicitKeyframes(encodingID string, offsets []float64) e
 	return nil
 }
 
-func (p *driver) createPreset(_ context.Context, preset db.Preset, summary *db.PresetSummary) error {
+func (p *driver) createPreset(_ context.Context, preset job.Preset, summary *job.PresetSummary) error {
 	vc, _ := codec.New(preset.Video.Codec, preset)
 	ac, _ := codec.New(preset.Audio.Codec, preset)
 	c := []codec.Codec{}
@@ -522,7 +525,7 @@ func (p *driver) createPreset(_ context.Context, preset db.Preset, summary *db.P
 	return nil
 }
 
-func (p *driver) enrichStreams(s provider.Status) (provider.Status, error) {
+func (p *driver) enrichStreams(s job.Status) (job.Status, error) {
 	inStreams, err := p.api.Encoding.Encodings.Streams.List(s.ProviderJobID, func(params *query.StreamListQueryParams) {
 		params.Limit = 1
 		params.Offset = 0
@@ -551,7 +554,7 @@ func (p *driver) enrichStreams(s provider.Status) (provider.Status, error) {
 		height = int64(int32Value(vidStreamInput.Height))
 	}
 
-	s.Input = provider.File{
+	s.Input = job.File{
 		Duration:   time.Duration(floatValue(streamInput.Duration) * float64(time.Second)),
 		Width:      width,
 		Height:     height,
@@ -562,7 +565,7 @@ func (p *driver) enrichStreams(s provider.Status) (provider.Status, error) {
 
 }
 
-func (p *driver) destinationForJob(job *db.Job) string {
+func (p *driver) destinationForJob(job *job.Job) string {
 	if path := job.DestinationBasePath; path != "" {
 		return path
 	}

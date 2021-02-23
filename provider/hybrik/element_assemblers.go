@@ -45,8 +45,8 @@ func (p *hybrikProvider) defaultElementAssembler(cfg jobCfg) ([][]hybrik.Element
 func (p *hybrikProvider) dolbyVisionElementAssembler(cfg jobCfg) ([][]hybrik.Element, error) {
 	elementGroups := [][]hybrik.Element{}
 
-	presets := map[string]db.Preset{}
-	presetsWithoutAudio := map[string]db.Preset{}
+	presets := map[string]job.Preset{}
+	presetsWithoutAudio := map[string]job.Preset{}
 	for _, outputCfg := range cfg.outputCfgs {
 		preset := outputCfg.Preset
 		presets[outputCfg.FileName] = preset
@@ -171,7 +171,7 @@ func (p *hybrikProvider) dolbyVisionMezzQCElementFrom(mezzQCComputeTag string, c
 	return mezzQCElement
 }
 
-func audioTargetFromPreset(preset db.Preset) (db.Audio, bool, error) {
+func audioTargetFromPreset(preset job.Preset) (db.Audio, bool, error) {
 	audioCfg := preset.Audio
 	return audioCfg, audioCfg != (db.Audio{}), nil
 }

@@ -2,7 +2,7 @@ package codec
 
 import (
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
 var h264Profiles = list(
@@ -23,7 +23,7 @@ type CodecH264 struct {
 	cfg model.H264VideoConfiguration
 }
 
-func (c *CodecH264) set(preset db.Preset) (ok bool) {
+func (c *CodecH264) set(preset job.Preset) (ok bool) {
 	c.Profiles = h264Profiles
 	c.Levels = h264Levels
 	if !c.setVideo(VideoPTR{

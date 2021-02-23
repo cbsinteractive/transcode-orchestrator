@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
 type jobCfg struct {
@@ -16,13 +16,13 @@ type jobCfg struct {
 	source               hybrik.Element
 	elementGroups        [][]hybrik.Element
 	outputCfgs           map[string]outputCfg
-	streamingParams      db.StreamingParams
-	executionEnvironment db.ExecutionEnvironment
+	streamingParams      job.StreamingParams
+	executionEnvironment job.ExecutionEnvironment
 	executionFeatures    executionFeatures
-	computeTags          map[db.ComputeClass]string
+	computeTags          map[job.ComputeClass]string
 }
 
-type outputCfg = db.TranscodeOutput
+type outputCfg = job.TranscodeOutput
 
 const (
 	assetContentsKindMetadata = "metadata"
@@ -34,7 +34,7 @@ const (
 	srcOptionResolveManifestKey = "resolve_manifest"
 )
 
-func (p *hybrikProvider) srcFrom(job *db.Job, src storageLocation) (hybrik.Element, error) {
+func (p *hybrikProvider) srcFrom(job *Job, src storageLocation) (hybrik.Element, error) {
 	sourceAsset := p.assetPayloadFrom(src.provider, src.path, nil, job.ExecutionEnv.InputAlias)
 
 	if strings.ToLower(filepath.Ext(src.path)) == imfManifestExtension {
@@ -69,7 +69,7 @@ func (p *hybrikProvider) srcFrom(job *db.Job, src storageLocation) (hybrik.Eleme
 	}, nil
 }
 
-func (p *hybrikProvider) outputCfgsFrom(ctx context.Context, job *db.Job) (map[string]outputCfg, error) {
+func (p *hybrikProvider) outputCfgsFrom(ctx context.Context, job *Job) (map[string]outputCfg, error) {
 	presets := map[string]outputCfg{}
 
 	for _, output := range job.Outputs {

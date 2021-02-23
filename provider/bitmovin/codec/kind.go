@@ -5,12 +5,27 @@ import (
 	"strings"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
+
+// Preset is a bitmovin Preset, formerly known as "PresetSummary"
+type Preset struct {
+	Name          string
+	Container     string
+	VideoCodec    string
+	VideoConfigID string
+	VideoFilters  []string
+	AudioCodec    string
+	AudioConfigID string
+}
+
+func (j Preset) HasVideo() bool {
+	return j.VideoConfigID != ""
+}
 
 var ErrUnsupported = errors.New("codec unsupported")
 
-func New(codec string, preset db.Preset) (Codec, error) {
+func New(codec string, preset job.Preset) (Codec, error) {
 	c := enabled[strings.ToUpper(codec)]
 	if c == nil {
 		return nil, ErrUnsupported
@@ -19,7 +34,7 @@ func New(codec string, preset db.Preset) (Codec, error) {
 	return c, c.Err()
 }
 
-func Summary(c Codec, src db.Preset, dst db.PresetSummary) db.PresetSummary {
+func Summary(c Codec, src job.Preset, dst Preset) Preset {
 	if c.Err() != nil {
 		return dst
 	}
@@ -49,7 +64,7 @@ var enabled = map[string]Codec{
 }
 
 type Codec interface {
-	New(p db.Preset) Codec
+	New(p job.Preset) Codec
 	Create(*bitmovin.BitmovinApi) bool
 	Err() error
 
@@ -87,13 +102,13 @@ func (c CodecH264) video() {}
 func (c CodecH265) video() {}
 func (c CodecVP8) video()  {}
 
-func (c CodecAAC) New(p db.Preset) Codec    { c.set(p); return &c }
-func (c CodecAV1) New(p db.Preset) Codec    { c.set(p); return &c }
-func (c CodecH264) New(p db.Preset) Codec   { c.set(p); return &c }
-func (c CodecH265) New(p db.Preset) Codec   { c.set(p); return &c }
-func (c CodecOpus) New(p db.Preset) Codec   { c.set(p); return &c }
-func (c CodecVorbis) New(p db.Preset) Codec { c.set(p); return &c }
-func (c CodecVP8) New(p db.Preset) Codec    { c.set(p); return &c }
+func (c CodecAAC) New(p job.Preset) Codec    { c.set(p); return &c }
+func (c CodecAV1) New(p job.Preset) Codec    { c.set(p); return &c }
+func (c CodecH264) New(p job.Preset) Codec   { c.set(p); return &c }
+func (c CodecH265) New(p job.Preset) Codec   { c.set(p); return &c }
+func (c CodecOpus) New(p job.Preset) Codec   { c.set(p); return &c }
+func (c CodecVorbis) New(p job.Preset) Codec { c.set(p); return &c }
+func (c CodecVP8) New(p job.Preset) Codec    { c.set(p); return &c }
 
 func (c *CodecAAC) Create(api *bitmovin.BitmovinApi) (ok bool) {
 	create := api.Encoding.Configurations.Audio.Aac.Create

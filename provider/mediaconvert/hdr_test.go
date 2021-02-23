@@ -95,7 +95,7 @@ func TestHDRRequest(t *testing.T) {
 	p.Video.HDR10Settings.MasterDisplay = display
 
 	d := &driver{cfg: config.MediaConvert{Destination: "s3://some_dest"}}
-	req, err := d.createRequest(nil, &db.Job{
+	req, err := d.createRequest(nil, &job.Job{
 		Outputs: []db.TranscodeOutput{{Preset: p}},
 	})
 	if err != nil {

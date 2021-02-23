@@ -22,7 +22,7 @@ func atoi(a string) int64 {
 	return int64(i)
 }
 
-func (m mpeg2) validate(p db.Preset) error {
+func (m mpeg2) validate(p job.Preset) error {
 	if profile := p.Video.Profile; profile != "" {
 		if _, ok := mpeg2profiles[profile]; !ok {
 			return fmt.Errorf("%w: %q", ErrProfileUnsupported, profile)
@@ -31,7 +31,7 @@ func (m mpeg2) validate(p db.Preset) error {
 	return nil
 }
 
-func (m mpeg2) apply(p db.Preset) mpeg2 {
+func (m mpeg2) apply(p job.Preset) mpeg2 {
 	if p.Video.Profile != "" {
 		m.CodecProfile = mpeg2profiles[p.Video.Profile]
 	}
@@ -47,7 +47,7 @@ func (m mpeg2) apply(p db.Preset) mpeg2 {
 	return m
 }
 
-func (m mpeg2) generate(p db.Preset) (*mc.VideoCodecSettings, error) {
+func (m mpeg2) generate(p job.Preset) (*mc.VideoCodecSettings, error) {
 	s := &mc.VideoCodecSettings{
 		Codec:         mc.VideoCodecMpeg2,
 		Mpeg2Settings: &mc.Mpeg2Settings{},

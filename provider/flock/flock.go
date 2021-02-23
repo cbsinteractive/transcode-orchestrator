@@ -91,7 +91,7 @@ type JobResponseOutput struct {
 	UpdateTimestamp float64 `json:"update_timestamp"`
 }
 
-func (p *flock) Create(ctx context.Context, job *db.Job) (*provider.Status, error) {
+func (p *flock) Create(ctx context.Context, job *job.Job) (*job.Status, error) {
 	jobReq, err := p.flockJobRequestFrom(job)
 	if err != nil {
 		return nil, fmt.Errorf("generating flock job request: %w", err)
@@ -127,15 +127,15 @@ func (p *flock) Create(ctx context.Context, job *db.Job) (*provider.Status, erro
 		return nil, fmt.Errorf("parsing flock response: %w", err)
 	}
 
-	return &provider.Status{
+	return &job.Status{
 		ProviderName:  Name,
 		ProviderJobID: fmt.Sprintf("%d", newJob.JobID),
-		State:         provider.StateQueued,
+		State:         job.StateQueued,
 	}, nil
 }
 
-func (p *flock) flockJobRequestFrom(job *db.Job) (*JobRequest, error) {
-	presets := []db.Preset{}
+func (p *flock) flockJobRequestFrom(job *job.Job) (*JobRequest, error) {
+	presets := []job.Preset{}
 	for _, output := range job.Outputs {
 		presets = append(presets, output.Preset)
 	}
@@ -184,7 +184,7 @@ func (p *flock) flockJobRequestFrom(job *db.Job) (*JobRequest, error) {
 	return &jobReq, nil
 }
 
-func (p *flock) Status(ctx context.Context, job *db.Job) (*provider.Status, error) {
+func (p *flock) Status(ctx context.Context, job *job.Job) (*job.Status, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		fmt.Sprintf("%s/api/v1/jobs/%s", p.cfg.Endpoint, job.ProviderJobID), nil)
 	if err != nil {
@@ -220,8 +220,8 @@ func (p *flock) Status(ctx context.Context, job *db.Job) (*provider.Status, erro
 	return p.jobStatusFrom(job, &jobResp), nil
 }
 
-func (p *flock) jobStatusFrom(job *db.Job, jobResp *JobResponse) *provider.Status {
-	status := &provider.Status{
+func (p *flock) jobStatusFrom(job *job.Job, jobResp *JobResponse) *job.Status {
+	status := &job.Status{
 		ProviderJobID: job.ProviderJobID,
 		ProviderName:  Name,
 		ProviderStatus: map[string]interface{}{
@@ -239,10 +239,10 @@ func (p *flock) jobStatusFrom(job *db.Job, jobResp *JobResponse) *provider.Statu
 	}
 
 	outputsStatus := make([]map[string]interface{}, 0, len(jobResp.Outputs))
-	outputFiles := make([]provider.File, 0, len(jobResp.Outputs))
+	outputFiles := make([]job.File, 0, len(jobResp.Outputs))
 
 	for _, output := range jobResp.Outputs {
-		outputFiles = append(outputFiles, provider.File{Path: output.Destination})
+		outputFiles = append(outputFiles, job.File{Path: output.Destination})
 		outputsStatus = append(outputsStatus, map[string]interface{}{
 			"duration":         output.Duration,
 			"destination":      output.Destination,
@@ -266,20 +266,20 @@ func joinBaseAndParts(base string, elem ...string) string {
 	return strings.Join(parts, "/")
 }
 
-func state(job *JobResponse) provider.State {
+func state(job *JobResponse) job.State {
 	switch job.Status {
 	case "submitted":
-		return provider.StateQueued
+		return job.StateQueued
 	case "assigned", "transcoding":
-		return provider.StateStarted
+		return job.StateStarted
 	case "complete":
-		return provider.StateFinished
+		return job.StateFinished
 	case "cancelled":
-		return provider.StateCanceled
+		return job.StateCanceled
 	case "error":
-		return provider.StateFailed
+		return job.StateFailed
 	}
-	return provider.StateUnknown
+	return job.StateUnknown
 }
 
 func (p *flock) Cancel(ctx context.Context, providerID string) error {

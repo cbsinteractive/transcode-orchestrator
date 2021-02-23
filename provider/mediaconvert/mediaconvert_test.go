@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	defaultPreset = db.Preset{
+	defaultPreset = job.Preset{
 		Name:        "preset_name",
 		Description: "test_desc",
 		Container:   "mp4",
@@ -42,7 +42,7 @@ var (
 		},
 	}
 
-	h265Preset = db.Preset{
+	h265Preset = job.Preset{
 		Name:        "another_preset_name",
 		Description: "test_desc",
 		Container:   "mp4",
@@ -59,7 +59,7 @@ var (
 		},
 	}
 
-	av1Preset = db.Preset{
+	av1Preset = job.Preset{
 		Name:        "yet_another_preset_name",
 		Description: "test_desc",
 		Container:   "mp4",
@@ -75,7 +75,7 @@ var (
 		},
 	}
 
-	audioOnlyPreset = db.Preset{
+	audioOnlyPreset = job.Preset{
 		Name:        "preset_name",
 		Description: "test_desc",
 		Container:   "mp4",
@@ -85,7 +85,7 @@ var (
 		},
 	}
 
-	tcBurninPreset = db.Preset{
+	tcBurninPreset = job.Preset{
 		Name:        "preset_name",
 		Description: "test_desc",
 		Container:   "mov",
@@ -115,14 +115,14 @@ var (
 		},
 	}
 
-	defaultJob = db.Job{
+	defaultJob = job.Job{
 		ID:           "jobID",
 		ProviderName: Name,
 		SourceMedia:  "s3://some/path.mp4",
 		SourceInfo:   db.File{ScanType: db.ScanTypeUnknown},
 		Outputs: []db.TranscodeOutput{
-			{Preset: db.Preset{Name: "preset_name"}, FileName: "file1.mp4"},
-			{Preset: db.Preset{Name: "another_preset_name"}, FileName: "file2.mp4"},
+			{Preset: job.Preset{Name: "preset_name"}, FileName: "file1.mp4"},
+			{Preset: job.Preset{Name: "another_preset_name"}, FileName: "file2.mp4"},
 		},
 		StreamingParams: db.StreamingParams{SegmentDuration: 6},
 	}
@@ -148,7 +148,7 @@ func TestHDR10(t *testing.T) {
 	p.Video.HDR10Settings.MasterDisplay = display
 
 	d := &driver{cfg: config.MediaConvert{Destination: "s3://some_dest"}}
-	req, err := d.createRequest(nil, &db.Job{
+	req, err := d.createRequest(nil, &job.Job{
 		Outputs: []db.TranscodeOutput{{Preset: p}},
 	})
 	if err != nil {
@@ -167,8 +167,8 @@ func TestHDR10(t *testing.T) {
 
 func TestSupport(t *testing.T) {
 	d := &driver{}
-	run := func(p db.Preset) (*mc.CreateJobInput, error) {
-		return d.createRequest(nil, &db.Job{Outputs: []db.TranscodeOutput{{Preset: p}}})
+	run := func(p job.Preset) (*mc.CreateJobInput, error) {
+		return d.createRequest(nil, &job.Job{Outputs: []db.TranscodeOutput{{Preset: p}}})
 	}
 	warn := false
 	ck := func(ctx string, err error, want ...error) {
@@ -187,7 +187,7 @@ func TestSupport(t *testing.T) {
 
 	t.Run("Container", func(t *testing.T) {
 		for _, box := range []string{"mp4", "m3u8", "mxf", "cmaf", "mov", "webm"} {
-			mc, err := run(db.Preset{Container: box})
+			mc, err := run(job.Preset{Container: box})
 			ck(box, err)
 			have := string(mc.Settings.OutputGroups[0].Outputs[0].ContainerSettings.Container)
 			have = strings.ToLower(have)
@@ -198,7 +198,7 @@ func TestSupport(t *testing.T) {
 
 		for _, box := range []string{"mp4", "m3u8", "mxf", "cmaf", "mov", "webm"} {
 			for _, codec := range []string{"", "h264", "h265", "av1", "xdcam", "vp8"} {
-				_, err := run(db.Preset{Container: box, Video: db.Video{Codec: codec}})
+				_, err := run(job.Preset{Container: box, Video: db.Video{Codec: codec}})
 				ck(box+"/"+codec, err)
 			}
 		}
@@ -212,7 +212,7 @@ func TestSupport(t *testing.T) {
 			{db.Audio{Codec: "aac"}, nil},
 			{db.Audio{Codec: "aad"}, ErrUnsupported},
 		} {
-			_, err := run(db.Preset{Container: "mp4", Audio: tt.p})
+			_, err := run(job.Preset{Container: "mp4", Audio: tt.p})
 			ck(fmt.Sprintf("%d", i), err, tt.err)
 		}
 	})
@@ -239,7 +239,7 @@ func TestSupport(t *testing.T) {
 			{db.Video{Codec: "h265", InterlaceMode: "?"}, nil},
 			{db.Video{Codec: "av1", Profile: "f"}, nil},
 		} {
-			_, err := run(db.Preset{Container: "mp4", Video: tt.p})
+			_, err := run(job.Preset{Container: "mp4", Video: tt.p})
 			ck(fmt.Sprintf("video%d", i), err, tt.err)
 		}
 	})
@@ -247,16 +247,16 @@ func TestSupport(t *testing.T) {
 	t.Run("FlakyValidation", func(t *testing.T) {
 		warn = true
 		for _, codec := range []string{"h264", "h265", "av1", "xdcam", "vp8"} {
-			_, err := run(db.Preset{Container: "mp4", Video: db.Video{Codec: codec}, RateControl: "?"})
+			_, err := run(job.Preset{Container: "mp4", Video: db.Video{Codec: codec}, RateControl: "?"})
 			ck(codec+"/ratecontrol", err, ErrUnsupported)
 
-			_, err = run(db.Preset{Container: "mp4", Video: db.Video{Codec: codec, Profile: "?"}})
+			_, err = run(job.Preset{Container: "mp4", Video: db.Video{Codec: codec, Profile: "?"}})
 			ck(codec+"/profile", err, ErrUnsupported)
 
-			_, err = run(db.Preset{Container: "mp4", Video: db.Video{Codec: codec, Level: "?"}})
+			_, err = run(job.Preset{Container: "mp4", Video: db.Video{Codec: codec, Level: "?"}})
 			ck(codec+"/profilelevel", err, ErrUnsupported)
 
-			_, err = run(db.Preset{Container: "mp4", Video: db.Video{Codec: codec, InterlaceMode: "?"}})
+			_, err = run(job.Preset{Container: "mp4", Video: db.Video{Codec: codec, InterlaceMode: "?"}})
 			ck(codec+"/interlace", err, ErrUnsupported)
 		}
 	})
@@ -264,8 +264,8 @@ func TestSupport(t *testing.T) {
 }
 
 func TestDriverCreate(t *testing.T) {
-	vp8Preset := func(audioCodec string) db.Preset {
-		return db.Preset{
+	vp8Preset := func(audioCodec string) job.Preset {
+		return job.Preset{
 			Name:        "preset_name",
 			Description: "test_desc",
 			Container:   "webm",
@@ -290,8 +290,8 @@ func TestDriverCreate(t *testing.T) {
 	tests := []struct {
 		cfg         config.MediaConvert
 		name        string
-		job         *db.Job
-		preset      db.Preset
+		job         *job.Job
+		preset      job.Preset
 		destination string
 		wantJobReq  mc.CreateJobInput
 		wantErr     bool
@@ -302,11 +302,11 @@ func TestDriverCreate(t *testing.T) {
 				Role:            "some-role",
 				DefaultQueueARN: "some:default:queue:arn",
 			},
-			job: &db.Job{
+			job: &job.Job{
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: db.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
 				Labels:       []string{"bill:some-bu", "some-more-labels"},
 			},
 			preset:      defaultPreset,
@@ -408,14 +408,14 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "H264/AAC/MP4-Interlaced",
-			job: &db.Job{
+			job: &job.Job{
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
 				SourceInfo: db.File{
 					ScanType: db.ScanTypeInterlaced,
 				},
-				Outputs: []db.TranscodeOutput{{Preset: db.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				Outputs: []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -513,14 +513,14 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "H264/AAC/MP4-Progressive",
-			job: &db.Job{
+			job: &job.Job{
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
 				SourceInfo: db.File{
 					ScanType: db.ScanTypeProgressive,
 				},
-				Outputs: []db.TranscodeOutput{{Preset: db.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				Outputs: []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -612,11 +612,11 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "H265/MP4-VideoOnly",
-			job: &db.Job{
+			job: &job.Job{
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: db.Preset{Name: h265Preset.Name}, FileName: "file1.mp4"}},
+				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: h265Preset.Name}, FileName: "file1.mp4"}},
 			},
 			preset:      h265Preset,
 			destination: "s3://some/destination",
@@ -708,11 +708,11 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "AV1/MP4",
-			job: &db.Job{
+			job: &job.Job{
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: db.Preset{Name: av1Preset.Name}, FileName: "file1.mp4"}},
+				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: av1Preset.Name}, FileName: "file1.mp4"}},
 			},
 			preset:      av1Preset,
 			destination: "s3://some/destination",
@@ -792,11 +792,11 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "VP8/Vorbis/Webm",
-			job: &db.Job{
+			job: &job.Job{
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.webm",
-				Outputs:      []db.TranscodeOutput{{Preset: db.Preset{Name: defaultPreset.Name}, FileName: "file1.webm"}},
+				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.webm"}},
 			},
 			preset:      vp8Preset("vorbis"),
 			destination: "s3://some/destination",
@@ -889,11 +889,11 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "VP8/Opus/Webm",
-			job: &db.Job{
+			job: &job.Job{
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.webm",
-				Outputs:      []db.TranscodeOutput{{Preset: db.Preset{Name: defaultPreset.Name}, FileName: "file1.webm"}},
+				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.webm"}},
 			},
 			preset:      vp8Preset("opus"),
 			destination: "s3://some/destination",
@@ -990,11 +990,11 @@ func TestDriverCreate(t *testing.T) {
 				DefaultQueueARN:   "some:default:queue:arn",
 				PreferredQueueARN: "some:preferred:queue:arn",
 			},
-			job: &db.Job{
+			job: &job.Job{
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mp4",
-				Outputs:      []db.TranscodeOutput{{Preset: db.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -1097,11 +1097,11 @@ func TestDriverCreate(t *testing.T) {
 				DefaultQueueARN:   "some:default:queue:arn",
 				PreferredQueueARN: "some:preferred:queue:arn",
 			},
-			job: &db.Job{
+			job: &job.Job{
 				ID:           "jobID",
 				ProviderName: Name,
 				SourceMedia:  "s3://some/path.mov",
-				Outputs:      []db.TranscodeOutput{{Preset: db.Preset{Name: tcBurninPreset.Name}, FileName: "file1.mov"}},
+				Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: tcBurninPreset.Name}, FileName: "file1.mov"}},
 				AudioDownmix: &db.AudioDownmix{
 					SrcChannels: []db.AudioChannel{
 						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
@@ -1228,12 +1228,12 @@ func TestDriverCreate(t *testing.T) {
 		//		DefaultQueueARN:   "some:default:queue:arn",
 		//		PreferredQueueARN: "some:preferred:queue:arn",
 		//	},
-		//	job: &db.Job{
+		//	job: &job.Job{
 		//		ID:           "jobID",
 		//		ProviderName: Name,
 		//		SourceMedia:  "s3://some/path.mp4",
 		//		SourceInfo:   db.File{FileSize: 1_000_000_000},
-		//		Outputs:      []db.TranscodeOutput{{Preset: db.Preset{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
+		//		Outputs:      []db.TranscodeOutput{{Preset: job.Preset{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
 		//	},
 		//	preset:      audioOnlyPreset,
 		//	destination: "s3://some/destination",
@@ -1332,7 +1332,7 @@ func TestDriverStatus(t *testing.T) {
 		name        string
 		destination string
 		mcJob       mc.Job
-		wantStatus  provider.Status
+		wantStatus  job.Status
 		wantErr     bool
 	}{
 		{
@@ -1341,8 +1341,8 @@ func TestDriverStatus(t *testing.T) {
 			mcJob: mc.Job{
 				Status: mc.JobStatusSubmitted,
 			},
-			wantStatus: provider.Status{
-				State:        provider.StateQueued,
+			wantStatus: job.Status{
+				State:        job.StateQueued,
 				ProviderName: Name,
 				Output: provider.Output{
 					Destination: "s3://some/destination/jobID/",
@@ -1356,8 +1356,8 @@ func TestDriverStatus(t *testing.T) {
 				Status:             mc.JobStatusProgressing,
 				JobPercentComplete: aws.Int64(42),
 			},
-			wantStatus: provider.Status{
-				State:        provider.StateStarted,
+			wantStatus: job.Status{
+				State:        job.StateStarted,
 				ProviderName: Name,
 				Progress:     42,
 				Output: provider.Output{
@@ -1418,13 +1418,13 @@ func TestDriverStatus(t *testing.T) {
 					},
 				},
 			},
-			wantStatus: provider.Status{
-				State:        provider.StateFinished,
+			wantStatus: job.Status{
+				State:        job.StateFinished,
 				ProviderName: Name,
 				Progress:     100,
 				Output: provider.Output{
 					Destination: "s3://some/destination/jobID/",
-					Files: []provider.File{
+					Files: []job.File{
 						{
 							Path:      "s3://some/destination/jobID/m_modifier.mp4",
 							Container: "mp4",

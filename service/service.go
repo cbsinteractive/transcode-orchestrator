@@ -38,7 +38,7 @@ func (s Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 func (s *Server) serve() bool {
 	switch s.chop() {
 	case "jobs":
-		job := &db.Job{ID: s.chop()}
+		job := &job.Job{ID: s.chop()}
 		switch s.method() {
 		case "POST":
 			if !s.request.UnmarshalJSON(job) {
@@ -69,7 +69,7 @@ func (s *Server) serve() bool {
 	return false
 }
 
-func (s *Server) provider0(job *db.Job) (transcoding.Provider, error) {
+func (s *Server) provider0(job *job.Job) (transcoding.Provider, error) {
 	fn, err := transcoding.GetFactory(job.ProviderName)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (s *Server) provider0(job *db.Job) (transcoding.Provider, error) {
 	return fn(s.Config)
 }
 
-func (s *Server) putJob0(job *db.Job) (*transcoding.Status, error) {
+func (s *Server) putJob0(job *job.Job) (*transcoding.Status, error) {
 	p, err := s.provider0(job)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (s *Server) putJob0(job *db.Job) (*transcoding.Status, error) {
 	return stat, nil
 }
 
-func (s *Server) getJob0(job *db.Job, del bool) (*transcoding.Status, error) {
+func (s *Server) getJob0(job *job.Job, del bool) (*transcoding.Status, error) {
 	if err := s.DB.Get(job.ID, &job); err != nil {
 		return nil, err
 	}

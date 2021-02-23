@@ -35,7 +35,7 @@ const (
 )
 
 func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybrik.Element, error) {
-	presetsWithoutAudio := map[string]db.Preset{}
+	presetsWithoutAudio := map[string]job.Preset{}
 	for _, outputCfg := range cfg.outputCfgs {
 		preset := outputCfg.Preset
 

@@ -22,7 +22,7 @@ var timecodePositionMap = map[int]mc.TimecodeBurninPosition{
 	8: mc.TimecodeBurninPositionBottomRight,
 }
 
-func outputFrom(preset db.Preset, sourceInfo db.File) (mc.Output, error) {
+func outputFrom(preset job.Preset, sourceInfo db.File) (mc.Output, error) {
 	container, err := containerFrom(preset.Container)
 	if err != nil {
 		return mc.Output{}, fmt.Errorf("container: %w", err)
@@ -58,20 +58,20 @@ func outputFrom(preset db.Preset, sourceInfo db.File) (mc.Output, error) {
 	return output, nil
 }
 
-func state(status mc.JobStatus) provider.State {
+func state(status mc.JobStatus) job.State {
 	switch status {
 	case mc.JobStatusSubmitted:
-		return provider.StateQueued
+		return job.StateQueued
 	case mc.JobStatusProgressing:
-		return provider.StateStarted
+		return job.StateStarted
 	case mc.JobStatusComplete:
-		return provider.StateFinished
+		return job.StateFinished
 	case mc.JobStatusCanceled:
-		return provider.StateCanceled
+		return job.StateCanceled
 	case mc.JobStatusError:
-		return provider.StateFailed
+		return job.StateFailed
 	default:
-		return provider.StateUnknown
+		return job.StateUnknown
 	}
 }
 
@@ -120,7 +120,7 @@ func containerSettingsFrom(container mc.ContainerType) *mc.ContainerSettings {
 	return cs
 }
 
-func videoPresetFrom(preset db.Preset, sourceInfo db.File) (*mc.VideoDescription, error) {
+func videoPresetFrom(preset job.Preset, sourceInfo db.File) (*mc.VideoDescription, error) {
 	videoPreset := mc.VideoDescription{
 		ScalingBehavior:   mc.ScalingBehaviorDefault,
 		TimecodeInsertion: mc.VideoTimecodeInsertionDisabled,
@@ -205,7 +205,7 @@ var (
 )
 
 type setter struct {
-	dst db.Preset
+	dst job.Preset
 	src db.File
 }
 
@@ -357,7 +357,7 @@ func audioSplit(a mc.AudioDescription) (split []mc.AudioDescription) {
 	return split
 }
 
-func audioPresetFrom(preset db.Preset) (mc.AudioDescription, error) {
+func audioPresetFrom(preset job.Preset) (mc.AudioDescription, error) {
 	audioPreset := mc.AudioDescription{}
 
 	if preset.Audio.Normalization {

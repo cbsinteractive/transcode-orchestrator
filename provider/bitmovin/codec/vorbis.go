@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
 type CodecVorbis struct {
@@ -12,7 +12,7 @@ type CodecVorbis struct {
 	cfg model.VorbisAudioConfiguration
 }
 
-func (c *CodecVorbis) set(p db.Preset) (ok bool) {
+func (c *CodecVorbis) set(p job.Preset) (ok bool) {
 	abr := int64(p.Audio.Bitrate)
 	c.cfg.Name = fmt.Sprintf("vorbis_%d_%d", abr, int(AudioSampleRate))
 	c.cfg.Bitrate = &abr

@@ -22,7 +22,7 @@ var supportedRateControlModes = map[rateControlMode]struct{}{
 	rateControlModeVBR: {},
 }
 
-func enrichTranscodePayloadWithRateControl(payload hwrapper.TranscodePayload, preset db.Preset) (hwrapper.TranscodePayload, error) {
+func enrichTranscodePayloadWithRateControl(payload hwrapper.TranscodePayload, preset job.Preset) (hwrapper.TranscodePayload, error) {
 	transcodeTargets, ok := payload.Targets.([]hwrapper.TranscodeTarget)
 	if !ok {
 		return hwrapper.TranscodePayload{}, fmt.Errorf("targets are not TranscodeTargets: %v", payload.LocationTargetPayload.Targets)

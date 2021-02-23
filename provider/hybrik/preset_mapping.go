@@ -35,7 +35,7 @@ const (
 	storageProviderHTTP         storageProvider = "http"
 )
 
-func (p *hybrikProvider) transcodeElementsWithPresetsFrom(presets map[string]db.Preset, cfg jobCfg) ([]transcodeElementWithFilename, error) {
+func (p *hybrikProvider) transcodeElementsWithPresetsFrom(presets map[string]job.Preset, cfg jobCfg) ([]transcodeElementWithFilename, error) {
 	transcodeElementsWithFilename := []transcodeElementWithFilename{}
 	idx := 0
 	for filename, preset := range presets {
@@ -54,7 +54,7 @@ func (p *hybrikProvider) transcodeElementsWithPresetsFrom(presets map[string]db.
 	return transcodeElementsWithFilename, nil
 }
 
-func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string, cfg jobCfg, filename string) (hybrik.Element, error) {
+func (p *hybrikProvider) transcodeElementFromPreset(preset job.Preset, uid string, cfg jobCfg, filename string) (hybrik.Element, error) {
 	container := ""
 	for _, c := range p.Capabilities().OutputFormats {
 		if preset.Container == c || (preset.Container == "m3u8" && c == hls) {
@@ -128,10 +128,10 @@ func (p *hybrikProvider) transcodeElementFromPreset(preset db.Preset, uid string
 
 type transcodePayloadModifier struct {
 	name    string
-	runFunc func(hybrikPreset hybrik.TranscodePayload, preset db.Preset) (hybrik.TranscodePayload, error)
+	runFunc func(hybrikPreset hybrik.TranscodePayload, preset job.Preset) (hybrik.TranscodePayload, error)
 }
 
-func transcodePayloadModifiersFor(preset db.Preset) []transcodePayloadModifier {
+func transcodePayloadModifiersFor(preset job.Preset) []transcodePayloadModifier {
 	modifiers := []transcodePayloadModifier{}
 
 	// Rate control
@@ -152,7 +152,7 @@ func transcodePayloadModifiersFor(preset db.Preset) []transcodePayloadModifier {
 	return modifiers
 }
 
-func (p *hybrikProvider) audioElementsFrom(presets map[string]db.Preset, cfg jobCfg) ([]hybrik.Element, map[uint64]string, error) {
+func (p *hybrikProvider) audioElementsFrom(presets map[string]job.Preset, cfg jobCfg) ([]hybrik.Element, map[uint64]string, error) {
 	audioConfigurations := map[uint64]db.Audio{}
 	for _, preset := range presets {
 		audioCfg, found, err := audioTargetFromPreset(preset)
@@ -179,7 +179,7 @@ func (p *hybrikProvider) audioElementsFrom(presets map[string]db.Preset, cfg job
 		audioElement, err := p.transcodeAudioElementFromPreset(audioTarget, outputFilename, idx, cfg,
 			containerKindElementary)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "generating audio element from db.Preset")
+			return nil, nil, errors.Wrap(err, "generating audio element from job.Preset")
 		}
 		audioElements = append(audioElements, audioElement)
 

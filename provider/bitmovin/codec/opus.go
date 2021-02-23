@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
 type CodecOpus struct {
@@ -12,7 +12,7 @@ type CodecOpus struct {
 	cfg model.OpusAudioConfiguration
 }
 
-func (c *CodecOpus) set(p db.Preset) (ok bool) {
+func (c *CodecOpus) set(p job.Preset) (ok bool) {
 	abr := int64(p.Audio.Bitrate)
 	c.cfg.Name = fmt.Sprintf("opus_%d_%d", abr, int(AudioSampleRate))
 	c.cfg.Bitrate = &abr

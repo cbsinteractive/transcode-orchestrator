@@ -7,7 +7,7 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 )
 
-func modifyTranscodePayloadForMXFSources(payload hybrik.TranscodePayload, preset db.Preset) (hybrik.TranscodePayload, error) {
+func modifyTranscodePayloadForMXFSources(payload hybrik.TranscodePayload, preset job.Preset) (hybrik.TranscodePayload, error) {
 	transcodeTargets, ok := payload.Targets.([]hybrik.TranscodeTarget)
 	if !ok {
 		return hybrik.TranscodePayload{}, fmt.Errorf("targets are not TranscodeTargets: %v", payload.LocationTargetPayload.Targets)

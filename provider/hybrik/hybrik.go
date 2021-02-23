@@ -9,9 +9,14 @@ import (
 
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/pkg/errors"
+)
+
+type (
+	Job    = job.Job
+	Status = job.Status
 )
 
 type executionFeatures struct {
@@ -35,16 +40,6 @@ const (
 )
 
 var (
-	// ErrBitrateNan is an error returned when the bitrate field of db.Preset is not a valid number
-	ErrBitrateNan = errors.New("bitrate not a number")
-
-	// ErrVideoWidthNan is an error returned when the preset video width of db.Preset is not a valid number
-	ErrVideoWidthNan = errors.New("preset video width not a number")
-
-	// ErrVideoHeightNan is an error returned when the preset video height of db.Preset is not a valid number
-	ErrVideoHeightNan = errors.New("preset video height not a number")
-
-	// ErrUnsupportedContainer is returned when the container format is not present in the provider's capabilities list
 	ErrUnsupportedContainer = errors.New("container format unsupported. Hybrik provider capabilities may need to be updated")
 )
 
@@ -80,28 +75,28 @@ func hybrikTranscoderFactory(cfg *config.Config) (provider.Provider, error) {
 	}, nil
 }
 
-func (p *hybrikProvider) Create(ctx context.Context, job *db.Job) (*provider.Status, error) {
-	cj, err := p.createJobReqBodyFrom(ctx, job)
+func (p *hybrikProvider) Create(ctx context.Context, j *Job) (*Status, error) {
+	cj, err := p.createJobReqBodyFrom(ctx, j)
 	if err != nil {
-		return &provider.Status{}, err
+		return nil, err
 	}
 
 	id, err := p.c.QueueJob(cj)
 	if err != nil {
-		return &provider.Status{}, err
+		return nil, err
 	}
 
-	return &provider.Status{
+	return &Status{
 		ProviderName:  Name,
 		ProviderJobID: id,
-		State:         provider.StateQueued,
+		State:         job.StateQueued,
 	}, nil
 }
 
-func (p *hybrikProvider) createJobReqBodyFrom(ctx context.Context, job *db.Job) (string, error) {
+func (p *hybrikProvider) createJobReqBodyFrom(ctx context.Context, job *Job) (string, error) {
 	cj, err := p.createJobReqFrom(ctx, job)
 	if err != nil {
-		return "", errors.Wrap(err, "generating create job request from db.Job")
+		return "", errors.Wrap(err, "generating create job request from Job")
 	}
 
 	resp, err := json.MarshalIndent(cj, "", "\t")
@@ -112,52 +107,52 @@ func (p *hybrikProvider) createJobReqBodyFrom(ctx context.Context, job *db.Job) 
 	return string(resp), nil
 }
 
-func (p *hybrikProvider) createJobReqFrom(ctx context.Context, job *db.Job) (hwrapper.CreateJob, error) {
-	srcStorageProvider, err := storageProviderFrom(job.SourceMedia)
+func (p *hybrikProvider) createJobReqFrom(ctx context.Context, j *Job) (hwrapper.CreateJob, error) {
+	srcStorageProvider, err := storageProviderFrom(j.SourceMedia)
 	if err != nil {
 		return hwrapper.CreateJob{}, errors.Wrap(err, "parsing source storage provider")
 	}
 	srcLocation := storageLocation{
 		provider: srcStorageProvider,
-		path:     job.SourceMedia,
+		path:     j.SourceMedia,
 	}
 
-	destinationPath := p.destinationForJob(job)
+	destinationPath := p.destinationForJob(j)
 	destStorageProvider, err := storageProviderFrom(destinationPath)
 	if err != nil {
 		return hwrapper.CreateJob{}, errors.Wrap(err, "parsing destination storage provider")
 	}
 
-	srcElement, err := p.srcFrom(job, srcLocation)
+	srcElement, err := p.srcFrom(j, srcLocation)
 	if err != nil {
 		return hwrapper.CreateJob{}, errors.Wrap(err, "creating the hybrik source element")
 	}
 
 	cfg := jobCfg{
-		jobID:          job.ID,
+		jobID:          j.ID,
 		sourceLocation: srcLocation,
 		destination: storageLocation{
 			provider: destStorageProvider,
-			path:     fmt.Sprintf("%s/%s", destinationPath, job.RootFolder()),
+			path:     fmt.Sprintf("%s/%s", destinationPath, j.RootFolder()),
 		},
-		streamingParams:      job.StreamingParams,
-		executionEnvironment: job.ExecutionEnv,
+		streamingParams:      j.StreamingParams,
+		executionEnvironment: j.ExecutionEnv,
 		source:               srcElement,
 	}
 
-	execFeatures, err := executionFeaturesFrom(job, srcLocation.provider)
+	execFeatures, err := executionFeaturesFrom(j, srcLocation.provider)
 	if err != nil {
 		return hwrapper.CreateJob{}, err
 	}
 	cfg.executionFeatures = execFeatures
 
-	if job.ExecutionEnv.ComputeTags != nil {
-		cfg.computeTags = job.ExecutionEnv.ComputeTags
+	if j.ExecutionEnv.ComputeTags != nil {
+		cfg.computeTags = j.ExecutionEnv.ComputeTags
 	} else {
-		cfg.computeTags = map[db.ComputeClass]string{}
+		cfg.computeTags = map[job.ComputeClass]string{}
 	}
 
-	outputCfgs, err := p.outputCfgsFrom(ctx, job)
+	outputCfgs, err := p.outputCfgsFrom(ctx, j)
 	if err != nil {
 		return hwrapper.CreateJob{}, err
 	}
@@ -217,7 +212,7 @@ func (p *hybrikProvider) createJobReqFrom(ctx context.Context, job *db.Job) (hwr
 	return cj, nil
 }
 
-func (p *hybrikProvider) destinationForJob(job *db.Job) string {
+func (p *hybrikProvider) destinationForJob(job *Job) string {
 	if path := job.DestinationBasePath; path != "" {
 		return path
 	}
@@ -225,40 +220,40 @@ func (p *hybrikProvider) destinationForJob(job *db.Job) string {
 	return p.config.Destination
 }
 
-func (p *hybrikProvider) Status(_ context.Context, job *db.Job) (*provider.Status, error) {
-	ji, err := p.c.GetJobInfo(job.ProviderJobID)
+func (p *hybrikProvider) Status(_ context.Context, j *Job) (*Status, error) {
+	ji, err := p.c.GetJobInfo(j.ProviderJobID)
 	if err != nil {
-		return &provider.Status{}, err
+		return &Status{}, err
 	}
 
-	var status provider.State
+	var status job.State
 	switch ji.Status {
 	case active:
 		fallthrough
 	case activeRunning:
 		fallthrough
 	case activeWaiting:
-		status = provider.StateStarted
+		status = job.StateStarted
 	case queued:
-		status = provider.StateQueued
+		status = job.StateQueued
 	case completed:
-		status = provider.StateFinished
+		status = job.StateFinished
 	case failed:
-		status = provider.StateFailed
+		status = job.StateFailed
 	}
 
-	var output provider.Output
-	if status == provider.StateFailed || status == provider.StateFinished {
-		result, err := p.c.GetJobResult(job.ProviderJobID)
+	var output job.Output
+	if status == job.StateFailed || status == job.StateFinished {
+		result, err := p.c.GetJobResult(j.ProviderJobID)
 		if err != nil {
-			return &provider.Status{}, err
+			return &Status{}, err
 		}
 
-		output = provider.Output{}
+		output = job.Output{}
 		for _, task := range result.Tasks {
 			files, found, err := filesFrom(task)
 			if err != nil {
-				return &provider.Status{}, err
+				return &Status{}, err
 			}
 			if found {
 				output.Files = append(output.Files, files...)
@@ -266,8 +261,8 @@ func (p *hybrikProvider) Status(_ context.Context, job *db.Job) (*provider.Statu
 		}
 	}
 
-	return &provider.Status{
-		ProviderJobID: job.ProviderJobID,
+	return &Status{
+		ProviderJobID: j.ProviderJobID,
 		ProviderName:  p.String(),
 		Progress:      float64(ji.Progress),
 		State:         status,
@@ -275,7 +270,7 @@ func (p *hybrikProvider) Status(_ context.Context, job *db.Job) (*provider.Statu
 	}, nil
 }
 
-func executionFeaturesFrom(job *db.Job, storageProvider storageProvider) (executionFeatures, error) {
+func executionFeaturesFrom(job *Job, storageProvider storageProvider) (executionFeatures, error) {
 	features := executionFeatures{}
 
 	supportsSegRendering := storageProvider.supportsSegmentedRendering()
@@ -313,16 +308,16 @@ func (p *hybrikProvider) Cancel(_ context.Context, id string) error {
 	return p.c.StopJob(id)
 }
 
-func videoTargetFrom(preset db.Video, rateControl string) (*hwrapper.VideoTarget, error) {
-	if (preset == db.Video{}) {
+func videoTargetFrom(preset job.Video, rateControl string) (*hwrapper.VideoTarget, error) {
+	if (preset == job.Video{}) {
 		return nil, nil
 	}
 
 	var exactGOPFrames, exactKeyFrames int
 	switch strings.ToLower(preset.GopUnit) {
-	case db.GopUnitSeconds:
+	case job.GopUnitSeconds:
 		exactKeyFrames = int(preset.GopSize)
-	case db.GopUnitFrames, "":
+	case job.GopUnitFrames, "":
 		exactGOPFrames = int(preset.GopSize)
 	default:
 		return &hwrapper.VideoTarget{}, fmt.Errorf("GopUnit %v not recognized", preset.GopUnit)
@@ -355,8 +350,8 @@ func videoTargetFrom(preset db.Video, rateControl string) (*hwrapper.VideoTarget
 	}, nil
 }
 
-func audioTargetFrom(preset db.Audio) ([]hwrapper.AudioTarget, error) {
-	if (preset == db.Audio{}) {
+func audioTargetFrom(preset job.Audio) ([]hwrapper.AudioTarget, error) {
+	if (preset == job.Audio{}) {
 		return []hwrapper.AudioTarget{}, nil
 	}
 	return []hwrapper.AudioTarget{

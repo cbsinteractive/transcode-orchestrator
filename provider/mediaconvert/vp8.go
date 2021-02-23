@@ -11,7 +11,7 @@ const (
 	defaultGopUnitVP8 = "frames"
 )
 
-func vp8CodecSettingsFrom(preset db.Preset) (*mc.VideoCodecSettings, error) {
+func vp8CodecSettingsFrom(preset job.Preset) (*mc.VideoCodecSettings, error) {
 	if gu := preset.Video.GopUnit; len(gu) > 0 && gu != defaultGopUnitVP8 {
 		return nil, fmt.Errorf("can't configure gop unit: %v with vp8. Must use frames", preset.Video.GopUnit)
 	}

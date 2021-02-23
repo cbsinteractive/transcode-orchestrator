@@ -2,7 +2,6 @@ package hybrik
 
 import (
 	"fmt"
-	"log"
 	"path"
 	"regexp"
 	"strings"
@@ -16,44 +15,20 @@ type taskWithOutputMatcher struct {
 	uidRegex *regexp.Regexp
 }
 
-var tasksWithOutputsMatchers []taskWithOutputMatcher
+var match = regexp.MustCompile
 
-func init() {
-	doViPostProcessRegex, err := regexp.Compile(`post_transcode_stage_[\d]+$`)
-	if err != nil {
-		log.Panicf("compiling the doVi post process regex: %v", err)
-	}
-
-	doViTranscodeRegex, err := regexp.Compile(`dolby_vision_[\d]+$`)
-	if err != nil {
-		log.Panicf("compiling the doVi transcode regex: %v", err)
-	}
-
-	transcodeRegex, err := regexp.Compile(`transcode_task_[\d]+$`)
-	if err != nil {
-		log.Panicf("compiling the transcode regex: %v", err)
-	}
-
-	packageRegex, err := regexp.Compile(`packager$`)
-	if err != nil {
-		log.Panicf("compiling the package regex: %v", err)
-	}
-
-	combinerRegex, err := regexp.Compile(`combiner_[\d]+$`)
-	if err != nil {
-		log.Panicf("compiling the combiner regex: %v", err)
-	}
-
-	tasksWithOutputsMatchers = []taskWithOutputMatcher{
-		{kind: "Dolby Vision", uidRegex: doViPostProcessRegex},
-		{kind: "Dolby Vision", uidRegex: doViTranscodeRegex},
-		{kind: "Transcode", uidRegex: transcodeRegex},
-		{kind: "Package", uidRegex: packageRegex},
-		{kind: "Combine Segments", uidRegex: combinerRegex},
-	}
+var tasksWithOutputsMatchers = []struct {
+	kind     string
+	uidRegex *regexp.Regexp
+}{
+	{"Dolby Vision", match(`post_transcode_stage_[\d]+$`)},
+	{"Dolby Vision", match(`dolby_vision_[\d]+$`)},
+	{"Transcode", match(`transcode_task_[\d]+$`)},
+	{"Package", match(`packager$`)},
+	{"Combine Segments", match(`combiner_[\d]+$`)},
 }
 
-func filesFrom(task hybrik.TaskResult) (files []provider.File, ok bool, err error) {
+func filesFrom(task hybrik.TaskResult) (files []job.File, ok bool, err error) {
 	// ensure the task type results in outputs
 	if !taskHasOutputs(task, tasksWithOutputsMatchers) {
 		return nil, false, nil
@@ -63,7 +38,7 @@ func filesFrom(task hybrik.TaskResult) (files []provider.File, ok bool, err erro
 		for _, assetVersion := range document.ResultPayload.Payload.AssetVersions {
 			for _, component := range assetVersion.AssetComponents {
 				normalizedPath := strings.TrimRight(assetVersion.Location.Path, "/")
-				files = append(files, provider.File{
+				files = append(files, job.File{
 					Path:      fmt.Sprintf("%s/%s", normalizedPath, component.Name),
 					Container: containerFrom(component),
 					Size:      int64(component.Descriptor.Size),

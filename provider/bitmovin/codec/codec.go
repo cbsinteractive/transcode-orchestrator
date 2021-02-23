@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/db"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
 var ErrUnsupportedValue = errors.New("unsupported value")
@@ -57,7 +57,7 @@ type codec struct {
 	err      error
 }
 
-func (c *codec) setVideo(cfg VideoPTR, p db.Preset) bool {
+func (c *codec) setVideo(cfg VideoPTR, p job.Preset) bool {
 	*cfg.Name = strings.ToLower(p.Name)
 	if n := int32(p.Video.Width); n != 0 && cfg.Width != nil {
 		*cfg.Width = &n
@@ -72,12 +72,12 @@ func (c *codec) setVideo(cfg VideoPTR, p db.Preset) bool {
 	gopSize := int32(p.Video.GopSize)
 	if gopSize != 0 {
 		switch strings.ToLower(p.Video.GopUnit) {
-		case db.GopUnitFrames, "":
+		case job.GopUnitFrames, "":
 			if cfg.MinGop != nil && cfg.MaxGop != nil {
 				*cfg.MinGop = &gopSize
 				*cfg.MaxGop = &gopSize
 			}
-		case db.GopUnitSeconds:
+		case job.GopUnitSeconds:
 			if cfg.MinKeyframeInterval != nil && cfg.MaxKeyframeInterval != nil {
 				*cfg.MinKeyframeInterval = &p.Video.GopSize
 				*cfg.MaxKeyframeInterval = &p.Video.GopSize
