@@ -102,16 +102,21 @@ func numbersInString(str string) (int64, error) {
 
 func parseMasterDisplayFast(s string) (d masterDisplay, err error) {
 	const (
-		Tuples = 5 // G B R WP L
-		Delims = 3 // %s(%d,%d) is split across '(' and ',' and ')'
+		tuples = 5     // G B R WP L
+		delims = "()," // %s(%d,%d) is split across '(' and ',' and ')'
 	)
-	a := strings.FieldsFunc(s, func(r rune) bool { return r == '(' || r == ')' || r == ',' })
-	if len(a) != Tuples*Delims {
+	for _, r := range delims {
+		if strings.Count(s, string(r)) != tuples {
+			return d, fmt.Errorf("bad display string: %q", s)
+		}
+	}
+	a := strings.FieldsFunc(s, func(r rune) bool { return strings.ContainsRune(delims, r) })
+	if len(a) != tuples*len(delims) {
 		return d, fmt.Errorf("too short: %d", len(a))
 	}
 	type pt struct{ x, y int64 }
 	m := map[string]pt{}
-	for i := 0; i < len(a); i += Delims {
+	for i := 0; i < len(a); i += len(delims) {
 		p := pt{}
 		if p.x, err = strconv.ParseInt(a[i+1], 10, 64); err != nil {
 			return
