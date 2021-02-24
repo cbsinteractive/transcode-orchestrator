@@ -111,3 +111,22 @@ func TestHDRRequest(t *testing.T) {
 		t.Fatalf("metadata: have %v, want %v", g, e)
 	}
 }
+
+func BenchmarkHDR(b *testing.B) {
+	display := "G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(100000000000,0)"
+	b.Run("Current", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			parseMasterDisplay(display)
+		}
+	})
+	b.Run("Regexp", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			parseMasterDisplayRegexp(display)
+		}
+	})
+	b.Run("Fast", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			parseMasterDisplayFast(display)
+		}
+	})
+}
