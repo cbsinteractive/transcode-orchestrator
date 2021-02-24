@@ -11,7 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func Test_filesFrom(t *testing.T) {
+func TestFiles(t *testing.T) {
 	type Out = job.File
 
 	tests := []struct {
@@ -20,7 +20,7 @@ func Test_filesFrom(t *testing.T) {
 		expectMissingOutputs bool
 	}{
 		{
-			name: "pulls the correct data from combine segments tasks",
+			name: "task_status_combine_segments.json",
 			file: "testdata/task_status_combine_segments.json",
 			outputFiles: []Out{
 				{
@@ -31,7 +31,7 @@ func Test_filesFrom(t *testing.T) {
 			},
 		},
 		{
-			name: "pulls the correct data from dolby vision transcode tasks",
+			name: "task_status_dovi_transcode.json",
 			file: "testdata/task_status_dovi_transcode.json",
 			outputFiles: []Out{
 				{
@@ -42,7 +42,7 @@ func Test_filesFrom(t *testing.T) {
 			},
 		},
 		{
-			name: "returns a valid container when the filename contains no extension",
+			name: "task_status_filename_no_extension.json",
 			file: "testdata/task_status_filename_no_extension.json",
 			outputFiles: []Out{
 				{
@@ -53,7 +53,7 @@ func Test_filesFrom(t *testing.T) {
 			},
 		},
 		{
-			name: "pulls the correct data from legacy dolby vision post-process tasks",
+			name: "task_status_legacy_dovi_post_process.json",
 			file: "testdata/task_status_legacy_dovi_post_process.json",
 			outputFiles: []Out{
 				{
@@ -64,7 +64,7 @@ func Test_filesFrom(t *testing.T) {
 			},
 		},
 		{
-			name: "pulls the correct data from package tasks",
+			name: "task_status_package.json",
 			file: "testdata/task_status_package.json",
 			outputFiles: []Out{
 				{
@@ -105,7 +105,7 @@ func Test_filesFrom(t *testing.T) {
 			},
 		},
 		{
-			name:                 "does not find outputs in files that are not recognized as containing them",
+			name:                 "task_status_no_outputs.json",
 			file:                 "testdata/task_status_no_outputs.json",
 			expectMissingOutputs: true,
 		},

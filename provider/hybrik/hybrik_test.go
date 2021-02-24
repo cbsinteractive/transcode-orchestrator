@@ -67,7 +67,7 @@ func updateGopStruct(gopSize float64, gopUnit string) job.Preset {
 	return p
 }
 
-func TestHybrikProvider_transcodeElementFromPreset(t *testing.T) {
+func TestPreset(t *testing.T) {
 	tests := []struct {
 		name                 string
 		provider             *hybrikProvider
@@ -185,7 +185,7 @@ func TestTranscodePreset(t *testing.T) {
 		wantErrMsg     string
 	}{
 		{
-			name: "hevc/hdr10 presets are set correctly",
+			name: "HDR10",
 			presetModifier: func(p job.Preset) job.Preset {
 				p.Video.Codec = "h265"
 				p.Video.Profile = ""
@@ -209,51 +209,15 @@ func TestTranscodePreset(t *testing.T) {
 					name      string
 					got, want interface{}
 				}{
-					{
-						name: "hdr10 master display",
-						got:  firstTarget.Video.HDR10.MasterDisplay,
-						want: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
-					},
-					{
-						name: "hdr10 max cll",
-						got:  firstTarget.Video.HDR10.MaxCLL,
-						want: 10000,
-					},
-					{
-						name: "hdr10 max fall",
-						got:  firstTarget.Video.HDR10.MaxFALL,
-						want: 400,
-					},
-					{
-						name: "hdr10 color trc",
-						got:  firstTarget.Video.ColorTRC,
-						want: colorTRCSMPTE2084,
-					},
-					{
-						name: "hdr10 color matrix",
-						got:  firstTarget.Video.ColorMatrix,
-						want: colorMatrixBT2020NC,
-					},
-					{
-						name: "hdr10 color format",
-						got:  firstTarget.Video.ChromaFormat,
-						want: chromaFormatYUV420P10LE,
-					},
-					{
-						name: "hdr10 color primaries",
-						got:  firstTarget.Video.ColorPrimaries,
-						want: colorPrimaryBT2020,
-					},
-					{
-						name: "codec profile",
-						got:  firstTarget.Video.Profile,
-						want: "main10",
-					},
-					{
-						name: "vtag",
-						got:  firstTarget.Video.VTag,
-						want: "hvc1",
-					},
+					{"masterdisplay", firstTarget.Video.HDR10.MasterDisplay, "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)"},
+					{"maxcll", firstTarget.Video.HDR10.MaxCLL, 10000},
+					{"maxfall", firstTarget.Video.HDR10.MaxFALL, 400},
+					{"colortrc", firstTarget.Video.ColorTRC, colorTRCSMPTE2084},
+					{"colormatrix", firstTarget.Video.ColorMatrix, colorMatrixBT2020NC},
+					{"colorformat", firstTarget.Video.ChromaFormat, chromaFormatYUV420P10LE},
+					{"colorprimaries", firstTarget.Video.ColorPrimaries, colorPrimaryBT2020},
+					{"codecprofile", firstTarget.Video.Profile, "main10"},
+					{"vtag", firstTarget.Video.VTag, "hvc1"},
 				}
 
 				for _, tt := range tests {
@@ -267,7 +231,7 @@ func TestTranscodePreset(t *testing.T) {
 			},
 		},
 		{
-			name: "hevc/hdr10 presets with mxf sources are set correctly",
+			name: "hevc/hdr10/mxf",
 			presetModifier: func(p job.Preset) job.Preset {
 				p.Video.Codec = "h265"
 				p.Video.Profile = ""
@@ -311,7 +275,7 @@ func TestTranscodePreset(t *testing.T) {
 			},
 		},
 		{
-			name: "vbr transcodes are constrained to a fixed percent of variability",
+			name: "vbr",
 			presetModifier: func(preset job.Preset) job.Preset {
 				preset.RateControl = "vbr"
 				preset.Video.Bitrate = 10000000
@@ -328,10 +292,10 @@ func TestTranscodePreset(t *testing.T) {
 					name      string
 					got, want interface{}
 				}{
-					{"bitrate mode", firstTarget.Video.BitrateMode, rateControlModeVBR},
+					{"ratecontrol", firstTarget.Video.BitrateMode, rateControlModeVBR},
 					{"bitrate", firstTarget.Video.BitrateKb, 10000},
-					{"min bitrate", firstTarget.Video.MinBitrateKb, 10000 * (100 - vbrVariabilityPercent) / 100},
-					{"max bitrate", firstTarget.Video.MaxBitrateKb, 10000 * (100 + vbrVariabilityPercent) / 100},
+					{"min", firstTarget.Video.MinBitrateKb, 10000 * (100 - vbrVariabilityPercent) / 100},
+					{"max", firstTarget.Video.MaxBitrateKb, 10000 * (100 + vbrVariabilityPercent) / 100},
 				}
 
 				for _, tt := range tests {
@@ -345,7 +309,7 @@ func TestTranscodePreset(t *testing.T) {
 			},
 		},
 		{
-			name: "transcodes sent with unsupported rate control modes result in an error",
+			name: "ratecontrolErr",
 			presetModifier: func(preset job.Preset) job.Preset {
 				preset.RateControl = "fake_mode"
 				return preset
@@ -354,7 +318,7 @@ func TestTranscodePreset(t *testing.T) {
 				`supported in hybrik, the currently supported modes are map[cbr:{} vbr:{}]`,
 		},
 		{
-			name: "transcodes with inputs/outputs in AWS do not have a maxCrossRegionMB set",
+			name: "aws/maxCrossRegionMB/unset",
 			transcodeCfg: transcodeCfg{
 				destination: storageLocation{
 					provider: storageProviderS3,
@@ -374,7 +338,7 @@ func TestTranscodePreset(t *testing.T) {
 			},
 		},
 		{
-			name: "transcodes with inputs/outputs in GCS have a maxCrossRegionMB set to unlimited (-1)",
+			name: "gcs/maxCrossRegionMB/unlimited",
 			transcodeCfg: transcodeCfg{
 				uid: "some_uid",
 				destination: storageLocation{
@@ -500,7 +464,7 @@ func TestPresetConversion(t *testing.T) {
 			},
 		},
 		{
-			name:   "a valid mp4 transcode job with gop unit in seconds is mapped correctly to a hybrik job input",
+			name:   "gopSeconds",
 			job:    defaultJob,
 			preset: updateGopStruct(2, "seconds"),
 			wantJob: hybrik.CreateJob{
@@ -568,7 +532,7 @@ func TestPresetConversion(t *testing.T) {
 		},
 		// TODO uncomment once Hybrik fixes bug and we can re-enable the new structure
 		//{
-		//	name: "a valid mp4 hevc dolbyVision transcode job is mapped correctly to a hybrik job input",
+		//	name: "dolbyVision",
 		//	job:  &defaultJob,
 		//	preset: job.Preset{
 		//		Name:        defaultPreset.Name,
@@ -692,7 +656,7 @@ func TestPresetConversion(t *testing.T) {
 		//},
 		// TODO remove once Hybrik fixes bug and we can re-enable the new structure
 		{
-			name: "a valid mp4 hevc dolbyVision transcode job is mapped correctly to a hybrik job input",
+			name: "mp4dolbyVision",
 			job:  defaultJob,
 			preset: job.Preset{
 				Name:        defaultPreset.Name,
