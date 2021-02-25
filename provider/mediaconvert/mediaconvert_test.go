@@ -526,6 +526,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 										Container: mediaconvert.ContainerTypeMp4,
 										Mp4Settings: &mediaconvert.Mp4Settings{
 											Mp4MajorBrand: aws.String("isom"),
+											MoovPlacement: mediaconvert.Mp4MoovPlacementProgressiveDownload,
 										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
@@ -633,6 +634,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 										Container: mediaconvert.ContainerTypeMp4,
 										Mp4Settings: &mediaconvert.Mp4Settings{
 											Mp4MajorBrand: aws.String("isom"),
+											MoovPlacement: mediaconvert.Mp4MoovPlacementProgressiveDownload,
 										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
@@ -740,6 +742,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 										Container: mediaconvert.ContainerTypeMp4,
 										Mp4Settings: &mediaconvert.Mp4Settings{
 											Mp4MajorBrand: aws.String("isom"),
+											MoovPlacement: mediaconvert.Mp4MoovPlacementProgressiveDownload,
 										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
@@ -838,6 +841,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 										Container: mediaconvert.ContainerTypeMp4,
 										Mp4Settings: &mediaconvert.Mp4Settings{
 											Mp4MajorBrand: aws.String("isom"),
+											MoovPlacement: mediaconvert.Mp4MoovPlacementProgressiveDownload,
 										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
@@ -936,6 +940,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 										Container: mediaconvert.ContainerTypeMp4,
 										Mp4Settings: &mediaconvert.Mp4Settings{
 											Mp4MajorBrand: aws.String("isom"),
+											MoovPlacement: mediaconvert.Mp4MoovPlacementProgressiveDownload,
 										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
@@ -1225,6 +1230,7 @@ func Test_mcProvider_Transcode(t *testing.T) {
 										Container: mediaconvert.ContainerTypeMp4,
 										Mp4Settings: &mediaconvert.Mp4Settings{
 											Mp4MajorBrand: aws.String("isom"),
+											MoovPlacement: mediaconvert.Mp4MoovPlacementProgressiveDownload,
 										},
 									},
 									VideoDescription: &mediaconvert.VideoDescription{
@@ -1623,6 +1629,7 @@ func Test_mcProvider_JobStatus(t *testing.T) {
 										Container: mediaconvert.ContainerTypeMp4,
 										Mp4Settings: &mediaconvert.Mp4Settings{
 											Mp4MajorBrand: aws.String("isom"),
+											MoovPlacement: mediaconvert.Mp4MoovPlacementProgressiveDownload,
 										},
 									},
 								},
@@ -1632,6 +1639,7 @@ func Test_mcProvider_JobStatus(t *testing.T) {
 										Container: mediaconvert.ContainerTypeMp4,
 										Mp4Settings: &mediaconvert.Mp4Settings{
 											Mp4MajorBrand: aws.String("isom"),
+											MoovPlacement: mediaconvert.Mp4MoovPlacementProgressiveDownload,
 										},
 									},
 								},
