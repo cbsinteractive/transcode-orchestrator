@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/cbsinteractive/transcode-orchestrator/config"
@@ -134,54 +133,41 @@ func (p *flock) Create(ctx context.Context, j *job.Job) (*job.Status, error) {
 	}, nil
 }
 
-func (p *flock) flockJobRequestFrom(j *job.Job) (*JobRequest, error) {
-	presets := []job.Preset{}
-	for _, output := range j.Outputs {
-		presets = append(presets, output.Preset)
-	}
+func NewRequest(j *job.Job) (*JobRequest, error) {
+	fj := &JobRequest{}
+	fj.Job.Source = j.Input.Name
+	fj.Job.Labels = j.Labels
 
-	var jobReq JobRequest
-	jobReq.Job.Source = j.SourceMedia
-
-	for _, label := range j.Labels {
-		jobReq.Job.Labels = append(jobReq.Job.Labels, label)
-	}
-
-	jobOuts := make([]JobOutput, 0, len(j.Outputs))
-	for i, output := range j.Outputs {
-		var jobOut JobOutput
-		jobOut.Destination = joinBaseAndParts(j.DestinationBasePath, j.RootFolder(), output.FileName)
-		jobOut.AudioCodec = presets[i].Audio.Codec
-		jobOut.VideoCodec = presets[i].Video.Codec
-		jobOut.Preset = "slow"
-		jobOut.MultiPass = presets[i].TwoPass
-
-		if jobOut.VideoCodec == "hevc" {
-			jobOut.Tag = "hvc1"
+	for _, orc := range j.Output.File {
+		flock := JobOutput{
+			Preset:           "slow",
+			Destination:      j.Location(orc.Name),
+			VideoCodec:       orc.Video.Codec,
+			Width:            orc.Video.Width,
+			Height:           orc.Video.Height,
+			MultiPass:        orc.Video.Bitrate.TwoPass,
+			VideoBitrateKbps: orc.Video.Bitrate.BPS / 1000,
+			AudioBitrateKbps: orc.Audio.Bitrate / 1000,
+			AudioCodec:       orc.Audio.Codec,
 		}
-		if presets[i].Video.GopUnit == job.GopUnitSeconds {
-			jobOut.KeyframesPerSecond = int(presets[i].Video.GopSize)
+		if flock.AudioBitrateKbps != 0 {
+			flock.AudioChannels = 2
+		}
+		if flock.VideoCodec == "hevc" {
+			flock.Tag = "hvc1"
+		}
+		if orc.Video.Gop.Seconds() {
+			flock.KeyframesPerSecond = int(orc.Video.Gop.Size)
 		} else {
-			jobOut.KeyframeInterval = int(presets[i].Video.GopSize)
+			flock.KeyframeInterval = int(orc.Video.Gop.Size)
 		}
-		if br := presets[i].Video.Bitrate; br > 0 {
-			jobOut.VideoBitrateKbps = br / 1000
-		}
-		if br := presets[i].Audio.Bitrate; br > 0 {
-			jobOut.AudioBitrateKbps = br / 1000
-			jobOut.AudioChannels = 2
-		}
-		if w := presets[i].Video.Width; w > 0 {
-			jobOut.Width = presets[i].Video.Width
-		}
-		if h := presets[i].Video.Height; h > 0 {
-			jobOut.Height = h
-		}
-		jobOuts = append(jobOuts, jobOut)
+		fj.Job.Outputs = append(fj.Job.Outputs, flock)
 	}
+	return fj, nil
+}
 
-	jobReq.Job.Outputs = jobOuts
-	return &jobReq, nil
+func (p *flock) flockJobRequestFrom(j *job.Job) (*JobRequest, error) {
+	return NewRequest(j)
 }
 
 func (p *flock) Status(ctx context.Context, job *job.Job) (*job.Status, error) {
@@ -220,50 +206,38 @@ func (p *flock) Status(ctx context.Context, job *job.Job) (*job.Status, error) {
 	return p.jobStatusFrom(job, &jobResp), nil
 }
 
-func (p *flock) jobStatusFrom(j *job.Job, jobResp *JobResponse) *job.Status {
+func (p *flock) jobStatusFrom(j *job.Job, fj *JobResponse) *job.Status {
 	status := &job.Status{
+		Progress:      fj.Progress,
 		ProviderJobID: j.ProviderJobID,
 		ProviderName:  Name,
 		ProviderStatus: map[string]interface{}{
-			"create_timestamp": jobResp.CreateTimestamp,
-			"update_timestamp": jobResp.UpdateTimestamp,
-			"duration":         jobResp.Duration,
-			"progress":         jobResp.Progress,
-			"status":           jobResp.Status,
+			"create_timestamp": fj.CreateTimestamp,
+			"update_timestamp": fj.UpdateTimestamp,
+			"duration":         fj.Duration,
+			"progress":         fj.Progress,
+			"status":           fj.Status,
 		},
-		State: state(jobResp),
-		Output: job.Output{
-			Destination: joinBaseAndParts(j.DestinationBasePath, j.RootFolder()),
-		},
+		State:  state(fj),
+		Output: job.Dir{Path: j.Location("")},
 		Labels: j.Labels,
 	}
 
-	outputsStatus := make([]map[string]interface{}, 0, len(jobResp.Outputs))
-	outputFiles := make([]job.File, 0, len(jobResp.Outputs))
-
-	for _, output := range jobResp.Outputs {
-		outputFiles = append(outputFiles, job.File{Path: output.Destination})
-		outputsStatus = append(outputsStatus, map[string]interface{}{
-			"duration":         output.Duration,
-			"destination":      output.Destination,
-			"encoder":          output.Encoder,
-			"info":             output.Info,
-			"status":           output.Status,
-			"progress":         output.Progress,
-			"update_timestamp": output.UpdateTimestamp,
+	outstatus := []map[string]interface{}{}
+	for _, o := range fj.Outputs {
+		status.Output.File = append(status.Output.File, job.File{Name: o.Destination})
+		outstatus = append(outstatus, map[string]interface{}{
+			"duration":         o.Duration,
+			"destination":      o.Destination,
+			"encoder":          o.Encoder,
+			"info":             o.Info,
+			"status":           o.Status,
+			"progress":         o.Progress,
+			"update_timestamp": o.UpdateTimestamp,
 		})
 	}
-
-	status.Output.Files = outputFiles
-	status.ProviderStatus["outputs"] = outputsStatus
-	status.Progress = jobResp.Progress
+	status.ProviderStatus["outputs"] = outstatus
 	return status
-}
-
-func joinBaseAndParts(base string, elem ...string) string {
-	parts := []string{strings.TrimRight(base, "/")}
-	parts = append(parts, elem...)
-	return strings.Join(parts, "/")
 }
 
 func state(j *JobResponse) job.State {

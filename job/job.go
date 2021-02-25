@@ -1,7 +1,8 @@
 package job
 
 import (
-	"errors"
+	"net/url"
+	"path"
 	"time"
 
 	"github.com/cbsinteractive/pkg/timecode"
@@ -11,43 +12,24 @@ import (
 
 // Job is a transcoding job
 type Job struct {
-	ID string `json:"jobId"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt time.Time
+	Labels    []string
 
-	Name         string
-	CreationTime time.Time
-	Labels []string
-
-	SourceMedia string `json:"source"`
-	SourceInfo  File
-	// SourceSplice is a set of second ranges to excise from the input and catenate
-	// together before processing the source. For example, [[0,1],[8,9]], will cut out
-	// a two-second clip, from the first and last second of a 10s video.
-	SourceSplice timecode.Splice `json:"splice,omitempty"`
-	ProviderName string          `json:"provider"`
-
+	Provider      string `json:"provider"`
 	ProviderJobID string
 
-	// configuration for adaptive streaming jobs
-	StreamingParams StreamingParams
+	Input  File
+	Output Dir
 
-	// ExecutionEnv contains configurations for the environment used while transcoding
+	Streaming Streaming
+
 	ExecutionFeatures  ExecutionFeatures
 	ExecutionEnv       ExecutionEnvironment
 	ExecutionCfgReport string
 
-	DestinationBasePath string
-
-	// SidecarAssets contain a map of string keys to file locations
 	SidecarAssets map[SidecarAssetKind]string
-
-	// Output list of the given job
-	Outputs []TranscodeOutput
-
-	// AudioDownmix holds source and output channels for configuring downmixing
-	AudioDownmix *AudioDownmix
-
-	// ExplicitKeyframeOffsets define offsets from the beginning of the media to insert keyframes when encoding
-	ExplicitKeyframeOffsets []float64
 }
 
 // State is the state of a transcoding job.
@@ -62,26 +44,47 @@ const (
 	StateCanceled = State("canceled")
 )
 
+type Provider struct {
+	Name   string                 `json:"name,omitempty"`
+	JobID  string                 `json:"job_id,omitempty"`
+	Status map[string]interface{} `json:"status,omitempty"`
+}
+
 // Status is the representation of the status
 type Status struct {
-	ID      string   `json:"jobID,omitempty"`
-	Labels  []string `json:"labels,omitempty"`
-	State   State    `json:"status,omitempty"`
-	Progress float64 `json:"progress"`
-	Message string   `json:"statusMessage,omitempty"`
+	ID     string   `json:"jobID,omitempty"`
+	Labels []string `json:"labels,omitempty"`
 
-	Input    File    `json:"sourceInfo,omitempty"`
-	Output   Output  `json:"output"`
+	State    State   `json:"status,omitempty"`
+	Msg      string  `json:"msg,omitempty"`
+	Progress float64 `json:"progress"`
+
+	Input  File `json:"input"`
+	Output Dir  `json:"output"`
 
 	ProviderName   string                 `json:"providerName,omitempty"`
 	ProviderJobID  string                 `json:"providerJobId,omitempty"`
 	ProviderStatus map[string]interface{} `json:"providerStatus,omitempty"`
 }
 
-// Output represents information about a job output.
-type Output struct {
-	Destination string `json:"destination,omitempty"`
-	Files       []File `json:"files,omitempty"`
+// Dir is a named directory of files
+type Dir struct {
+	Path string `json:"path,omitempty"`
+	File []File `json:"files,omitempty"`
+}
+
+func (d Dir) Location() url.URL {
+	u, _ := url.Parse(d.Path)
+	if u == nil {
+		return url.URL{}
+	}
+	return *u
+}
+
+func (j Job) Location(file string) string {
+	u := j.Output.Location()
+	u.Path = path.Join(u.Path, j.RootFolder(), file)
+	return u.String()
 }
 
 func (j Job) RootFolder() string {
@@ -90,7 +93,6 @@ func (j Job) RootFolder() string {
 			return j.Name
 		}
 	}
-
 	return j.ID
 }
 
@@ -121,15 +123,8 @@ const (
 	ComputeClassDolbyVisionMezzQC     ComputeClass = "doViMezzQC"
 )
 
-// TranscodeOutput represents a transcoding output. It's a combination of the
-// preset and the output file name.
-type TranscodeOutput struct {
-	Preset   Preset
-	FileName string
-}
-
-// StreamingParams represents the params necessary to create Adaptive Streaming jobs
-type StreamingParams struct {
+// Streaming configures Adaptive Streaming jobs
+type Streaming struct {
 	SegmentDuration  uint
 	Protocol         string
 	PlaylistFileName string
@@ -170,69 +165,69 @@ type AudioChannel struct {
 
 //AudioDownmix holds source and output channels for providers
 //to handle downmixing
-type AudioDownmix struct {
-	SrcChannels  []AudioChannel
-	DestChannels []AudioChannel
-}
-
-// File
-type File struct {
-	Path      string `json:"path"`
-	Container string `json:"container"`
-	Size      int64  `json:"fileSize,omitempty"`
-	Duration   time.Duration `json:"duration,omitempty"`
-	Height     int         `json:"height,omitempty"`
-	Width      int        `json:"width,omitempty"`
-	VideoCodec string        `json:"videoCodec,omitempty"`
-	FrameRate float64
-	ScanType ScanType
+type Downmix struct {
+	Src  []AudioChannel
+	Dest []AudioChannel
 }
 
 // ExecutionFeatures is a map whose key is a custom feature name and value is a json string
 // representing the corresponding custom feature definition
 type ExecutionFeatures map[string]interface{}
 
+// File
+type File struct {
+	// Description     string `json:"description,omitempty"`
+	// SourceContainer string `json:"sourceContainer,omitempty"`
+	// TwoPass         bool   `json:"twoPass"`
 
-// LocalPreset is a struct to persist encoding configurations. Some providers don't have
-// the ability to store presets on it's side so we persist locally.
-type LocalPreset struct {
-	Name   string
-	Preset Preset
-}
+	Name      string `json:"name,omitempty"`
+	Container string `json:"container,omitempty"`
+	Video     Video  `json:"video,omitempty"`
+	Audio     Audio  `json:"audio,omitempty"`
 
-// Preset defines the set of parameters of a given preset
-type Preset struct {
-	Name            string `json:"name,omitempty"`
-	Description     string `json:"description,omitempty"`
-	SourceContainer string `json:"sourceContainer,omitempty"`
-	Container       string `json:"container,omitempty"`
-	RateControl     string `json:"rateControl,omitempty"`
-	TwoPass         bool   `json:"twoPass"`
-	Video           Video  `json:"video"`
-	Audio           Audio  `json:"audio"`
+	Splice                  timecode.Splice `json:"splice,omitempty"`
+	Downmix                 *Downmix
+	ExplicitKeyframeOffsets []float64
 }
 
 // Video transcoding parameters
 type Video struct {
 	Codec   string `json:"codec,omitempty"`
 	Profile string `json:"profile,omitempty"`
-	Level   string `json:"profileLevel,omitempty"`
+	Level   string `json:"level,omitempty"`
 
-	Width   int `json:"width,omitempty"`
-	Height  int `json:"height,omitempty"`
-	Bitrate int `json:"bitrate,omitempty"`
+	Width    int    `json:"width,omitempty"`
+	Height   int    `json:"height,omitempty"`
+	Scantype string `json:"scantype,omitempty"`
 
-	GopSize       float64 `json:"gopSize,omitempty"`
-	GopUnit       string  `json:"gopUnit,omitempty"`
-	GopMode       string  `json:"gopMode,omitempty"`
-	InterlaceMode string  `json:"interlaceMode,omitempty"`
+	FPS     float64 `json:"fps,omitempty"`
+	Bitrate Bitrate `json:"bitrate"`
+	Gop     Gop     `json:"gop"`
 
 	HDR10       HDR10       `json:"hdr10"`
 	DolbyVision DolbyVision `json:"dolbyVision"`
-	Overlays            *Overlays           `json:"overlays,omitempty"`
+	Overlays    *Overlays   `json:"overlays,omitempty"`
+	Crop        video.Crop  `json:"crop"`
+}
 
-	// Crop contains offsets for top, bottom, left and right src cropping
-	Crop video.Crop `json:"crop"`
+type Bitrate struct {
+	BPS     int    `json:"bps"`
+	Control string `json:"control"`
+	TwoPass bool   `json:"twopass"`
+}
+
+func (b Bitrate) Kbps() int {
+	return b.BPS / 1000
+}
+
+type Gop struct {
+	Unit string  `json:"unit,omitempty"`
+	Size float64 `json:"size,omitempty"`
+	Mode string  `json:"mode,omitempty"`
+}
+
+func (g Gop) Seconds() bool {
+	return g.Unit == "seconds"
 }
 
 // GopUnit defines the unit used to measure gops
@@ -245,8 +240,8 @@ const (
 
 //Overlays defines all the overlay settings for a Video preset
 type Overlays struct {
-	Images         []Image         `json:"images,omitempty"`
-	TimecodeBurnin *TimecodeBurnin `json:"timecodeBurnin,omitempty"`
+	Images         []Image   `json:"images,omitempty"`
+	TimecodeBurnin *Timecode `json:"timecodeBurnin,omitempty"`
 }
 
 //Image defines the image overlay settings
@@ -254,9 +249,8 @@ type Image struct {
 	URL string `json:"url"`
 }
 
-// TimecodeBurnin settings
-type TimecodeBurnin struct {
-	Enabled  bool   `json:"enabled"`
+// Timecode settings
+type Timecode struct {
 	FontSize int    `json:"fontSize,omitempty"`
 	Position int    `json:"position,omitempty"`
 	Prefix   string `json:"prefix,omitempty"`
@@ -277,20 +271,8 @@ type DolbyVision struct {
 
 // Audio defines audio transcoding parameters
 type Audio struct {
-	Codec          string `json:"codec,omitempty"`
-	Bitrate        int    `json:"bitrate,omitempty"`
-	Normalization  bool   `json:"normalization,omitempty"`
-	DiscreteTracks bool   `json:"discreteTracks,omitempty"`
-}
-
-type OutputOptions struct {
-	Extension string
-}
-
-// Validate checks that the OutputOptions object is properly defined.
-func (o *OutputOptions) Validate() error {
-	if o.Extension == "" {
-		return errors.New("extension is required")
-	}
-	return nil
+	Codec     string `json:"codec,omitempty"`
+	Bitrate   int    `json:"bitrate,omitempty"`
+	Normalize bool   `json:"normalize,omitempty"`
+	Discrete  bool   `json:"discrete,omitempty"`
 }

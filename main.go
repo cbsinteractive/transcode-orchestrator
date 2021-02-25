@@ -19,6 +19,8 @@ import (
 var addr = flag.String("addr", ":"+os.Getenv("HTTP_PORT"), "http listen address")
 
 func main() {
+	flag.Parse()
+
 	cfg := config.LoadConfig()
 	store, err := db.NewClient(nil)
 	if err != nil {
