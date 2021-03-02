@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/cbsinteractive/hybrik-sdk-go"
+	hy "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
@@ -28,7 +28,7 @@ var outputMatchers = []struct {
 	{"Combine Segments", match(`combiner_[\d]+$`)},
 }
 
-func hasOutputs(task hybrik.TaskResult) bool {
+func hasOutputs(task hy.TaskResult) bool {
 	for _, matcher := range outputMatchers {
 		if matcher.kind != task.Kind {
 			continue
@@ -41,7 +41,7 @@ func hasOutputs(task hybrik.TaskResult) bool {
 	return false
 }
 
-func filesFrom(task hybrik.TaskResult) (files []job.File, ok bool, err error) {
+func filesFrom(task hy.TaskResult) (files []job.File, ok bool, err error) {
 	// ensure the task type results in outputs
 	if !hasOutputs(task) {
 		return nil, false, nil
@@ -65,7 +65,7 @@ func filesFrom(task hybrik.TaskResult) (files []job.File, ok bool, err error) {
 
 const assetMediaInfoType = "ASSET"
 
-func containerFrom(component hybrik.AssetComponentResult) string {
+func containerFrom(component hy.AssetComponentResult) string {
 	if infos := component.MediaAnalyze.MediaInfo; len(infos) > 0 {
 		for _, i := range infos {
 			if i.StreamType == assetMediaInfoType && i.ASSET.Format != "" {

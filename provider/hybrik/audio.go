@@ -3,17 +3,17 @@ package hybrik
 import (
 	"fmt"
 
-	"github.com/cbsinteractive/hybrik-sdk-go"
+	hy "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
-func (p *hybrikProvider) audioElements(j *job.Job) (a []hybrik.Element) {
-	tags := cfg.computeTags[job.ComputeClassTranscodeDefault]
-	for i, f := range j.Output {
-		if a.Codec == "" {
+func (p *driver) audioElements(j *job.Job) (a []hy.Element) {
+	tags := tag(j, job.ComputeClassTranscodeDefault)
+	for i, f := range j.Output.File {
+		if f.Audio.Codec == "" {
 			continue
 		}
-		file := fmt.Sprintf("audio_output_%d.%s", i, a.Codec)
+		file := fmt.Sprintf("audio_output_%d.%s", i, f.Audio.Codec)
 		uid := fmt.Sprintf("audio_%d", i)
 		//TODO(as): make sure file name/dir is correct here
 		a = append(a, label(p.audioElement(f.Kid(file)), uid, tag))
@@ -21,25 +21,25 @@ func (p *hybrikProvider) audioElements(j *job.Job) (a []hybrik.Element) {
 	return a
 }
 
-func (p *hybrikProvider) audioElement(f job.File, idx int) hybrik.Element {
-	return hybrik.Element{
+func (p *driver) audioElement(f job.File, idx int) hy.Element {
+	return hy.Element{
 		Kind: "transcode",
-		Task: &hybrik.ElementTaskOptions{
+		Task: &hy.ElementTaskOptions{
 			Name: "Audio Encode",
 		},
-		Payload: hybrik.LocationTargetPayload{
+		Payload: hy.LocationTargetPayload{
 			Location: p.location(f, creds),
-			Targets: []hybrik.TranscodeTarget{{
-				FilePattern:   file,
+			Targets: []hy.TranscodeTarget{{
+				FilePattern:   f.Name, // TODO(as)
 				ExistingFiles: "replace",
-				Container: hybrik.TranscodeContainer{
+				Container: hy.TranscodeContainer{
 					Kind: "elementary",
 				},
-				Audio: []hybrik.AudioTarget{{
+				Audio: []hy.AudioTarget{{
 					Codec:     a.Codec,
 					BitrateKb: a.Bitrate / 1000,
 					Channels:  2,
-					Source:    []hybrik.AudioTargetSource{{TrackNum: 0}},
+					Source:    []hy.AudioTargetSource{{TrackNum: 0}},
 				}},
 			}},
 		},

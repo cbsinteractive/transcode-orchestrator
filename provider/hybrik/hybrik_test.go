@@ -73,16 +73,16 @@ func updateGopStruct(gopSize float64, gopUnit string) job.File {
 func TestPreset(t *testing.T) {
 	tests := []struct {
 		name                 string
-		provider             *hybrikProvider
+		provider             *driver
 		preset               job.File
 		transcodeCfg         transcodeCfg
-		wantTranscodeElement hybrik.TranscodePayload
+		wantTranscodeElement hy.TranscodePayload
 		wantTags             []string
 		wantErr              bool
 	}{
 		{
 			name: "MP4/H264/AAC",
-			provider: &hybrikProvider{
+			provider: &driver{
 				config: &config.Hybrik{
 					PresetPath:        "some_preset_path",
 					GCPCredentialsKey: "some_key",
@@ -97,7 +97,7 @@ func TestPreset(t *testing.T) {
 				},
 				filename: "output.mp4",
 				execFeatures: executionFeatures{
-					segmentedRendering: &hybrik.SegmentedRendering{
+					segmentedRendering: &hy.SegmentedRendering{
 						Duration: 60,
 					},
 				},
@@ -105,24 +105,24 @@ func TestPreset(t *testing.T) {
 					job.ComputeClassTranscodeDefault: "transcode_default_tag",
 				},
 			},
-			wantTranscodeElement: hybrik.TranscodePayload{
-				SourcePipeline: hybrik.TranscodeSourcePipeline{
-					SegmentedRendering: &hybrik.SegmentedRendering{
+			wantTranscodeElement: hy.TranscodePayload{
+				SourcePipeline: hy.TranscodeSourcePipeline{
+					SegmentedRendering: &hy.SegmentedRendering{
 						Duration: 60,
 					},
 				},
-				LocationTargetPayload: hybrik.LocationTargetPayload{
-					Location: hybrik.TranscodeLocation{
+				LocationTargetPayload: hy.LocationTargetPayload{
+					Location: hy.TranscodeLocation{
 						StorageProvider: storageProviderGCS.string(),
 						Path:            "gs://some_bucket/encodes",
-						Access:          &hybrik.StorageAccess{CredentialsKey: "some_key", MaxCrossRegionMB: -1},
+						Access:          &hy.StorageAccess{CredentialsKey: "some_key", MaxCrossRegionMB: -1},
 					},
-					Targets: []hybrik.TranscodeTarget{
+					Targets: []hy.TranscodeTarget{
 						{
 							FilePattern: "output.mp4",
-							Container:   hybrik.TranscodeContainer{Kind: defaultPreset.Container},
+							Container:   hy.TranscodeContainer{Kind: defaultPreset.Container},
 							NumPasses:   2,
-							Video: &hybrik.VideoTarget{
+							Video: &hy.VideoTarget{
 								Width:          intToPtr(300),
 								Height:         intToPtr(400),
 								Codec:          defaultPreset.Video.Codec,
@@ -135,7 +135,7 @@ func TestPreset(t *testing.T) {
 								Level:          "4.1",
 								InterlaceMode:  "progressive",
 							},
-							Audio: []hybrik.AudioTarget{
+							Audio: []hy.AudioTarget{
 								{
 									Codec:     defaultPreset.Audio.Codec,
 									BitrateKb: 20,
@@ -160,18 +160,18 @@ func TestPreset(t *testing.T) {
 				computeTags:       tt.transcodeCfg.computeTags,
 			}, tt.transcodeCfg.filename)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("hybrikProvider.transcodeElementFromPreset() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("driver.transcodeElementFromPreset() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			if g, e := p.Payload, tt.wantTranscodeElement; !reflect.DeepEqual(g, e) {
-				t.Fatalf("hybrikProvider.transcodeElementFromPreset() wrong transcode payload\nWant %+v\nGot %+v\nDiff %s", e,
+				t.Fatalf("driver.transcodeElementFromPreset() wrong transcode payload\nWant %+v\nGot %+v\nDiff %s", e,
 					g, cmp.Diff(e, g))
 			}
 
 			if tt.wantTags != nil {
 				if g, e := p.Task.Tags, tt.wantTags; !reflect.DeepEqual(g, e) {
-					t.Fatalf("hybrikProvider.transcodeElementFromPreset() wrong preset request\nWant %+v\nGot %+v\nDiff %s", e,
+					t.Fatalf("driver.transcodeElementFromPreset() wrong preset request\nWant %+v\nGot %+v\nDiff %s", e,
 						g, cmp.Diff(e, g))
 				}
 			}
@@ -184,7 +184,7 @@ func TestTranscodePreset(t *testing.T) {
 		name           string
 		presetModifier func(preset job.File) job.File
 		transcodeCfg   transcodeCfg
-		assertion      func(hybrik.TranscodePayload, *testing.T)
+		assertion      func(hy.TranscodePayload, *testing.T)
 		wantErrMsg     string
 	}{
 		{
@@ -201,8 +201,8 @@ func TestTranscodePreset(t *testing.T) {
 				}
 				return p
 			},
-			assertion: func(input hybrik.TranscodePayload, t *testing.T) {
-				transcodeTargets, ok := input.Targets.([]hybrik.TranscodeTarget)
+			assertion: func(input hy.TranscodePayload, t *testing.T) {
+				transcodeTargets, ok := input.Targets.([]hy.TranscodeTarget)
 				if !ok {
 					t.Errorf("targets are not TranscodeTargets")
 				}
@@ -251,8 +251,8 @@ func TestTranscodePreset(t *testing.T) {
 
 				return p
 			},
-			assertion: func(input hybrik.TranscodePayload, t *testing.T) {
-				transcodeTargets, ok := input.Targets.([]hybrik.TranscodeTarget)
+			assertion: func(input hy.TranscodePayload, t *testing.T) {
+				transcodeTargets, ok := input.Targets.([]hy.TranscodeTarget)
 				if !ok {
 					t.Errorf("targets are not TranscodeTargets")
 				}
@@ -284,8 +284,8 @@ func TestTranscodePreset(t *testing.T) {
 				preset.Video.Bitrate = 10000000
 				return preset
 			},
-			assertion: func(input hybrik.TranscodePayload, t *testing.T) {
-				transcodeTargets, ok := input.Targets.([]hybrik.TranscodeTarget)
+			assertion: func(input hy.TranscodePayload, t *testing.T) {
+				transcodeTargets, ok := input.Targets.([]hy.TranscodeTarget)
 				if !ok {
 					t.Errorf("targets are not TranscodeTargets")
 				}
@@ -334,7 +334,7 @@ func TestTranscodePreset(t *testing.T) {
 			presetModifier: func(p job.File) job.File {
 				return p
 			},
-			assertion: func(payload hybrik.TranscodePayload, t *testing.T) {
+			assertion: func(payload hy.TranscodePayload, t *testing.T) {
 				if maxCrossRegionMB := payload.Location.Access.MaxCrossRegionMB; maxCrossRegionMB != 0 {
 					t.Errorf("maxCrossRegionMB was %d, expected it to be 0", maxCrossRegionMB)
 				}
@@ -356,7 +356,7 @@ func TestTranscodePreset(t *testing.T) {
 			presetModifier: func(p job.File) job.File {
 				return p
 			},
-			assertion: func(payload hybrik.TranscodePayload, t *testing.T) {
+			assertion: func(payload hy.TranscodePayload, t *testing.T) {
 				if maxCrossRegionMB := payload.Location.Access.MaxCrossRegionMB; maxCrossRegionMB != -1 {
 					t.Errorf("maxCrossRegionMB was %d, expected it to be -1", maxCrossRegionMB)
 				}
@@ -367,7 +367,7 @@ func TestTranscodePreset(t *testing.T) {
 	for _, tt := range tests {
 
 		t.Run(tt.name, func(t *testing.T) {
-			p := &hybrikProvider{
+			p := &driver{
 				config: &config.Hybrik{
 					PresetPath: "some_preset_path",
 				},
@@ -380,12 +380,12 @@ func TestTranscodePreset(t *testing.T) {
 				executionEnvironment: tt.transcodeCfg.executionEnvironment,
 			}, tt.transcodeCfg.filename)
 			if err != nil && tt.wantErrMsg != err.Error() {
-				t.Errorf("hybrikProvider.transcodeElementFromPreset()error = %v, wantErr %q", err, tt.wantErrMsg)
+				t.Errorf("driver.transcodeElementFromPreset()error = %v, wantErr %q", err, tt.wantErrMsg)
 				return
 			}
 
 			if tt.assertion != nil {
-				tt.assertion(gotElement.Payload.(hybrik.TranscodePayload), t)
+				tt.assertion(gotElement.Payload.(hy.TranscodePayload), t)
 			}
 		})
 	}
@@ -396,48 +396,48 @@ func TestPresetConversion(t *testing.T) {
 		name    string
 		job     job.Job
 		preset  job.File
-		wantJob hybrik.CreateJob
+		wantJob hy.CreateJob
 		wantErr string
 	}{
 		{
 			name:   "MP4",
 			job:    defaultJob,
 			preset: defaultPreset,
-			wantJob: hybrik.CreateJob{
+			wantJob: hy.CreateJob{
 				Name: "Job jobID [path.mp4]",
-				Payload: hybrik.CreateJobPayload{
-					Elements: []hybrik.Element{
+				Payload: hy.CreateJobPayload{
+					Elements: []hy.Element{
 						{
 							UID:  "source_file",
 							Kind: "source",
-							Payload: hybrik.ElementPayload{
+							Payload: hy.ElementPayload{
 								Kind:    "asset_urls",
-								Payload: []hybrik.AssetPayload{{StorageProvider: "s3", URL: "s3://some/path.mp4"}},
+								Payload: []hy.AssetPayload{{StorageProvider: "s3", URL: "s3://some/path.mp4"}},
 							},
 						},
 						{
 							UID:  "transcode_task_0",
 							Kind: "transcode",
-							Task: &hybrik.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{}},
-							Payload: hybrik.TranscodePayload{
-								LocationTargetPayload: hybrik.LocationTargetPayload{
-									Location: hybrik.TranscodeLocation{
+							Task: &hy.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{}},
+							Payload: hy.TranscodePayload{
+								LocationTargetPayload: hy.LocationTargetPayload{
+									Location: hy.TranscodeLocation{
 										Path:            "s3://some-dest/path/jobID",
 										StorageProvider: storageProviderS3.string(),
 									},
-									Targets: []hybrik.TranscodeTarget{{
-										Audio: []hybrik.AudioTarget{{
+									Targets: []hy.TranscodeTarget{{
+										Audio: []hy.AudioTarget{{
 											BitrateKb: 20,
 											Channels:  2,
 											Codec:     "aac",
 										}},
-										Container: hybrik.TranscodeContainer{
+										Container: hy.TranscodeContainer{
 											Kind: "mp4",
 										},
 										ExistingFiles: "replace",
 										FilePattern:   "file1.mp4",
 										NumPasses:     2,
-										Video: &hybrik.VideoTarget{
+										Video: &hy.VideoTarget{
 											Width:          intToPtr(300),
 											Height:         intToPtr(400),
 											BitrateMode:    "cbr",
@@ -455,11 +455,11 @@ func TestPresetConversion(t *testing.T) {
 							},
 						},
 					},
-					Connections: []hybrik.Connection{
+					Connections: []hy.Connection{
 						{
-							From: []hybrik.ConnectionFrom{{Element: "source_file"}},
-							To: hybrik.ConnectionTo{
-								Success: []hybrik.ToSuccess{{Element: "transcode_task_0"}},
+							From: []hy.ConnectionFrom{{Element: "source_file"}},
+							To: hy.ConnectionTo{
+								Success: []hy.ToSuccess{{Element: "transcode_task_0"}},
 							},
 						},
 					},
@@ -470,41 +470,41 @@ func TestPresetConversion(t *testing.T) {
 			name:   "gopSeconds",
 			job:    defaultJob,
 			preset: updateGopStruct(2, "seconds"),
-			wantJob: hybrik.CreateJob{
+			wantJob: hy.CreateJob{
 				Name: "Job jobID [path.mp4]",
-				Payload: hybrik.CreateJobPayload{
-					Elements: []hybrik.Element{
+				Payload: hy.CreateJobPayload{
+					Elements: []hy.Element{
 						{
 							UID:  "source_file",
 							Kind: "source",
-							Payload: hybrik.ElementPayload{
+							Payload: hy.ElementPayload{
 								Kind:    "asset_urls",
-								Payload: []hybrik.AssetPayload{{StorageProvider: "s3", URL: "s3://some/path.mp4"}},
+								Payload: []hy.AssetPayload{{StorageProvider: "s3", URL: "s3://some/path.mp4"}},
 							},
 						},
 						{
 							UID:  "transcode_task_0",
 							Kind: "transcode",
-							Task: &hybrik.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{}},
-							Payload: hybrik.TranscodePayload{
-								LocationTargetPayload: hybrik.LocationTargetPayload{
-									Location: hybrik.TranscodeLocation{
+							Task: &hy.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{}},
+							Payload: hy.TranscodePayload{
+								LocationTargetPayload: hy.LocationTargetPayload{
+									Location: hy.TranscodeLocation{
 										Path:            "s3://some-dest/path/jobID",
 										StorageProvider: storageProviderS3.string(),
 									},
-									Targets: []hybrik.TranscodeTarget{{
-										Audio: []hybrik.AudioTarget{{
+									Targets: []hy.TranscodeTarget{{
+										Audio: []hy.AudioTarget{{
 											BitrateKb: 20,
 											Channels:  2,
 											Codec:     "aac",
 										}},
-										Container: hybrik.TranscodeContainer{
+										Container: hy.TranscodeContainer{
 											Kind: "mp4",
 										},
 										ExistingFiles: "replace",
 										FilePattern:   "file1.mp4",
 										NumPasses:     2,
-										Video: &hybrik.VideoTarget{
+										Video: &hy.VideoTarget{
 											Width:         intToPtr(300),
 											Height:        intToPtr(400),
 											BitrateMode:   "cbr",
@@ -522,11 +522,11 @@ func TestPresetConversion(t *testing.T) {
 							},
 						},
 					},
-					Connections: []hybrik.Connection{
+					Connections: []hy.Connection{
 						{
-							From: []hybrik.ConnectionFrom{{Element: "source_file"}},
-							To: hybrik.ConnectionTo{
-								Success: []hybrik.ToSuccess{{Element: "transcode_task_0"}},
+							From: []hy.ConnectionFrom{{Element: "source_file"}},
+							To: hy.ConnectionTo{
+								Success: []hy.ToSuccess{{Element: "transcode_task_0"}},
 							},
 						},
 					},
@@ -554,26 +554,26 @@ func TestPresetConversion(t *testing.T) {
 		//			},
 		//		},
 		//	},
-		//	wantJob: hybrik.CreateJob{
+		//	wantJob: hy.CreateJob{
 		//		Name: "Job jobID [path.mp4]",
-		//		Payload: hybrik.CreateJobPayload{
-		//			Elements: []hybrik.Element{
+		//		Payload: hy.CreateJobPayload{
+		//			Elements: []hy.Element{
 		//				{
 		//					UID:  "source_file",
 		//					Kind: "source",
-		//					Payload: hybrik.ElementPayload{
+		//					Payload: hy.ElementPayload{
 		//						Kind:    "asset_urls",
-		//						Payload: []hybrik.AssetPayload{{StorageProvider: "s3", URL: "s3://some/path.mp4"}},
+		//						Payload: []hy.AssetPayload{{StorageProvider: "s3", URL: "s3://some/path.mp4"}},
 		//					},
 		//				},
 		//				{
 		//					UID:  "mezzanine_qc",
 		//					Kind: "dolby_vision",
-		//					Task: &hybrik.ElementTaskOptions{Name: "Mezzanine QC", Tags: []string{"preproc"}},
-		//					Payload: hybrik.DoViV2MezzanineQCPayload{
+		//					Task: &hy.ElementTaskOptions{Name: "Mezzanine QC", Tags: []string{"preproc"}},
+		//					Payload: hy.DoViV2MezzanineQCPayload{
 		//						Module: "mezzanine_qc",
-		//						Params: hybrik.DoViV2MezzanineQCPayloadParams{
-		//							Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/mezzanine_qc"},
+		//						Params: hy.DoViV2MezzanineQCPayloadParams{
+		//							Location:    hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/mezzanine_qc"},
 		//							FilePattern: "jobID_mezz_qc_report.txt",
 		//						},
 		//					},
@@ -581,32 +581,32 @@ func TestPresetConversion(t *testing.T) {
 		//				{
 		//					UID:  "dolby_vision_0",
 		//					Kind: "dolby_vision",
-		//					Task: &hybrik.ElementTaskOptions{
+		//					Task: &hy.ElementTaskOptions{
 		//						Name:              "Encode #0",
 		//						RetryMethod:       "fail",
 		//						Tags:              []string{computeTagPreProcDefault},
 		//						SourceElementUIDs: []string{"source_file"},
 		//					},
-		//					Payload: hybrik.DolbyVisionV2TaskPayload{
+		//					Payload: hy.DolbyVisionV2TaskPayload{
 		//						Module:        "encoder",
 		//						Profile:       5,
-		//						Location:      hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
-		//						Preprocessing: hybrik.DolbyVisionV2Preprocessing{Task: hybrik.TaskTags{Tags: []string{"preproc"}}},
-		//						Transcodes: []hybrik.Element{
+		//						Location:      hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
+		//						Preprocessing: hy.DolbyVisionV2Preprocessing{Task: hy.TaskTags{Tags: []string{"preproc"}}},
+		//						Transcodes: []hy.Element{
 		//							{
 		//								UID:  "transcode_task_0",
 		//								Kind: "transcode",
-		//								Task: &hybrik.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{}},
-		//								Payload: hybrik.TranscodePayload{
-		//									LocationTargetPayload: hybrik.LocationTargetPayload{
-		//										Location: hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
-		//										Targets: []hybrik.TranscodeTarget{
+		//								Task: &hy.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{}},
+		//								Payload: hy.TranscodePayload{
+		//									LocationTargetPayload: hy.LocationTargetPayload{
+		//										Location: hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
+		//										Targets: []hy.TranscodeTarget{
 		//											{
 		//												FilePattern:   "file1.mp4",
 		//												ExistingFiles: "replace",
-		//												Container:     hybrik.TranscodeContainer{Kind: "elementary"},
+		//												Container:     hy.TranscodeContainer{Kind: "elementary"},
 		//												NumPasses:     1,
-		//												Video: &hybrik.VideoTarget{
+		//												Video: &hy.VideoTarget{
 		//													Width:          intToPtr(300),
 		//													BitrateKb:      12,
 		//													Preset:         "slow",
@@ -622,20 +622,20 @@ func TestPresetConversion(t *testing.T) {
 		//													VTag:           "hvc1",
 		//													FFMPEGArgs:     " -strict experimental",
 		//												},
-		//												Audio: []hybrik.AudioTarget{},
+		//												Audio: []hy.AudioTarget{},
 		//											},
 		//										},
 		//									},
-		//									Options: &hybrik.TranscodeTaskOptions{Pipeline: &hybrik.PipelineOptions{EncoderVersion: "hybrik_4.0_10bit"}},
+		//									Options: &hy.TranscodeTaskOptions{Pipeline: &hy.PipelineOptions{EncoderVersion: "hybrik_4.0_10bit"}},
 		//								},
 		//							},
 		//						},
-		//						PostTranscode: hybrik.DoViPostTranscode{
-		//							Task: &hybrik.TaskTags{Tags: []string{computeTagPreProcDefault}},
-		//							MP4Mux: hybrik.DoViMP4Mux{
+		//						PostTranscode: hy.DoViPostTranscode{
+		//							Task: &hy.TaskTags{Tags: []string{computeTagPreProcDefault}},
+		//							MP4Mux: hy.DoViMP4Mux{
 		//								Enabled:           true,
 		//								FilePattern:       "{source_basename}.mp4",
-		//								ElementaryStreams: []hybrik.DoViMP4MuxElementaryStream{},
+		//								ElementaryStreams: []hy.DoViMP4MuxElementaryStream{},
 		//								CLIOptions: map[string]string{
 		//									doViMP4MuxDVH1FlagKey: "",
 		//								},
@@ -644,14 +644,14 @@ func TestPresetConversion(t *testing.T) {
 		//					},
 		//				},
 		//			},
-		//			Connections: []hybrik.Connection{
+		//			Connections: []hy.Connection{
 		//				{
-		//					From: []hybrik.ConnectionFrom{{Element: "source_file"}},
-		//					To:   hybrik.ConnectionTo{Success: []hybrik.ToSuccess{{Element: "mezzanine_qc"}}},
+		//					From: []hy.ConnectionFrom{{Element: "source_file"}},
+		//					To:   hy.ConnectionTo{Success: []hy.ToSuccess{{Element: "mezzanine_qc"}}},
 		//				},
 		//				{
-		//					From: []hybrik.ConnectionFrom{{Element: "mezzanine_qc"}},
-		//					To:   hybrik.ConnectionTo{Success: []hybrik.ToSuccess{{Element: "dolby_vision_0"}}},
+		//					From: []hy.ConnectionFrom{{Element: "mezzanine_qc"}},
+		//					To:   hy.ConnectionTo{Success: []hy.ToSuccess{{Element: "dolby_vision_0"}}},
 		//				},
 		//			},
 		//		},
@@ -678,56 +678,56 @@ func TestPresetConversion(t *testing.T) {
 					},
 				},
 			},
-			wantJob: hybrik.CreateJob{
+			wantJob: hy.CreateJob{
 				Name: "Job jobID [path.mp4]",
-				Payload: hybrik.CreateJobPayload{
-					Elements: []hybrik.Element{
+				Payload: hy.CreateJobPayload{
+					Elements: []hy.Element{
 						{
 							UID:  "source_file",
 							Kind: "source",
-							Payload: hybrik.ElementPayload{
+							Payload: hy.ElementPayload{
 								Kind:    "asset_urls",
-								Payload: []hybrik.AssetPayload{{StorageProvider: "s3", URL: "s3://some/path.mp4"}},
+								Payload: []hy.AssetPayload{{StorageProvider: "s3", URL: "s3://some/path.mp4"}},
 							},
 						},
 						{
 							UID:  "dolby_vision_task",
 							Kind: "dolby_vision",
-							Task: &hybrik.ElementTaskOptions{
+							Task: &hy.ElementTaskOptions{
 								Tags: []string{computeTagPreProcDefault},
 							},
-							Payload: hybrik.DolbyVisionTaskPayload{
+							Payload: hy.DolbyVisionTaskPayload{
 								Module:  "profile",
 								Profile: 5,
-								MezzanineQC: hybrik.DoViMezzanineQC{
-									Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
-									Task:        hybrik.TaskTags{Tags: []string{"preproc"}},
+								MezzanineQC: hy.DoViMezzanineQC{
+									Location:    hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+									Task:        hy.TaskTags{Tags: []string{"preproc"}},
 									FilePattern: "jobID_mezz_qc_report.txt",
 									ToolVersion: "2.6.2",
 								},
-								NBCPreproc: hybrik.DoViNBCPreproc{
-									Task:           hybrik.TaskTags{Tags: []string{"preproc"}},
-									Location:       hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+								NBCPreproc: hy.DoViNBCPreproc{
+									Task:           hy.TaskTags{Tags: []string{"preproc"}},
+									Location:       hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
 									SDKVersion:     "4.2.1_ga",
 									NumTasks:       "auto",
 									IntervalLength: 48,
-									CLIOptions:     hybrik.DoViNBCPreprocCLIOptions{InputEDRAspect: "2", InputEDRPad: "0x0x0x0", InputEDRCrop: "0x0x0x0"},
+									CLIOptions:     hy.DoViNBCPreprocCLIOptions{InputEDRAspect: "2", InputEDRPad: "0x0x0x0", InputEDRCrop: "0x0x0x0"},
 								},
-								Transcodes: []hybrik.Element{
+								Transcodes: []hy.Element{
 									{
 										UID:  "transcode_task_0",
 										Kind: "transcode",
-										Task: &hybrik.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{}},
-										Payload: hybrik.TranscodePayload{
-											LocationTargetPayload: hybrik.LocationTargetPayload{
-												Location: hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
-												Targets: []hybrik.TranscodeTarget{
+										Task: &hy.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{}},
+										Payload: hy.TranscodePayload{
+											LocationTargetPayload: hy.LocationTargetPayload{
+												Location: hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
+												Targets: []hy.TranscodeTarget{
 													{
 														FilePattern:   "file1.mp4",
 														ExistingFiles: "replace",
-														Container:     hybrik.TranscodeContainer{Kind: "elementary"},
+														Container:     hy.TranscodeContainer{Kind: "elementary"},
 														NumPasses:     1,
-														Video: &hybrik.VideoTarget{
+														Video: &hy.VideoTarget{
 															Width:          intToPtr(300),
 															BitrateKb:      12,
 															Preset:         "slow",
@@ -741,55 +741,55 @@ func TestPresetConversion(t *testing.T) {
 															VTag:           "hvc1",
 															FFMPEGArgs:     " -strict experimental",
 														},
-														Audio: []hybrik.AudioTarget{},
+														Audio: []hy.AudioTarget{},
 													},
 												},
 											},
-											Options: &hybrik.TranscodeTaskOptions{Pipeline: &hybrik.PipelineOptions{EncoderVersion: "hybrik_4.0_10bit"}},
+											Options: &hy.TranscodeTaskOptions{Pipeline: &hy.PipelineOptions{EncoderVersion: "hybrik_4.0_10bit"}},
 										},
 									},
 								},
-								PostTranscode: hybrik.DoViPostTranscode{
-									Task: &hybrik.TaskTags{Tags: []string{"preproc"}},
-									VESMux: &hybrik.DoViVESMux{
+								PostTranscode: hy.DoViPostTranscode{
+									Task: &hy.TaskTags{Tags: []string{"preproc"}},
+									VESMux: &hy.DoViVESMux{
 										Enabled:     true,
-										Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+										Location:    hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
 										FilePattern: "ves.h265",
 										SDKVersion:  "4.2.1_ga",
 									},
-									MetadataPostProc: &hybrik.DoViMetadataPostProc{
+									MetadataPostProc: &hy.DoViMetadataPostProc{
 										Enabled:     true,
-										Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+										Location:    hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
 										FilePattern: "postproc.265",
 										SDKVersion:  "4.2.1_ga",
-										QCSettings: hybrik.DoViQCSettings{
+										QCSettings: hy.DoViQCSettings{
 											Enabled:     true,
 											ToolVersion: "0.9.0.9",
-											Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+											Location:    hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
 											FilePattern: "metadata_postproc_qc_report.txt",
 										},
 									},
-									MP4Mux: hybrik.DoViMP4Mux{
+									MP4Mux: hy.DoViMP4Mux{
 										Enabled:            true,
-										Location:           &hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
+										Location:           &hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID"},
 										FilePattern:        "{source_basename}.mp4",
 										ToolVersion:        "1.2.8",
 										CopySourceStartPTS: true,
-										QCSettings: &hybrik.DoViQCSettings{
+										QCSettings: &hy.DoViQCSettings{
 											Enabled:     true,
 											ToolVersion: "1.1.4",
-											Location:    hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+											Location:    hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
 											FilePattern: "mp4_qc_report.txt",
 										},
 										CLIOptions: map[string]string{"dvh1flag": ""},
-										ElementaryStreams: []hybrik.DoViMP4MuxElementaryStream{
+										ElementaryStreams: []hy.DoViMP4MuxElementaryStream{
 											{
-												AssetURL:        hybrik.AssetURL{StorageProvider: "s3", URL: "s3://some/path.mp4"},
+												AssetURL:        hy.AssetURL{StorageProvider: "s3", URL: "s3://some/path.mp4"},
 												ExtractAudio:    true,
-												ExtractLocation: &hybrik.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
-												ExtractTask: &hybrik.DoViMP4MuxExtractTask{
+												ExtractLocation: &hy.TranscodeLocation{StorageProvider: "s3", Path: "s3://some-dest/path/jobID/tmp"},
+												ExtractTask: &hy.DoViMP4MuxExtractTask{
 													RetryMethod: "retry",
-													Retry:       hybrik.Retry{Count: 3, DelaySec: 30},
+													Retry:       hy.Retry{Count: 3, DelaySec: 30},
 													Name:        "Demux Audio",
 												},
 											},
@@ -799,10 +799,10 @@ func TestPresetConversion(t *testing.T) {
 							},
 						},
 					},
-					Connections: []hybrik.Connection{
+					Connections: []hy.Connection{
 						{
-							From: []hybrik.ConnectionFrom{{Element: "source_file"}},
-							To:   hybrik.ConnectionTo{Success: []hybrik.ToSuccess{{Element: "dolby_vision_task"}}},
+							From: []hy.ConnectionFrom{{Element: "source_file"}},
+							To:   hy.ConnectionTo{Success: []hy.ToSuccess{{Element: "dolby_vision_task"}}},
 						},
 					},
 				},
@@ -814,7 +814,7 @@ func TestPresetConversion(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 
-			p := &hybrikProvider{
+			p := &driver{
 				config: &config.Hybrik{
 					Destination: "s3://some-dest/path",
 					PresetPath:  "some_preset_path",
@@ -825,14 +825,14 @@ func TestPresetConversion(t *testing.T) {
 			got, err := p.createJobReqFrom(context.Background(), &tt.job)
 			if err != nil {
 				if tt.wantErr != err.Error() {
-					t.Errorf("hybrikProvider.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErr)
+					t.Errorf("driver.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErr)
 				}
 
 				return
 			}
 
 			if g, e := got, tt.wantJob; !reflect.DeepEqual(g, e) {
-				t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
+				t.Fatalf("driver.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
 					g, cmp.Diff(e, g))
 			}
 		})
@@ -843,7 +843,7 @@ func TestTranscodeJobFields(t *testing.T) {
 	tests := []struct {
 		name        string
 		jobModifier func(job job.Job) job.Job
-		assertion   func(hybrik.CreateJob, *testing.T)
+		assertion   func(hy.CreateJob, *testing.T)
 		wantErrMsg  string
 	}{
 		{
@@ -855,23 +855,23 @@ func TestTranscodeJobFields(t *testing.T) {
 
 				return j
 			},
-			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+			assertion: func(createJob hy.CreateJob, t *testing.T) {
 				gotSource := createJob.Payload.Elements[0]
 
-				expectSource := hybrik.Element{
+				expectSource := hy.Element{
 					UID:  "source_file",
 					Kind: "source",
-					Payload: hybrik.ElementPayload{
+					Payload: hy.ElementPayload{
 						Kind: "asset_urls",
-						Payload: []hybrik.AssetPayload{
+						Payload: []hy.AssetPayload{
 							{StorageProvider: "s3", URL: "s3://some/path.mp4"},
 							{
 								StorageProvider: "s3",
 								URL:             "s3://test_sidecar_location/path/file.xml",
-								Contents: []hybrik.AssetContents{
+								Contents: []hy.AssetContents{
 									{
 										Kind:    "metadata",
-										Payload: hybrik.AssetContentsPayload{Standard: "dolbyvision_metadata"},
+										Payload: hy.AssetContentsPayload{Standard: "dolbyvision_metadata"},
 									},
 								},
 							},
@@ -880,7 +880,7 @@ func TestTranscodeJobFields(t *testing.T) {
 				}
 
 				if g, e := gotSource, expectSource; !reflect.DeepEqual(g, e) {
-					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
+					t.Fatalf("driver.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
 						g, cmp.Diff(e, g))
 				}
 			},
@@ -891,14 +891,14 @@ func TestTranscodeJobFields(t *testing.T) {
 				job.DestinationBasePath = "s3://per-job-defined-bucket/some/base/path"
 				return job
 			},
-			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+			assertion: func(createJob hy.CreateJob, t *testing.T) {
 				if len(createJob.Payload.Elements) < 2 {
 					t.Error("job has less than two elements, tried to pull the second element (transcode)")
 					return
 				}
 				gotTranscode := createJob.Payload.Elements[1]
 
-				payload, ok := gotTranscode.Payload.(hybrik.TranscodePayload)
+				payload, ok := gotTranscode.Payload.(hy.TranscodePayload)
 				if !ok {
 					t.Error("transcode payload was not a map of string to map[string]interface{}")
 					return
@@ -918,13 +918,13 @@ func TestTranscodeJobFields(t *testing.T) {
 
 				return j
 			},
-			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+			assertion: func(createJob hy.CreateJob, t *testing.T) {
 				gotTask := createJob.Payload.Elements[1].Task
 
-				expectTask := &hybrik.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{"custom_tag"}}
+				expectTask := &hy.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{"custom_tag"}}
 
 				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
-					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
+					t.Fatalf("driver.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
 						g, cmp.Diff(e, g))
 				}
 			},
@@ -943,17 +943,17 @@ func TestTranscodeJobFields(t *testing.T) {
 
 				return j
 			},
-			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+			assertion: func(createJob hy.CreateJob, t *testing.T) {
 				gotTask := createJob.Payload.Elements[len(createJob.Payload.Elements)-1]
 
-				expectTask := hybrik.Element{
+				expectTask := hy.Element{
 					UID:  "packager",
 					Kind: elementKindPackage,
-					Task: &hybrik.ElementTaskOptions{
+					Task: &hy.ElementTaskOptions{
 						Tags: []string{"default_transcode_class"},
 					},
-					Payload: hybrik.PackagePayload{
-						Location: hybrik.TranscodeLocation{
+					Payload: hy.PackagePayload{
+						Location: hy.TranscodeLocation{
 							StorageProvider: "s3",
 							Path:            "s3://some-dest/path/jobID/hls",
 						},
@@ -961,7 +961,7 @@ func TestTranscodeJobFields(t *testing.T) {
 						Kind:               "hls",
 						SegmentationMode:   "segmented_mp4",
 						SegmentDurationSec: 4,
-						HLS: &hybrik.HLSPackagingSettings{
+						HLS: &hy.HLSPackagingSettings{
 							IncludeIFRAMEManifests: true,
 							HEVCCodecIDPrefix:      "hvc1",
 						},
@@ -969,7 +969,7 @@ func TestTranscodeJobFields(t *testing.T) {
 				}
 
 				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
-					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong package task\nWant %+v\nGot %+v\nDiff %s", e,
+					t.Fatalf("driver.presetsToTranscodeJob() wrong package task\nWant %+v\nGot %+v\nDiff %s", e,
 						g, cmp.Diff(e, g))
 				}
 			},
@@ -984,14 +984,14 @@ func TestTranscodeJobFields(t *testing.T) {
 
 				return j
 			},
-			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+			assertion: func(createJob hy.CreateJob, t *testing.T) {
 				gotTask := createJob.Payload.Elements[len(createJob.Payload.Elements)-1]
 
-				expectTask := hybrik.Element{
+				expectTask := hy.Element{
 					UID:  "packager",
 					Kind: elementKindPackage,
-					Payload: hybrik.PackagePayload{
-						Location: hybrik.TranscodeLocation{
+					Payload: hy.PackagePayload{
+						Location: hy.TranscodeLocation{
 							StorageProvider: "s3",
 							Path:            "s3://some-dest/path/jobID/dash",
 						},
@@ -999,7 +999,7 @@ func TestTranscodeJobFields(t *testing.T) {
 						Kind:               "dash",
 						SegmentationMode:   "segmented_mp4",
 						SegmentDurationSec: 4,
-						DASH: &hybrik.DASHPackagingSettings{
+						DASH: &hy.DASHPackagingSettings{
 							SegmentationMode:   "segmented_mp4",
 							SegmentDurationSec: "4",
 						},
@@ -1007,7 +1007,7 @@ func TestTranscodeJobFields(t *testing.T) {
 				}
 
 				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
-					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong package task\nWant %+v\nGot %+v\nDiff %s", e,
+					t.Fatalf("driver.presetsToTranscodeJob() wrong package task\nWant %+v\nGot %+v\nDiff %s", e,
 						g, cmp.Diff(e, g))
 				}
 			},
@@ -1022,9 +1022,9 @@ func TestTranscodeJobFields(t *testing.T) {
 
 				return j
 			},
-			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+			assertion: func(createJob hy.CreateJob, t *testing.T) {
 				elements := createJob.Payload.Elements
-				transcode, ok := elements[len(elements)-1].Payload.(hybrik.TranscodePayload)
+				transcode, ok := elements[len(elements)-1].Payload.(hy.TranscodePayload)
 				if !ok {
 					t.Error("could not find a transcode payload in the job")
 					return
@@ -1037,7 +1037,7 @@ func TestTranscodeJobFields(t *testing.T) {
 				}
 
 				if g, e := segRendering.Duration, 50; g != e {
-					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong segmented rendering du"+
+					t.Fatalf("driver.presetsToTranscodeJob() wrong segmented rendering du"+
 						"ration:\nGot %d\nWant %d", g, e)
 				}
 			},
@@ -1051,9 +1051,9 @@ func TestTranscodeJobFields(t *testing.T) {
 				}
 				return j
 			},
-			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+			assertion: func(createJob hy.CreateJob, t *testing.T) {
 				elements := createJob.Payload.Elements
-				transcode, ok := elements[len(elements)-1].Payload.(hybrik.TranscodePayload)
+				transcode, ok := elements[len(elements)-1].Payload.(hy.TranscodePayload)
 				if !ok {
 					t.Error("could not find a transcode payload in the job")
 					return
@@ -1066,7 +1066,7 @@ func TestTranscodeJobFields(t *testing.T) {
 				}
 
 				if g, e := segRendering.Duration, 50; g != e {
-					t.Fatalf("hybrikProvider.presetsToTranscodeJob() wrong segmented rendering du"+
+					t.Fatalf("driver.presetsToTranscodeJob() wrong segmented rendering du"+
 						"ration:\nGot %d\nWant %d", g, e)
 				}
 			},
@@ -1081,9 +1081,9 @@ func TestTranscodeJobFields(t *testing.T) {
 
 				return j
 			},
-			assertion: func(createJob hybrik.CreateJob, t *testing.T) {
+			assertion: func(createJob hy.CreateJob, t *testing.T) {
 				elements := createJob.Payload.Elements
-				transcode, ok := elements[len(elements)-1].Payload.(hybrik.TranscodePayload)
+				transcode, ok := elements[len(elements)-1].Payload.(hy.TranscodePayload)
 				if !ok {
 					t.Error("could not find a transcode payload in the job")
 					return
@@ -1101,7 +1101,7 @@ func TestTranscodeJobFields(t *testing.T) {
 	for _, tt := range tests {
 
 		t.Run(tt.name, func(t *testing.T) {
-			p := &hybrikProvider{
+			p := &driver{
 				config: &config.Hybrik{
 					Destination: "s3://some-dest/path",
 					PresetPath:  "some_preset_path",
@@ -1112,7 +1112,7 @@ func TestTranscodeJobFields(t *testing.T) {
 			j = tt.jobModifier(j)
 			got, err := p.createJobReqFrom(context.Background(), &j)
 			if err != nil && tt.wantErrMsg != err.Error() {
-				t.Errorf("hybrikProvider.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErrMsg)
+				t.Errorf("driver.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErrMsg)
 				return
 			}
 

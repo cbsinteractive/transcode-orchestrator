@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
+	hy "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
@@ -20,7 +20,7 @@ type (
 )
 
 type executionFeatures struct {
-	segmentedRendering      *hwrapper.SegmentedRendering
+	segmentedRendering      *hy.SegmentedRendering
 	doViPreProcSegmentation doViPreProcSegmentation
 }
 
@@ -45,17 +45,17 @@ func init() {
 	provider.Register(Name, hybrikTranscoderFactory)
 }
 
-type hybrikProvider struct {
-	c      hwrapper.ClientInterface
+type driver struct {
+	c      hy.ClientInterface
 	config *config.Hybrik
 }
 
-func (p hybrikProvider) String() string {
+func (p driver) String() string {
 	return "Hybrik"
 }
 
 func hybrikTranscoderFactory(cfg *config.Config) (provider.Provider, error) {
-	api, err := hwrapper.NewClient(hwrapper.Config{
+	api, err := hy.NewClient(hy.Config{
 		URL:            cfg.Hybrik.URL,
 		ComplianceDate: cfg.Hybrik.ComplianceDate,
 		OAPIKey:        cfg.Hybrik.OAPIKey,
@@ -64,16 +64,16 @@ func hybrikTranscoderFactory(cfg *config.Config) (provider.Provider, error) {
 		AuthSecret:     cfg.Hybrik.AuthSecret,
 	})
 	if err != nil {
-		return &hybrikProvider{}, err
+		return &driver{}, err
 	}
 
-	return &hybrikProvider{
+	return &driver{
 		c:      api,
 		config: cfg.Hybrik,
 	}, nil
 }
 
-func (p *hybrikProvider) Create(ctx context.Context, j *Job) (*Status, error) {
+func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 	c, err := p.create(j)
 	if err != nil {
 		return nil, err
@@ -91,12 +91,12 @@ func (p *hybrikProvider) Create(ctx context.Context, j *Job) (*Status, error) {
 	}, nil
 }
 
-func (p *hybrikProvider) create(j *Job) ([]byte, error) {
+func (p *driver) create(j *Job) ([]byte, error) {
 	c := p.jobRequest(j)
 	return json.MarshalIndent(c, "", "\t")
 }
 
-func (p *hybrikProvider) Valid(j *Job) error {
+func (p *driver) Valid(j *Job) error {
 	// provider supported
 	// valid credentials
 	// valid codecs and features
@@ -120,42 +120,45 @@ func tag(j *Job, name string, fallback ...string) []string {
 
 // jobRequest assumes j was already validated, error conditions
 // are impossible by design as they are overridden by defaults
-func (p *hybrikProvider) jobRequest(j *job.Job) hwrapper.CreateJob {
-
-	conn := []hwrapper.Connection{}
-	task := []hwrapper.Element{p.srcFrom(j)}
+func (p *driver) jobRequest(j *Job) hy.CreateJob {
+	eg, err := p.assemble(j)
+	if err != nil {
+		println(err.Error()) // TODO(as): fix return
+	}
+	conn := []hy.Connection{}
+	task := []hy.Element{p.srcFrom(j)}
 	prev := task
-	for _, eg := range p.elementAssemblerFrom(p.outputCfgsFrom(ctx, j))(cfg) {
-		src := []hwrapper.ConnectionFrom{}
-		dst := []hwrapper.ToSuccess{}
+	for _, eg := range eg {
+		src := []hy.ConnectionFrom{}
+		dst := []hy.ToSuccess{}
 		for _, e := range prev {
-			src = append(src, hwrapper.ConnectionFrom{Element: e.UID})
+			src = append(src, hy.ConnectionFrom{Element: e.UID})
 		}
 		for _, e := range eg {
-			dst = append(dst, hwrapper.ToSuccess{Element: e.UID})
+			dst = append(dst, hy.ToSuccess{Element: e.UID})
 			task = append(task, e)
 		}
-		conn = append(conn, hwrapper.Connection{
+		conn = append(conn, hy.Connection{
 			From: src,
-			To:   hwrapper.ConnectionTo{Success: dst},
+			To:   hy.ConnectionTo{Success: dst},
 		})
 		prev = eg
 	}
 
-	return hwrapper.CreateJob{
-		Name: fmt.Sprintf("Job %s [%s]", cfg.jobID, path.Base(cfg.sourceLocation.path)),
-		Payload: hwrapper.CreateJobPayload{
+	return hy.CreateJob{
+		Name: fmt.Sprintf("Job %s [%s]", j.ID, path.Base(j.Input.Name)),
+		Payload: hy.CreateJobPayload{
 			Elements:    task,
 			Connections: conn,
 		},
 	}
 }
 
-func (p *hybrikProvider) StorageFallback() (path string) {
+func (p *driver) StorageFallback() (path string) {
 	return p.config.Destination
 }
 
-func (p *hybrikProvider) Status(_ context.Context, j *Job) (*Status, error) {
+func (p *driver) Status(_ context.Context, j *Job) (*Status, error) {
 	ji, err := p.c.GetJobInfo(j.ProviderJobID)
 	if err != nil {
 		return &Status{}, err
@@ -177,7 +180,7 @@ func (p *hybrikProvider) Status(_ context.Context, j *Job) (*Status, error) {
 		status = job.StateFailed
 	}
 
-	var output job.Output
+	var output job.Dir
 	if status == job.StateFailed || status == job.StateFinished {
 		result, err := p.c.GetJobResult(j.ProviderJobID)
 		if err != nil {
@@ -191,7 +194,7 @@ func (p *hybrikProvider) Status(_ context.Context, j *Job) (*Status, error) {
 				return &Status{}, err
 			}
 			if found {
-				output.Files = append(output.Files, files...)
+				output.File = append(output.File, files...)
 			}
 		}
 	}
@@ -205,13 +208,13 @@ func (p *hybrikProvider) Status(_ context.Context, j *Job) (*Status, error) {
 	}, nil
 }
 
-func features(job *Job) *hwrapper.SegmentedRendering {
+func features(job *Job) *hy.SegmentedRendering {
 	v, has := job.ExecutionFeatures["segmentedRendering"]
 	if !has || !canSegment(j.Input) {
 		return feat, nil
 	}
 	data, _ := json.Marshal(v)
-	sr := hwrapper.SegmentedRendering{}
+	sr := hy.SegmentedRendering{}
 	if err := json.Unmarshal(data, &sr); err != nil {
 		return nil
 	}
@@ -219,11 +222,11 @@ func features(job *Job) *hwrapper.SegmentedRendering {
 
 }
 
-func (p *hybrikProvider) Cancel(_ context.Context, id string) error {
+func (p *driver) Cancel(_ context.Context, id string) error {
 	return p.c.StopJob(id)
 }
 
-func videoTarget(v job.Video) *hwrapper.VideoTarget {
+func videoTarget(v job.Video) *hy.VideoTarget {
 	if (v == job.Video{}) {
 		return nil, nil
 	}
@@ -252,7 +255,7 @@ func videoTarget(v job.Video) *hwrapper.VideoTarget {
 	if *h == 0 {
 		h = nil
 	}
-	return &hwrapper.VideoTarget{
+	return &hy.VideoTarget{
 		Width:             w,
 		Height:            h,
 		BitrateMode:       strings.ToLower(preset.Bitrate.Mode),
@@ -269,11 +272,11 @@ func videoTarget(v job.Video) *hwrapper.VideoTarget {
 	}, nil
 }
 
-func audioTarget(a job.Audio) []hwrapper.AudioTarget {
+func audioTarget(a job.Audio) []hy.AudioTarget {
 	if (a == job.Audio{}) {
-		return []hwrapper.AudioTarget{}
+		return []hy.AudioTarget{}
 	}
-	return []hwrapper.AudioTarget{
+	return []hy.AudioTarget{
 		{
 			Codec:     a.Codec,
 			Channels:  2,
@@ -285,14 +288,14 @@ func audioTarget(a job.Audio) []hwrapper.AudioTarget {
 // Healthcheck should return nil if the provider is currently available
 // for transcoding videos, otherwise it should return an error
 // explaining what's going on.
-func (p *hybrikProvider) Healthcheck() error {
+func (p *driver) Healthcheck() error {
 	// For now, just call list jobs. If this errors, then we can consider the service unhealthy
 	_, err := p.c.CallAPI("GET", "/jobs/info", nil, nil)
 	return err
 }
 
 // Capabilities describes the capabilities of the provider.
-func (p *hybrikProvider) Capabilities() provider.Capabilities {
+func (p *driver) Capabilities() provider.Capabilities {
 	// we can support quite a bit more format wise, but unsure of schema so limiting to known supported video-transcoding-api formats for now...
 	return provider.Capabilities{
 		InputFormats:  []string{"prores", "h264", "h265"},

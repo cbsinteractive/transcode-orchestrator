@@ -120,7 +120,7 @@ func TestFiles(t *testing.T) {
 				return
 			}
 
-			var taskResult hybrik.TaskResult
+			var taskResult hy.TaskResult
 			err = json.Unmarshal(file, &taskResult)
 			if err != nil {
 				t.Error(err)

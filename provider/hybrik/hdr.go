@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cbsinteractive/hybrik-sdk-go"
-	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
+	hy "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
@@ -52,14 +51,14 @@ func hasHDR(f job.File) bool {
 
 /*
 // HDR only
-		payload.Options = &hwrapper.TranscodeTaskOptions{
-			Pipeline: &hwrapper.PipelineOptions{
-				EncoderVersion: hwrapper.EncoderVersion4_10bit,
+		payload.Options = &hy.TranscodeTaskOptions{
+			Pipeline: &hy.PipelineOptions{
+				EncoderVersion: hy.EncoderVersion4_10bit,
 			},
 		}
 */
 
-func applyHDR(t *hwrapper.TranscodeTarget, f job.File) bool {
+func applyHDR(t *hy.TranscodeTarget, f job.File) bool {
 	if t.Video == nil {
 		return false
 	}
@@ -74,7 +73,7 @@ func applyHDR(t *hwrapper.TranscodeTarget, f job.File) bool {
 	return false
 }
 
-func applyDoVi(v *hwrapper.VideoTarget, h job.DolbyVision) bool {
+func applyDoVi(v *hy.VideoTarget, h job.DolbyVision) bool {
 	if !h.Enabled {
 		return false
 	}
@@ -89,7 +88,7 @@ func applyDoVi(v *hwrapper.VideoTarget, h job.DolbyVision) bool {
 	return true
 }
 
-func applyHDR10(v *hwrapper.VideoTarget, h job.HDR10) bool {
+func applyHDR10(v *hy.VideoTarget, h job.HDR10) bool {
 	if !h.Enabled {
 		return false
 	}
@@ -102,7 +101,7 @@ func applyHDR10(v *hwrapper.VideoTarget, h job.HDR10) bool {
 	v.ColorPrimaries = colorPrimaryBT2020
 	v.ColorMatrix = colorMatrixBT2020NC
 	v.ColorTRC = colorTRCSMPTE2084
-	v.HDR10 = &hwrapper.HDR10Settings{
+	v.HDR10 = &hy.HDR10Settings{
 		Source:        "media",
 		MaxCLL:        h.MaxCLL,
 		MaxFALL:       h.MaxFALL,
@@ -111,26 +110,26 @@ func applyHDR10(v *hwrapper.VideoTarget, h job.HDR10) bool {
 	return true
 }
 
-func (p *hybrikProvider) dolbyVisionJob(j *Job) (e [][]hybrik.Element) {
+func (p *driver) dolbyVisionJob(j *Job) (e [][]hy.Element) {
 	// initialize our pre-transcode execution group with a mezz qc task
 	// then add any extracted audio elements to the pre-transcode group
 	// and add pre-transcode tasks as the first element in the pipeline
 	// add all transcode tasks as the second element in the pipeline
-	return [][]hybrik.Element{
+	return [][]hy.Element{
 		{p.dolbyVisionMezzQC(j)},
 		p.audioElements(j),
 		p.dolbyVisionTranscode(j),
 	}
 }
 
-func (p *hybrikProvider) dolbyVisionMezzQC(j *Job) hybrik.Element {
+func (p *driver) dolbyVisionMezzQC(j *Job) hy.Element {
 	tag := tag(j, job.ComputeClassDolbyVisionPreprocess, "preproc")
-	return hybrik.Element{
+	return hy.Element{
 		UID: "mezzanine_qc", Kind: "dolby_vision",
-		Task: &hybrik.ElementTaskOptions{Name: "Mezzanine QC", Tags: tag},
-		Payload: hybrik.DoViV2MezzanineQCPayload{
+		Task: &hy.ElementTaskOptions{Name: "Mezzanine QC", Tags: tag},
+		Payload: hy.DoViV2MezzanineQCPayload{
 			Module: "mezzanine_qc",
-			Params: hybrik.DoViV2MezzanineQCPayloadParams{
+			Params: hy.DoViV2MezzanineQCPayloadParams{
 				Location:    p.location(job.File{Name: j.Location("mezzanine_qc")}, auth(j).Write),
 				FilePattern: fmt.Sprintf("%s_mezz_qc_report.txt", j.ID),
 			},
@@ -138,37 +137,37 @@ func (p *hybrikProvider) dolbyVisionMezzQC(j *Job) hybrik.Element {
 	}
 }
 
-func (p *hybrikProvider) dolbyVisionTranscode(j *Job) (e []hybrik.Element) {
+func (p *driver) dolbyVisionTranscode(j *Job) (e []hy.Element) {
 	txcode := p.transcodeElems(mute(*j))
 	tag := tag(j, job.ComputeClassDolbyVisionPreprocess, "preproc")
 
 	for i, f := range j.Output.File {
-		a := []hybrik.DoViMP4MuxElementaryStream{}
+		a := []hy.DoViMP4MuxElementaryStream{}
 		if (f.Audio != job.Audio{}) {
-			a = append(a, hybrik.DoViMP4MuxElementaryStream{
+			a = append(a, hy.DoViMP4MuxElementaryStream{
 				AssetURL: p.assetURL(f, j.auth.write),
 			})
 		}
 
-		e = append(e, hybrik.Element{
+		e = append(e, hy.Element{
 			UID:  fmt.Sprintf("dolby_vision_%d", i),
 			Kind: "dolby_vision",
-			Task: &hybrik.ElementTaskOptions{
+			Task: &hy.ElementTaskOptions{
 				Name:              fmt.Sprintf("Encode #%d", i),
 				Tags:              tag,
 				SourceElementUIDs: []string{SourceUID},
 				RetryMethod:       "fail",
 			},
-			Payload: hybrik.DolbyVisionV2TaskPayload{
+			Payload: hy.DolbyVisionV2TaskPayload{
 				Module: "encoder", Profile: 5,
 				Location: p.location(f, j.auth.write),
-				Preprocessing: hybrik.DolbyVisionV2Preprocessing{
-					Task: hybrik.TaskTags{Tags: tag},
+				Preprocessing: hy.DolbyVisionV2Preprocessing{
+					Task: hy.TaskTags{Tags: tag},
 				},
-				Transcodes: []hybrik.Element{txcode[i]},
-				PostTranscode: hybrik.DoViPostTranscode{
-					Task: &hybrik.TaskTags{Tags: tag},
-					MP4Mux: hybrik.DoViMP4Mux{
+				Transcodes: []hy.Element{txcode[i]},
+				PostTranscode: hy.DoViPostTranscode{
+					Task: &hy.TaskTags{Tags: tag},
+					MP4Mux: hy.DoViMP4Mux{
 						Enabled:           true,
 						FilePattern:       "{source_basename}.mp4",
 						ElementaryStreams: a,
