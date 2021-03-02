@@ -288,8 +288,8 @@ type Timecode struct {
 // HDR10 configurations and metadata
 type HDR10 struct {
 	Enabled       bool   `json:"enabled"`
-	MaxCLL        uint   `json:"maxCLL,omitempty"`
-	MaxFALL       uint   `json:"maxFALL,omitempty"`
+	MaxCLL        int    `json:"maxCLL,omitempty"`
+	MaxFALL       int    `json:"maxFALL,omitempty"`
 	MasterDisplay string `json:"masterDisplay,omitempty"`
 }
 

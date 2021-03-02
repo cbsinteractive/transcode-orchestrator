@@ -11,6 +11,15 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+type elementKind = string
+
+const (
+	elementKindTranscode   elementKind = "transcode"
+	elementKindSource      elementKind = "source"
+	elementKindPackage     elementKind = "package"
+	elementKindDolbyVision elementKind = "dolby_vision"
+)
+
 var (
 	testoutput = job.File{
 		Name:      "file1.mp4",

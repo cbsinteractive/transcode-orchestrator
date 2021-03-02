@@ -5,6 +5,18 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
+type storageProvider string
+
+func (p storageProvider) supportsSegmentedRendering() bool { return p != storageProviderHTTP }
+func (p storageProvider) string() string                   { return string(p) }
+
+const (
+	storageProviderUnrecognized storageProvider = "unrecognized"
+	storageProviderS3           storageProvider = "s3"
+	storageProviderGCS          storageProvider = "gs"
+	storageProviderHTTP         storageProvider = "http"
+)
+
 var StorageProviders = []string{"s3", "gcs", "http", "https"}
 
 func Supported(f job.File) bool {

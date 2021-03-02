@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cbsinteractive/hybrik-sdk-go"
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
@@ -27,9 +28,11 @@ const (
 
 	presetSlow = "slow"
 
-	tuneGrain = "grain"
+	tuneGrain               = "grain"
+	computeTagMezzQCDefault = "preproc"
 )
 
+var ErrMixedPresets = errors.New("job contains inconsistent DolbyVision outputs")
 var canon = strings.ToLower
 
 func checkHDR(f job.File) error {
@@ -56,8 +59,19 @@ func hasHDR(f job.File) bool {
 		}
 */
 
-func applyHDR(v *hwrapper.VideoTarget, f job.File) bool {
-	return applyDoVi(v, f.Video.DolbyVision) || applyHDR10(v, f.Video.HDR10)
+func applyHDR(t *hwrapper.TranscodeTarget, f job.File) bool {
+	if t.Video == nil {
+		return false
+	}
+	if applyHDR10(t.Video, f.Video.HDR10) {
+		return true
+	}
+	if applyDoVi(t.Video, f.Video.DolbyVision) {
+		// hybrik needs this format to feed into the DoVi mp4 muxer
+		t.Container.Kind = containerKindElementary
+		return true
+	}
+	return false
 }
 
 func applyDoVi(v *hwrapper.VideoTarget, h job.DolbyVision) bool {
@@ -72,30 +86,100 @@ func applyDoVi(v *hwrapper.VideoTarget, h job.DolbyVision) bool {
 	}
 	v.FFMPEGArgs = fmt.Sprintf("%s -strict experimental", v.FFMPEGArgs)
 	v.ChromaFormat = chromaFormatYUV420P10LE
-	// hybrik needs this format to feed into the DoVi mp4 muxer
-	t.Container.Kind = containerKindElementary
 	return true
 }
 
-func applyHDR10(t *hwrapper.TranscodeTarget, h job.HDR10) bool {
+func applyHDR10(v *hwrapper.VideoTarget, h job.HDR10) bool {
 	if !h.Enabled {
 		return false
 	}
-	if t.Video.Codec == h265Codec {
-		t.Video.Profile = h265CodecProfileMain10
-		t.Video.Tune = tuneGrain
-		t.Video.VTag = h265VideoTagValueHVC1
+	if v.Codec == h265Codec {
+		v.Profile = h265CodecProfileMain10
+		v.Tune = tuneGrain
+		v.VTag = h265VideoTagValueHVC1
 	}
-	t.Video.ChromaFormat = chromaFormatYUV420P10LE
-	t.Video.ColorPrimaries = colorPrimaryBT2020
-	t.Video.ColorMatrix = colorMatrixBT2020NC
-	t.Video.ColorTRC = colorTRCSMPTE2084
-	t.Video.HDR10 = &hwrapper.HDR10Settings{
+	v.ChromaFormat = chromaFormatYUV420P10LE
+	v.ColorPrimaries = colorPrimaryBT2020
+	v.ColorMatrix = colorMatrixBT2020NC
+	v.ColorTRC = colorTRCSMPTE2084
+	v.HDR10 = &hwrapper.HDR10Settings{
 		Source:        "media",
 		MaxCLL:        h.MaxCLL,
 		MaxFALL:       h.MaxFALL,
 		MasterDisplay: h.MasterDisplay,
 	}
+	return true
+}
+
+func (p *hybrikProvider) dolbyVisionJob(j *Job) (e [][]hybrik.Element) {
+	// initialize our pre-transcode execution group with a mezz qc task
+	// then add any extracted audio elements to the pre-transcode group
+	// and add pre-transcode tasks as the first element in the pipeline
+	// add all transcode tasks as the second element in the pipeline
+	return [][]hybrik.Element{
+		{p.dolbyVisionMezzQC(j)},
+		p.audioElements(j),
+		p.dolbyVisionTranscode(j),
+	}
+}
+
+func (p *hybrikProvider) dolbyVisionMezzQC(j *Job) hybrik.Element {
+	tag := tag(j, job.ComputeClassDolbyVisionPreprocess, "preproc")
+	return hybrik.Element{
+		UID: "mezzanine_qc", Kind: "dolby_vision",
+		Task: &hybrik.ElementTaskOptions{Name: "Mezzanine QC", Tags: tag},
+		Payload: hybrik.DoViV2MezzanineQCPayload{
+			Module: "mezzanine_qc",
+			Params: hybrik.DoViV2MezzanineQCPayloadParams{
+				Location:    p.location(job.File{Name: j.Location("mezzanine_qc")}, auth(j).Write),
+				FilePattern: fmt.Sprintf("%s_mezz_qc_report.txt", j.ID),
+			},
+		},
+	}
+}
+
+func (p *hybrikProvider) dolbyVisionTranscode(j *Job) (e []hybrik.Element) {
+	txcode := p.transcodeElems(mute(*j))
+	tag := tag(j, job.ComputeClassDolbyVisionPreprocess, "preproc")
+
+	for i, f := range j.Output.File {
+		a := []hybrik.DoViMP4MuxElementaryStream{}
+		if (f.Audio != job.Audio{}) {
+			a = append(a, hybrik.DoViMP4MuxElementaryStream{
+				AssetURL: p.assetURL(f, j.auth.write),
+			})
+		}
+
+		e = append(e, hybrik.Element{
+			UID:  fmt.Sprintf("dolby_vision_%d", i),
+			Kind: "dolby_vision",
+			Task: &hybrik.ElementTaskOptions{
+				Name:              fmt.Sprintf("Encode #%d", i),
+				Tags:              tag,
+				SourceElementUIDs: []string{SourceUID},
+				RetryMethod:       "fail",
+			},
+			Payload: hybrik.DolbyVisionV2TaskPayload{
+				Module: "encoder", Profile: 5,
+				Location: p.location(f, j.auth.write),
+				Preprocessing: hybrik.DolbyVisionV2Preprocessing{
+					Task: hybrik.TaskTags{Tags: tag},
+				},
+				Transcodes: []hybrik.Element{txcode[i]},
+				PostTranscode: hybrik.DoViPostTranscode{
+					Task: &hybrik.TaskTags{Tags: tag},
+					MP4Mux: hybrik.DoViMP4Mux{
+						Enabled:           true,
+						FilePattern:       "{source_basename}.mp4",
+						ElementaryStreams: a,
+						CLIOptions:        map[string]string{"dvh1flag": ""},
+					},
+				},
+			},
+		})
+	}
+
+	return e
 }
 
 func countDolbyVision(d *job.Dir) (enabled int) {
@@ -106,5 +190,3 @@ func countDolbyVision(d *job.Dir) (enabled int) {
 	}
 	return enabled
 }
-
-var ErrMixedPresets = errors.New("job contains inconsistent DolbyVision outputs")

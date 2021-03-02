@@ -92,10 +92,7 @@ func (p *hybrikProvider) Create(ctx context.Context, j *Job) (*Status, error) {
 }
 
 func (p *hybrikProvider) create(j *Job) ([]byte, error) {
-	c, err := p.createJobReqFrom(job)
-	if err != nil {
-		return nil, fmt.Errorf("hybrik: createjob: %w", err)
-	}
+	c := p.jobRequest(j)
 	return json.MarshalIndent(c, "", "\t")
 }
 
@@ -103,6 +100,7 @@ func (p *hybrikProvider) Valid(j *Job) error {
 	// provider supported
 	// valid credentials
 	// valid codecs and features
+	return nil
 }
 
 /*
@@ -117,25 +115,15 @@ func tag(j *Job, name string, fallback ...string) []string {
 	if len(v) == 0 {
 		return fallback
 	}
-	return v
+	return []string{v}
 }
 
 // jobRequest assumes j was already validated, error conditions
 // are impossible by design as they are overridden by defaults
-func (p *hybrikProvider) jobRequest(jo *job.Job) hwrapper.CreateJob {
-	j := Job{jo, map[string][]string{}}
-	for k, v := range j.ExecutionEnv.ComputeTags {
-		if len(v) == 0 {
-			v = defaultTag[k]
-		}
-		j.tag[k] = v
-	}
-	feat := features(j)
-	cfg.executionFeatures = execFeatures
-	cfg.computeTags = j.ExecutionEnv.ComputeTags
+func (p *hybrikProvider) jobRequest(j *job.Job) hwrapper.CreateJob {
 
 	conn := []hwrapper.Connection{}
-	task := []hwrapper.Element{cfg.source}
+	task := []hwrapper.Element{p.srcFrom(j)}
 	prev := task
 	for _, eg := range p.elementAssemblerFrom(p.outputCfgsFrom(ctx, j))(cfg) {
 		src := []hwrapper.ConnectionFrom{}
