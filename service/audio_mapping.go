@@ -24,19 +24,19 @@ var downmixMappings = map[int]downmixMap{
 }
 
 //AudioDownmixMapping converts
-func AudioDownmixMapping(ad job.AudioDownmix) ([][]bool, error) {
-	dm, found := downmixMappings[len(ad.DestChannels)]
+func AudioDownmixMapping(ad job.Downmix) ([][]bool, error) {
+	dm, found := downmixMappings[len(ad.Dst)]
 	if !found {
 		return nil, fmt.Errorf("no downmix config found when converting %d src channels to %d destination channels",
-			len(ad.SrcChannels), len(ad.DestChannels))
+			len(ad.Src), len(ad.Dst))
 	}
 
-	m := make([][]bool, len(ad.DestChannels))
+	m := make([][]bool, len(ad.Dst))
 	for i := range m {
-		m[i] = make([]bool, len(ad.SrcChannels))
+		m[i] = make([]bool, len(ad.Src))
 	}
 
-	for srcIdx, src := range ad.SrcChannels {
+	for srcIdx, src := range ad.Src {
 		for destIdx, enabled := range dm[job.ChannelLayout(src.Layout)] {
 			m[destIdx][srcIdx] = enabled
 		}

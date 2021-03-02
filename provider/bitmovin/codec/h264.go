@@ -23,7 +23,7 @@ type CodecH264 struct {
 	cfg model.H264VideoConfiguration
 }
 
-func (c *CodecH264) set(preset job.Preset) (ok bool) {
+func (c *CodecH264) set(preset job.File) (ok bool) {
 	c.Profiles = h264Profiles
 	c.Levels = h264Levels
 	if !c.setVideo(VideoPTR{
@@ -41,7 +41,7 @@ func (c *CodecH264) set(preset job.Preset) (ok bool) {
 	}, preset) {
 		return false
 	}
-	if preset.Video.GopSize != 0 {
+	if preset.Video.Gop.Size != 0 {
 		c.cfg.SceneCutThreshold = &zero
 	}
 	return c.ok()

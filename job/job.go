@@ -3,6 +3,7 @@ package job
 import (
 	"net/url"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/cbsinteractive/pkg/timecode"
@@ -30,6 +31,14 @@ type Job struct {
 	ExecutionCfgReport string
 
 	SidecarAssets map[SidecarAssetKind]string
+}
+
+func (j *Job) Asset(sidecar string) *File {
+	loc := j.SidecarAssets[sidecar]
+	if loc == "" {
+		return nil
+	}
+	return &File{Name: loc}
 }
 
 // State is the state of a transcoding job.
@@ -73,6 +82,10 @@ type Dir struct {
 	File []File `json:"files,omitempty"`
 }
 
+func (d *Dir) Add(f ...File) {
+	d.File = append(d.File, f...)
+}
+
 func (d Dir) Location() url.URL {
 	u, _ := url.Parse(d.Path)
 	if u == nil {
@@ -83,11 +96,11 @@ func (d Dir) Location() url.URL {
 
 func (j Job) Location(file string) string {
 	u := j.Output.Location()
-	u.Path = path.Join(u.Path, j.RootFolder(), file)
+	u.Path = path.Join(u.Path, j.rootFolder(), file)
 	return u.String()
 }
 
-func (j Job) RootFolder() string {
+func (j Job) rootFolder() string {
 	if j.Name != "" {
 		if _, err := uuid.FromString(j.Name); err == nil {
 			return j.Name
@@ -166,8 +179,8 @@ type AudioChannel struct {
 //AudioDownmix holds source and output channels for providers
 //to handle downmixing
 type Downmix struct {
-	Src  []AudioChannel
-	Dest []AudioChannel
+	Src []AudioChannel
+	Dst []AudioChannel
 }
 
 // ExecutionFeatures is a map whose key is a custom feature name and value is a json string
@@ -180,14 +193,30 @@ type File struct {
 	// SourceContainer string `json:"sourceContainer,omitempty"`
 	// TwoPass         bool   `json:"twoPass"`
 
-	Name      string `json:"name,omitempty"`
-	Container string `json:"container,omitempty"`
-	Video     Video  `json:"video,omitempty"`
-	Audio     Audio  `json:"audio,omitempty"`
+	Size      int64         `json:"size,omitempty"`
+	Duration  time.Duration `json:"dur,omitempty"`
+	Name      string        `json:"name,omitempty"`
+	Container string        `json:"container,omitempty"`
+	Video     Video         `json:"video,omitempty"`
+	Audio     Audio         `json:"audio,omitempty"`
 
 	Splice                  timecode.Splice `json:"splice,omitempty"`
 	Downmix                 *Downmix
 	ExplicitKeyframeOffsets []float64
+}
+
+func (f File) URL() url.URL {
+	u, _ := url.Parse(f.Name)
+	if u == nil {
+		return url.URL{}
+	}
+	return *u
+}
+func (f File) Provider() string {
+	return f.URL().Scheme
+}
+func (f File) Type() string {
+	return strings.TrimPrefix(path.Ext(f.URL().Path), ".")
 }
 
 // Video transcoding parameters

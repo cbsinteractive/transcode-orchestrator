@@ -15,7 +15,7 @@ var (
 	ErrInvalid     = errors.New("invalid")
 )
 
-func h265CodecSettingsFrom(preset job.Preset) (*mc.VideoCodecSettings, error) {
+func h265CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
 	bitrate := preset.Video.Bitrate
 	gopSize := preset.Video.GopSize
 

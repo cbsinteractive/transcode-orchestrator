@@ -12,21 +12,18 @@ import (
 )
 
 var (
-	defaultPreset = job.Preset{
-		Name:        "preset_name",
-		Description: "test_desc",
-		Container:   "mp4",
-		RateControl: "CBR",
-		TwoPass:     true,
+	testoutput = job.File{
+		Name:      "file1.mp4",
+		Container: "mp4",
 		Video: job.Video{
-			Profile:       "high",
-			Level:         "4.1",
-			Width:         300,
-			Height:        400,
-			Codec:         "h264",
-			Bitrate:       400000,
-			GopSize:       120,
-			InterlaceMode: "progressive",
+			Profile:  "high",
+			Level:    "4.1",
+			Width:    300,
+			Height:   400,
+			Codec:    "h264",
+			Bitrate:  job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
+			Gop:      job.Gop{Size: 120},
+			Scantype: "progressive",
 		},
 		Audio: job.Audio{
 			Codec:   "aac",
@@ -34,20 +31,17 @@ var (
 		},
 	}
 
-	defaultJob = job.Job{
-		ID:           "jobID",
-		ProviderName: Name,
-		SourceMedia:  "s3://some/path.mp4",
-		Outputs: []job.TranscodeOutput{
-			{
-				Preset:   defaultPreset,
-				FileName: "file1.mp4",
-			},
+	testjob = job.Job{
+		ID:       "jobID",
+		Provider: Name,
+		Input:    job.File{Name: "s3://some/path.mp4"},
+		Output: job.Dir{
+			File: []job.File{testoutput},
 		},
 	}
 )
 
-// preset job.Preset, uid string, destination storageLocation, filename string,
+// preset job.File, uid string, destination storageLocation, filename string,
 //	execFeatures executionFeatures, computeTags map[job.ComputeClass]string
 type transcodeCfg struct {
 	uid                  string
@@ -59,7 +53,7 @@ type transcodeCfg struct {
 }
 
 // updates default preset for quick test of gop structs
-func updateGopStruct(gopSize float64, gopUnit string) job.Preset {
+func updateGopStruct(gopSize float64, gopUnit string) job.File {
 	var p = defaultPreset
 	p.Video.GopSize = gopSize
 	p.Video.GopUnit = gopUnit
@@ -71,7 +65,7 @@ func TestPreset(t *testing.T) {
 	tests := []struct {
 		name                 string
 		provider             *hybrikProvider
-		preset               job.Preset
+		preset               job.File
 		transcodeCfg         transcodeCfg
 		wantTranscodeElement hybrik.TranscodePayload
 		wantTags             []string
@@ -179,14 +173,14 @@ func TestPreset(t *testing.T) {
 func TestTranscodePreset(t *testing.T) {
 	tests := []struct {
 		name           string
-		presetModifier func(preset job.Preset) job.Preset
+		presetModifier func(preset job.File) job.File
 		transcodeCfg   transcodeCfg
 		assertion      func(hybrik.TranscodePayload, *testing.T)
 		wantErrMsg     string
 	}{
 		{
 			name: "HDR10",
-			presetModifier: func(p job.Preset) job.Preset {
+			presetModifier: func(p job.File) job.File {
 				p.Video.Codec = "h265"
 				p.Video.Profile = ""
 
@@ -232,7 +226,7 @@ func TestTranscodePreset(t *testing.T) {
 		},
 		{
 			name: "hevc/hdr10/mxf",
-			presetModifier: func(p job.Preset) job.Preset {
+			presetModifier: func(p job.File) job.File {
 				p.Video.Codec = "h265"
 				p.Video.Profile = ""
 				p.SourceContainer = "mxf"
@@ -276,7 +270,7 @@ func TestTranscodePreset(t *testing.T) {
 		},
 		{
 			name: "vbr",
-			presetModifier: func(preset job.Preset) job.Preset {
+			presetModifier: func(preset job.File) job.File {
 				preset.RateControl = "vbr"
 				preset.Video.Bitrate = 10000000
 				return preset
@@ -310,7 +304,7 @@ func TestTranscodePreset(t *testing.T) {
 		},
 		{
 			name: "ratecontrolErr",
-			presetModifier: func(preset job.Preset) job.Preset {
+			presetModifier: func(preset job.File) job.File {
 				preset.RateControl = "fake_mode"
 				return preset
 			},
@@ -328,7 +322,7 @@ func TestTranscodePreset(t *testing.T) {
 					OutputAlias: "test_alias",
 				},
 			},
-			presetModifier: func(p job.Preset) job.Preset {
+			presetModifier: func(p job.File) job.File {
 				return p
 			},
 			assertion: func(payload hybrik.TranscodePayload, t *testing.T) {
@@ -350,7 +344,7 @@ func TestTranscodePreset(t *testing.T) {
 					OutputAlias: "test_alias",
 				},
 			},
-			presetModifier: func(p job.Preset) job.Preset {
+			presetModifier: func(p job.File) job.File {
 				return p
 			},
 			assertion: func(payload hybrik.TranscodePayload, t *testing.T) {
@@ -392,7 +386,7 @@ func TestPresetConversion(t *testing.T) {
 	tests := []struct {
 		name    string
 		job     job.Job
-		preset  job.Preset
+		preset  job.File
 		wantJob hybrik.CreateJob
 		wantErr string
 	}{
@@ -534,7 +528,7 @@ func TestPresetConversion(t *testing.T) {
 		//{
 		//	name: "dolbyVision",
 		//	job:  &defaultJob,
-		//	preset: job.Preset{
+		//	preset: job.File{
 		//		Name:        defaultPreset.Name,
 		//		Description: defaultPreset.Description,
 		//		Container:   "mp4",
@@ -658,7 +652,7 @@ func TestPresetConversion(t *testing.T) {
 		{
 			name: "mp4dolbyVision",
 			job:  defaultJob,
-			preset: job.Preset{
+			preset: job.File{
 				Name:        defaultPreset.Name,
 				Description: defaultPreset.Description,
 				Container:   "mp4",

@@ -1,8 +1,6 @@
 package codec
 
 import (
-	"strings"
-
 	"errors"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
@@ -16,7 +14,7 @@ type CodecAV1 struct {
 	cfg model.Av1VideoConfiguration
 }
 
-func (c *CodecAV1) set(preset job.Preset) bool {
+func (c *CodecAV1) set(preset job.File) bool {
 	if !c.setVideo(VideoPTR{
 		Name:    &c.cfg.Name,
 		Width:   &c.cfg.Width,
@@ -29,7 +27,7 @@ func (c *CodecAV1) set(preset job.Preset) bool {
 		return false
 	}
 
-	if strings.ToLower(preset.Video.GopUnit) == job.GopUnitSeconds {
+	if preset.Video.Gop.Seconds() {
 		return c.error(ErrGopFramesOnly)
 	}
 	// Single-pass encoding throws an error

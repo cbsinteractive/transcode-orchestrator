@@ -1,12 +1,6 @@
 package hybrik
 
-import (
-	"fmt"
-
-	"github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
-)
-
+/*
 // TODO remove once Hybrik fixes bugs with the new Dolby Vision job structure
 
 const (
@@ -35,7 +29,7 @@ const (
 )
 
 func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybrik.Element, error) {
-	presetsWithoutAudio := map[string]job.Preset{}
+	presetsWithoutAudio := map[string]job.File{}
 	for _, outputCfg := range cfg.outputCfgs {
 		preset := outputCfg.Preset
 
@@ -184,3 +178,5 @@ func (p *hybrikProvider) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hybr
 		},
 	}}}, nil
 }
+
+*/

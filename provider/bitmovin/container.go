@@ -94,7 +94,7 @@ func (e *MOV) Enrich(api *bitmovin.BitmovinApi, s job.Status) (job.Status, error
 		if err != nil {
 			return s, nil
 		}
-		s.Output.Files = append(s.Output.Files, mux.Output(s, infoMOV(*info)))
+		s.Output.Add(mux.Output(s, infoMOV(*info)))
 	}
 	return s, nil
 }
@@ -111,7 +111,7 @@ func (e *MP4) Enrich(api *bitmovin.BitmovinApi, s job.Status) (job.Status, error
 		if err != nil {
 			return s, nil
 		}
-		s.Output.Files = append(s.Output.Files, mux.Output(s, infoMP4(*info)))
+		s.Output.Add(mux.Output(s, infoMP4(*info)))
 	}
 	return s, nil
 }
@@ -128,7 +128,7 @@ func (e *WEBM) Enrich(api *bitmovin.BitmovinApi, s job.Status) (job.Status, erro
 		if err != nil {
 			return s, nil
 		}
-		s.Output.Files = append(s.Output.Files, mux.Output(s, infoWEBM(*info)))
+		s.Output.Add(mux.Output(s, infoWEBM(*info)))
 	}
 	return s, nil
 }
@@ -176,12 +176,10 @@ func (m Muxing) Output(s job.Status, t track) job.File {
 		codec = video[0].Codec
 	}
 	return job.File{
-		Path:       s.Output.Destination + m.Filename,
-		Container:  m.Type,
-		Size:       t.Filesize(),
-		VideoCodec: codec,
-		Width:      width,
-		Height:     height,
+		Name:      path.Join(s.Output.Path, m.Filename),
+		Container: m.Type,
+		Size:      t.Filesize(),
+		Video:     job.Video{Codec: codec, Width: width, Height: height},
 	}
 }
 

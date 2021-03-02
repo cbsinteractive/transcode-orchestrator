@@ -89,7 +89,7 @@ func (s *Server) putJob0(job *job.Job) (*job.Status, error) {
 	}
 	stat.ID = job.ID
 	job.ProviderJobID = stat.ProviderJobID
-	job.CreationTime = time.Now()
+	job.CreatedAt = time.Now()
 	if err = s.DB.Put(job.ID, &job); err != nil {
 		return stat, fmt.Errorf("%w: %v", ErrStorage, err)
 	}

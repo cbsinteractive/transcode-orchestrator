@@ -23,7 +23,7 @@ var GopUnits = map[string]string{
 	job.GopUnitSeconds: "SECONDS",
 }
 
-func h264CodecSettingsFrom(preset job.Preset) (*mc.VideoCodecSettings, error) {
+func h264CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
 	bitrate := preset.Video.Bitrate
 	gopSize := preset.Video.GopSize
 	gopUnit, err := h264GopUnitFrom(preset.Video.GopUnit)

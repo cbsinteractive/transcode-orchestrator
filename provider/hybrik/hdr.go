@@ -3,25 +3,19 @@ package hybrik
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	hwrapper "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
-type hdrType = string
-
 const (
-	hdrTypeHDR10       hdrType = "hdr10"
-	hdrTypeDolbyVision hdrType = "dolbyVision"
-
 	h265Codec                  = "h265"
 	h265CodecProfileMain10     = "main10"
 	h265VideoTagValueHVC1      = "hvc1"
 	h265DolbyVisionArgsDefualt = "concatenation={auto_concatenation_flag}:vbv-init=0.6:vbv-end=0.6:annexb=1:hrd=1:" +
 		"aud=1:videoformat=5:range=full:colorprim=2:transfer=2:colormatrix=2:rc-lookahead=48:qg-size=32:scenecut=0:" +
 		"no-open-gop=1:frame-threads=0:repeat-headers=1:nr-inter=400:nr-intra=100:psy-rd=0:cbqpoffs=0:crqpoffs=3"
-
-	ffmpegStrictTypeExperimental = "experimental"
 
 	containerKindElementary = "elementary"
 
@@ -36,118 +30,81 @@ const (
 	tuneGrain = "grain"
 )
 
-func enrichTranscodePayloadWithHDRMetadata(payload hwrapper.TranscodePayload, preset job.Preset) (hwrapper.TranscodePayload, error) {
-	hdr, hdrEnabled := hdrTypeFromPreset(preset)
-	if !hdrEnabled {
-		return payload, nil
+var canon = strings.ToLower
+
+func checkHDR(f job.File) error {
+	if !hasHDR(f) || canon(f.Video.Codec) != h265Codec {
+		return nil
 	}
-
-	transcodeTargets, ok := payload.Targets.([]hwrapper.TranscodeTarget)
-	if !ok {
-		return hwrapper.TranscodePayload{}, fmt.Errorf("targets are not TranscodeTargets: %v", payload.LocationTargetPayload.Targets)
+	p := canon(f.Video.Profile)
+	if p == "" || p == "main10" {
+		return nil
 	}
+	return fmt.Errorf("hdr: h265: profile must be main10")
+}
 
-	for idx, target := range transcodeTargets {
-		if target.Video.Codec == h265Codec {
-			if target.Video.Profile == "" {
-				target.Video.Profile = h265CodecProfileMain10
-			} else if target.Video.Profile != h265CodecProfileMain10 {
-				return hwrapper.TranscodePayload{}, fmt.Errorf("for HDR content encoded with h265, " +
-					"the codec profile must be main10")
-			}
+func hasHDR(f job.File) bool {
+	return f.Video.HDR10.Enabled || f.Video.DolbyVision.Enabled
+}
 
-			target.Video.Tune = tuneGrain
-			target.Video.VTag = h265VideoTagValueHVC1
-		}
-
+/*
+// HDR only
 		payload.Options = &hwrapper.TranscodeTaskOptions{
 			Pipeline: &hwrapper.PipelineOptions{
 				EncoderVersion: hwrapper.EncoderVersion4_10bit,
 			},
 		}
+*/
 
-		switch hdr {
-		case hdrTypeHDR10:
-			enrichVideoTargetWithHDR10Metadata(target.Video, preset.Video.HDR10)
-		case hdrTypeDolbyVision:
-			// append ffmpeg `-strict` arg
-			target.Video.FFMPEGArgs = fmt.Sprintf("%s -strict %s", target.Video.FFMPEGArgs,
-				ffmpegStrictTypeExperimental)
+func applyHDR(v *hwrapper.VideoTarget, f job.File) bool {
+	return applyDoVi(v, f.Video.DolbyVision) || applyHDR10(v, f.Video.HDR10)
+}
 
-			// add dolby vision x265 options if using h.265
-			if target.Video.Codec == h265Codec {
-				target.Video.X265Options = h265DolbyVisionArgsDefualt
-			}
+func applyDoVi(v *hwrapper.VideoTarget, h job.DolbyVision) bool {
+	if !h.Enabled {
+		return false
+	}
+	if v.Codec == h265Codec {
+		v.Profile = h265CodecProfileMain10
+		v.Tune = tuneGrain
+		v.VTag = h265VideoTagValueHVC1
+		v.X265Options = h265DolbyVisionArgsDefualt
+	}
+	v.FFMPEGArgs = fmt.Sprintf("%s -strict experimental", v.FFMPEGArgs)
+	v.ChromaFormat = chromaFormatYUV420P10LE
+	// hybrik needs this format to feed into the DoVi mp4 muxer
+	t.Container.Kind = containerKindElementary
+	return true
+}
 
-			target.Video.ChromaFormat = chromaFormatYUV420P10LE
+func applyHDR10(t *hwrapper.TranscodeTarget, h job.HDR10) bool {
+	if !h.Enabled {
+		return false
+	}
+	if t.Video.Codec == h265Codec {
+		t.Video.Profile = h265CodecProfileMain10
+		t.Video.Tune = tuneGrain
+		t.Video.VTag = h265VideoTagValueHVC1
+	}
+	t.Video.ChromaFormat = chromaFormatYUV420P10LE
+	t.Video.ColorPrimaries = colorPrimaryBT2020
+	t.Video.ColorMatrix = colorMatrixBT2020NC
+	t.Video.ColorTRC = colorTRCSMPTE2084
+	t.Video.HDR10 = &hwrapper.HDR10Settings{
+		Source:        "media",
+		MaxCLL:        h.MaxCLL,
+		MaxFALL:       h.MaxFALL,
+		MasterDisplay: h.MasterDisplay,
+	}
+}
 
-			// hybrik needs this format to feed into the DoVi mp4 muxer
-			target.Container.Kind = containerKindElementary
-
-			// set the enriched target back onto the preset
-			transcodeTargets[idx] = target
+func countDolbyVision(d *job.Dir) (enabled int) {
+	for _, f := range d.File {
+		if f.Video.DolbyVision.Enabled {
+			enabled++
 		}
 	}
-	payload.Targets = transcodeTargets
-
-	return payload, nil
+	return enabled
 }
 
-func hdrTypeFromPreset(preset job.Preset) (hdrType, bool) {
-	if preset.Video.HDR10.Enabled {
-		return hdrTypeHDR10, true
-	} else if preset.Video.DolbyVision.Enabled {
-		return hdrTypeDolbyVision, true
-	}
-
-	return "", false
-}
-
-func enrichVideoTargetWithHDR10Metadata(video *hwrapper.VideoTarget, hdr10 job.HDR10) {
-	hdr10Metadata := &hwrapper.HDR10Settings{}
-
-	// signal that the HDR metadata is being pulled from the source media
-	hdr10Metadata.Source = "media"
-
-	// if max content light level is set, add to hybrik HDR10 metadata
-	if hdr10.MaxCLL != 0 {
-		hdr10Metadata.MaxCLL = int(hdr10.MaxCLL)
-	}
-
-	// if max frame average light level is set, add to hybrik HDR10 metadata
-	if hdr10.MaxFALL != 0 {
-		hdr10Metadata.MaxFALL = int(hdr10.MaxFALL)
-	}
-
-	// if a mastering display config string is supplied, add to hybrik HDR10 metadata
-	if hdr10.MasterDisplay != "" {
-		hdr10Metadata.MasterDisplay = hdr10.MasterDisplay
-	}
-
-	video.HDR10 = hdr10Metadata
-
-	video.ChromaFormat = chromaFormatYUV420P10LE
-	video.ColorPrimaries = colorPrimaryBT2020
-	video.ColorMatrix = colorMatrixBT2020NC
-	video.ColorTRC = colorTRCSMPTE2084
-}
-
-func dolbyVisionEnabledOnAllPresets(cfgs map[string]outputCfg) (bool, error) {
-	record := struct{ doViPresetFound, nonDoViPresetFound bool }{}
-
-	for _, cfg := range cfgs {
-		if enabled := cfg.Preset.Video.DolbyVision.Enabled; enabled {
-			record.doViPresetFound = true
-		} else {
-			record.nonDoViPresetFound = true
-		}
-	}
-
-	var mixedPresetsErr error
-	if record.doViPresetFound && record.nonDoViPresetFound {
-		mixedPresetsErr = errors.New("found presets containing a mix of DolbyVision and non DolbyVision presets, " +
-			"this is not supported at this time")
-	}
-
-	return record.doViPresetFound && !record.nonDoViPresetFound, mixedPresetsErr
-}
+var ErrMixedPresets = errors.New("job contains inconsistent DolbyVision outputs")

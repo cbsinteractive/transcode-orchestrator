@@ -12,7 +12,7 @@ type CodecVorbis struct {
 	cfg model.VorbisAudioConfiguration
 }
 
-func (c *CodecVorbis) set(p job.Preset) (ok bool) {
+func (c *CodecVorbis) set(p job.File) (ok bool) {
 	abr := int64(p.Audio.Bitrate)
 	c.cfg.Name = fmt.Sprintf("vorbis_%d_%d", abr, int(AudioSampleRate))
 	c.cfg.Bitrate = &abr

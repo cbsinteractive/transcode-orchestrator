@@ -35,8 +35,6 @@ const (
 	activeWaiting              = "waiting"
 	hls                        = "hls"
 	transcodeElementIDTemplate = "transcode_task_%d"
-
-	featureSegmentedRendering = "segmentedRendering"
 )
 
 var (
@@ -76,12 +74,12 @@ func hybrikTranscoderFactory(cfg *config.Config) (provider.Provider, error) {
 }
 
 func (p *hybrikProvider) Create(ctx context.Context, j *Job) (*Status, error) {
-	cj, err := p.createJobReqBodyFrom(ctx, j)
+	c, err := p.create(j)
 	if err != nil {
 		return nil, err
 	}
 
-	id, err := p.c.QueueJob(cj)
+	id, err := p.c.QueueJob(string(c))
 	if err != nil {
 		return nil, err
 	}
@@ -93,130 +91,79 @@ func (p *hybrikProvider) Create(ctx context.Context, j *Job) (*Status, error) {
 	}, nil
 }
 
-func (p *hybrikProvider) createJobReqBodyFrom(ctx context.Context, job *Job) (string, error) {
-	cj, err := p.createJobReqFrom(ctx, job)
+func (p *hybrikProvider) create(j *Job) ([]byte, error) {
+	c, err := p.createJobReqFrom(job)
 	if err != nil {
-		return "", errors.Wrap(err, "generating create job request from Job")
+		return nil, fmt.Errorf("hybrik: createjob: %w", err)
 	}
-
-	resp, err := json.MarshalIndent(cj, "", "\t")
-	if err != nil {
-		return "", errors.Wrapf(err, "marshalling create job %v into json", cj)
-	}
-
-	return string(resp), nil
+	return json.MarshalIndent(c, "", "\t")
 }
 
-func (p *hybrikProvider) createJobReqFrom(ctx context.Context, j *Job) (hwrapper.CreateJob, error) {
-	srcStorageProvider, err := storageProviderFrom(j.SourceMedia)
-	if err != nil {
-		return hwrapper.CreateJob{}, errors.Wrap(err, "parsing source storage provider")
-	}
-	srcLocation := storageLocation{
-		provider: srcStorageProvider,
-		path:     j.SourceMedia,
-	}
+func (p *hybrikProvider) Valid(j *Job) error {
+	// provider supported
+	// valid credentials
+	// valid codecs and features
+}
 
-	destinationPath := p.destinationForJob(j)
-	destStorageProvider, err := storageProviderFrom(destinationPath)
-	if err != nil {
-		return hwrapper.CreateJob{}, errors.Wrap(err, "parsing destination storage provider")
-	}
+/*
+	destination: storageLocation{
+		provider: destStorageProvider,
+		path:     fmt.Sprintf("%s/%s", destinationPath, j.RootFolder()),
+	},
+*/
 
-	srcElement, err := p.srcFrom(j, srcLocation)
-	if err != nil {
-		return hwrapper.CreateJob{}, errors.Wrap(err, "creating the hybrik source element")
+func tag(j *Job, name string, fallback ...string) []string {
+	v := j.ExecutionEnv.ComputeTags[name]
+	if len(v) == 0 {
+		return fallback
 	}
+	return v
+}
 
-	cfg := jobCfg{
-		jobID:          j.ID,
-		sourceLocation: srcLocation,
-		destination: storageLocation{
-			provider: destStorageProvider,
-			path:     fmt.Sprintf("%s/%s", destinationPath, j.RootFolder()),
-		},
-		streamingParams:      j.StreamingParams,
-		executionEnvironment: j.ExecutionEnv,
-		source:               srcElement,
+// jobRequest assumes j was already validated, error conditions
+// are impossible by design as they are overridden by defaults
+func (p *hybrikProvider) jobRequest(jo *job.Job) hwrapper.CreateJob {
+	j := Job{jo, map[string][]string{}}
+	for k, v := range j.ExecutionEnv.ComputeTags {
+		if len(v) == 0 {
+			v = defaultTag[k]
+		}
+		j.tag[k] = v
 	}
-
-	execFeatures, err := executionFeaturesFrom(j, srcLocation.provider)
-	if err != nil {
-		return hwrapper.CreateJob{}, err
-	}
+	feat := features(j)
 	cfg.executionFeatures = execFeatures
+	cfg.computeTags = j.ExecutionEnv.ComputeTags
 
-	if j.ExecutionEnv.ComputeTags != nil {
-		cfg.computeTags = j.ExecutionEnv.ComputeTags
-	} else {
-		cfg.computeTags = map[job.ComputeClass]string{}
-	}
-
-	outputCfgs, err := p.outputCfgsFrom(ctx, j)
-	if err != nil {
-		return hwrapper.CreateJob{}, err
-	}
-	cfg.outputCfgs = outputCfgs
-
-	elmAssembler, err := p.elementAssemblerFrom(cfg.outputCfgs)
-	if err != nil {
-		return hwrapper.CreateJob{}, err
-	}
-
-	elementGroups, err := elmAssembler(cfg)
-	if err != nil {
-		return hwrapper.CreateJob{}, err
-	}
-	cfg.elementGroups = elementGroups
-
-	connections := []hwrapper.Connection{}
-	prevElements := []hwrapper.Element{cfg.source}
-	allTaskElements := []hwrapper.Element{}
-
-	for _, elementGroup := range elementGroups {
-		fromConnections := []hwrapper.ConnectionFrom{}
-		for _, prevElement := range prevElements {
-			fromConnections = append(fromConnections, hwrapper.ConnectionFrom{Element: prevElement.UID})
+	conn := []hwrapper.Connection{}
+	task := []hwrapper.Element{cfg.source}
+	prev := task
+	for _, eg := range p.elementAssemblerFrom(p.outputCfgsFrom(ctx, j))(cfg) {
+		src := []hwrapper.ConnectionFrom{}
+		dst := []hwrapper.ToSuccess{}
+		for _, e := range prev {
+			src = append(src, hwrapper.ConnectionFrom{Element: e.UID})
 		}
-
-		toSuccessElements := []hwrapper.ToSuccess{}
-		for _, element := range elementGroup {
-			allTaskElements = append(allTaskElements, element)
-			toSuccessElements = append(toSuccessElements, hwrapper.ToSuccess{Element: element.UID})
+		for _, e := range eg {
+			dst = append(dst, hwrapper.ToSuccess{Element: e.UID})
+			task = append(task, e)
 		}
-
-		toConnections := hwrapper.ConnectionTo{Success: toSuccessElements}
-		connections = append(connections, hwrapper.Connection{
-			From: fromConnections,
-			To:   toConnections,
+		conn = append(conn, hwrapper.Connection{
+			From: src,
+			To:   hwrapper.ConnectionTo{Success: dst},
 		})
-		prevElements = elementGroup
+		prev = eg
 	}
 
-	// create the full job structure
-	cj := hwrapper.CreateJob{
+	return hwrapper.CreateJob{
 		Name: fmt.Sprintf("Job %s [%s]", cfg.jobID, path.Base(cfg.sourceLocation.path)),
 		Payload: hwrapper.CreateJobPayload{
-			Elements:    append([]hwrapper.Element{cfg.source}, allTaskElements...),
-			Connections: connections,
+			Elements:    task,
+			Connections: conn,
 		},
 	}
-
-	if _, found := supportedPackagingProtocols[strings.ToLower(cfg.streamingParams.Protocol)]; found {
-		cj, err = p.enrichCreateJobWithPackagingCfg(cj, cfg, prevElements)
-		if err != nil {
-			return hwrapper.CreateJob{}, errors.Wrap(err, "creating packaging config")
-		}
-	}
-
-	return cj, nil
 }
 
-func (p *hybrikProvider) destinationForJob(job *Job) string {
-	if path := job.DestinationBasePath; path != "" {
-		return path
-	}
-
+func (p *hybrikProvider) StorageFallback() (path string) {
 	return p.config.Destination
 }
 
@@ -270,67 +217,44 @@ func (p *hybrikProvider) Status(_ context.Context, j *Job) (*Status, error) {
 	}, nil
 }
 
-func executionFeaturesFrom(job *Job, storageProvider storageProvider) (executionFeatures, error) {
-	features := executionFeatures{}
-
-	supportsSegRendering := storageProvider.supportsSegmentedRendering()
-	if featureDefinition, ok := job.ExecutionFeatures[featureSegmentedRendering]; ok && supportsSegRendering {
-		featureJSON, err := json.Marshal(featureDefinition)
-		if err != nil {
-			return executionFeatures{}, fmt.Errorf("could not marshal segmented rendering cfg to json: %v", err)
-		}
-
-		var feature SegmentedRendering
-		err = json.Unmarshal(featureJSON, &feature)
-		if err != nil {
-			return executionFeatures{}, fmt.Errorf("could not unmarshal %q into SegmentedRendering feature: %v",
-				featureDefinition, err)
-		}
-
-		features.segmentedRendering = &hwrapper.SegmentedRendering{
-			Duration:                  feature.Duration,
-			SceneChangeSearchDuration: feature.SceneChangeSearchDuration,
-			NumTotalSegments:          feature.NumTotalSegments,
-			EnableStrictCFR:           feature.EnableStrictCFR,
-			MuxTimebaseOffset:         feature.MuxTimebaseOffset,
-		}
-
-		features.doViPreProcSegmentation = doViPreProcSegmentation{
-			numTasks:       feature.DoViPreProcNumTasks,
-			intervalLength: feature.DoViPreProcIntervalLength,
-		}
+func features(job *Job) *hwrapper.SegmentedRendering {
+	v, has := job.ExecutionFeatures["segmentedRendering"]
+	if !has || !canSegment(j.Input) {
+		return feat, nil
 	}
+	data, _ := json.Marshal(v)
+	sr := hwrapper.SegmentedRendering{}
+	if err := json.Unmarshal(data, &sr); err != nil {
+		return nil
+	}
+	return &sr
 
-	return features, nil
 }
 
 func (p *hybrikProvider) Cancel(_ context.Context, id string) error {
 	return p.c.StopJob(id)
 }
 
-func videoTargetFrom(preset job.Video, rateControl string) (*hwrapper.VideoTarget, error) {
-	if (preset == job.Video{}) {
+func videoTarget(v job.Video) *hwrapper.VideoTarget {
+	if (v == job.Video{}) {
 		return nil, nil
 	}
 
-	var exactGOPFrames, exactKeyFrames int
-	switch strings.ToLower(preset.GopUnit) {
-	case job.GopUnitSeconds:
-		exactKeyFrames = int(preset.GopSize)
-	case job.GopUnitFrames, "":
-		exactGOPFrames = int(preset.GopSize)
-	default:
-		return &hwrapper.VideoTarget{}, fmt.Errorf("GopUnit %v not recognized", preset.GopUnit)
+	var frames, seconds int
+	if v.Gop.Seconds() {
+		seconds = int(v.Gop.Size)
+	} else {
+		frames = int(v.Gop.Size)
 	}
 
-	videoProfile := strings.ToLower(preset.Profile)
-	videoLevel := preset.Level
+	profile := strings.ToLower(preset.Profile)
+	level := preset.Level
 
 	// TODO: Understand video-transcoding-api profile + level settings in relation to vp8
 	// For now, we will omit and leave to encoder defaults
-	if preset.Codec == "vp8" {
-		videoProfile = ""
-		videoLevel = ""
+	if v.Codec == "vp8" {
+		profile = ""
+		level = ""
 	}
 
 	w, h := &preset.Width, &preset.Height
@@ -343,31 +267,31 @@ func videoTargetFrom(preset job.Video, rateControl string) (*hwrapper.VideoTarge
 	return &hwrapper.VideoTarget{
 		Width:             w,
 		Height:            h,
-		BitrateMode:       strings.ToLower(rateControl),
-		BitrateKb:         preset.Bitrate / 1000,
-		Preset:            presetSlow,
+		BitrateMode:       strings.ToLower(preset.Bitrate.Mode),
+		BitrateKb:         v.Bitrate.Kbps(),
+		Preset:            "slow",
 		Codec:             preset.Codec,
 		ChromaFormat:      chromaFormatYUV420P,
-		Profile:           videoProfile,
-		Level:             videoLevel,
-		ExactGOPFrames:    exactGOPFrames,
-		ExactKeyFrame:     exactKeyFrames,
+		Profile:           profile,
+		Level:             level,
+		ExactGOPFrames:    frames,
+		ExactKeyFrame:     seconds,
 		InterlaceMode:     preset.InterlaceMode,
 		UseSceneDetection: false,
 	}, nil
 }
 
-func audioTargetFrom(preset job.Audio) ([]hwrapper.AudioTarget, error) {
-	if (preset == job.Audio{}) {
-		return []hwrapper.AudioTarget{}, nil
+func audioTarget(a job.Audio) []hwrapper.AudioTarget {
+	if (a == job.Audio{}) {
+		return []hwrapper.AudioTarget{}
 	}
 	return []hwrapper.AudioTarget{
 		{
-			Codec:     preset.Codec,
+			Codec:     a.Codec,
 			Channels:  2,
-			BitrateKb: preset.Bitrate / 1000,
+			BitrateKb: a.Bitrate / 1000,
 		},
-	}, nil
+	}
 }
 
 // Healthcheck should return nil if the provider is currently available

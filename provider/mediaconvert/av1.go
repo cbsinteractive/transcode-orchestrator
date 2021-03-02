@@ -9,7 +9,7 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
-func av1CodecSettingsFrom(preset job.Preset) (*mc.VideoCodecSettings, error) {
+func av1CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
 	bitrate := int64(preset.Video.Bitrate)
 	gopSize, err := av1GopSizeFrom(preset.Video.GopUnit, preset.Video.GopSize)
 	if err != nil {

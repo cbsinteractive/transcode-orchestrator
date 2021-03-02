@@ -1,96 +1,63 @@
 package hybrik
 
 import (
-	"context"
-	"path/filepath"
-	"strings"
-
 	"github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
+const (
+	assetContentsKindMetadata = "metadata"
+	imfManifestExtension      = ".xml"
+
+	srcOptionResolveManifestKey = "resolve_manifest"
+)
+
 type jobCfg struct {
-	jobID                string
-	destination          storageLocation
-	sourceLocation       storageLocation
+	jobID string
+	//destination          storageLocation
+	//sourceLocation       storageLocation
+	out job.Dir
+
 	source               hybrik.Element
 	elementGroups        [][]hybrik.Element
-	outputCfgs           map[string]outputCfg
-	streamingParams      job.StreamingParams
+	streaming            job.Streaming
 	executionEnvironment job.ExecutionEnvironment
 	executionFeatures    executionFeatures
 	computeTags          map[job.ComputeClass]string
 }
 
-type outputCfg = job.TranscodeOutput
+const SourceUID = "source_file"
 
-const (
-	assetContentsKindMetadata = "metadata"
+func (p *hybrikProvider) srcFrom(j *Job) (hybrik.Element, error) {
+	creds := j.ExecutionEnv.InputAlias
+	assets := []hybrik.AssetPayload{p.asset(j.Input, creds)}
 
-	assetContentsStandardDolbyVisionMetadata = "dolbyvision_metadata"
-
-	imfManifestExtension = ".xml"
-
-	srcOptionResolveManifestKey = "resolve_manifest"
-)
-
-func (p *hybrikProvider) srcFrom(j *Job, src storageLocation) (hybrik.Element, error) {
-	sourceAsset := p.assetPayloadFrom(src.provider, src.path, nil, j.ExecutionEnv.InputAlias)
-
-	if strings.ToLower(filepath.Ext(src.path)) == imfManifestExtension {
-		sourceAsset.Options = map[string]interface{}{
-			srcOptionResolveManifestKey: true,
-		}
+	if dolby := j.Asset(job.SidecarAssetKindDolbyVisionMetadata); dolby != nil {
+		assets = append(assets, p.asset(dolby, []hybrik.AssetContents{{
+			Kind:    "metadata",
+			Payload: hybrik.AssetContentsPayload{Standard: "dolbyvision_metadata"},
+		}}, creds))
 	}
-
-	assets := []hybrik.AssetPayload{sourceAsset}
-
-	if sidecarLocation, ok := j.SidecarAssets[job.SidecarAssetKindDolbyVisionMetadata]; ok {
-		sidecarStorageProvider, err := storageProviderFrom(sidecarLocation)
-		if err != nil {
-			return hybrik.Element{}, err
-		}
-
-		assets = append(assets, p.assetPayloadFrom(sidecarStorageProvider, sidecarLocation, []hybrik.AssetContents{{
-			Kind: assetContentsKindMetadata,
-			Payload: hybrik.AssetContentsPayload{
-				Standard: assetContentsStandardDolbyVisionMetadata,
-			},
-		}}, j.ExecutionEnv.InputAlias))
-	}
-
 	return hybrik.Element{
-		UID:  "source_file",
+		UID:  SourceUID,
 		Kind: elementKindSource,
 		Payload: hybrik.ElementPayload{
 			Kind:    "asset_urls",
 			Payload: assets,
 		},
-	}, nil
-}
-
-func (p *hybrikProvider) outputCfgsFrom(ctx context.Context, job *Job) (map[string]outputCfg, error) {
-	presets := map[string]outputCfg{}
-
-	for _, output := range job.Outputs {
-		presets[output.Preset.Name] = output
 	}
-
-	return presets, nil
 }
 
 type elementAssembler func(jobCfg) ([][]hybrik.Element, error)
 
-func (p *hybrikProvider) elementAssemblerFrom(cfgs map[string]outputCfg) (elementAssembler, error) {
-	dolbyVisionEnabled, err := dolbyVisionEnabledOnAllPresets(cfgs)
-	if err != nil {
-		return nil, err
+func (p *hybrikProvider) elementAssemblerFrom(d *job.Dir) (elementAssembler, error) {
+	n := countDolbyVision(d)
+	if n == 0 {
+		return p.defaultElementAssembler, nil
 	}
-
-	if dolbyVisionEnabled {
-		_ = p.dolbyVisionElementAssembler // switch back to this once Hybrik fixes bug with GCP jobs hanging
-		return p.dolbyVisionLegacyElementAssembler, nil
+	if n != len(d.File) {
+		return nil, ErrMixedPresets
 	}
-
-	return p.defaultElementAssembler, nil
+	_ = p.dolbyVisionElementAssembler // switch back to this once Hybrik fixes bug with GCP jobs hanging
+	return p.dolbyVisionLegacyElementAssembler, nil
 }

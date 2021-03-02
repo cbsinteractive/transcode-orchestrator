@@ -25,7 +25,7 @@ func (j Preset) HasVideo() bool {
 
 var ErrUnsupported = errors.New("codec unsupported")
 
-func New(codec string, preset job.Preset) (Codec, error) {
+func New(codec string, preset job.File) (Codec, error) {
 	c := enabled[strings.ToUpper(codec)]
 	if c == nil {
 		return nil, ErrUnsupported
@@ -34,7 +34,7 @@ func New(codec string, preset job.Preset) (Codec, error) {
 	return c, c.Err()
 }
 
-func Summary(c Codec, src job.Preset, dst Preset) Preset {
+func Summary(c Codec, src job.File, dst Preset) Preset {
 	if c.Err() != nil {
 		return dst
 	}
@@ -64,7 +64,7 @@ var enabled = map[string]Codec{
 }
 
 type Codec interface {
-	New(p job.Preset) Codec
+	New(p job.File) Codec
 	Create(*bitmovin.BitmovinApi) bool
 	Err() error
 
@@ -102,13 +102,13 @@ func (c CodecH264) video() {}
 func (c CodecH265) video() {}
 func (c CodecVP8) video()  {}
 
-func (c CodecAAC) New(p job.Preset) Codec    { c.set(p); return &c }
-func (c CodecAV1) New(p job.Preset) Codec    { c.set(p); return &c }
-func (c CodecH264) New(p job.Preset) Codec   { c.set(p); return &c }
-func (c CodecH265) New(p job.Preset) Codec   { c.set(p); return &c }
-func (c CodecOpus) New(p job.Preset) Codec   { c.set(p); return &c }
-func (c CodecVorbis) New(p job.Preset) Codec { c.set(p); return &c }
-func (c CodecVP8) New(p job.Preset) Codec    { c.set(p); return &c }
+func (c CodecAAC) New(p job.File) Codec    { c.set(p); return &c }
+func (c CodecAV1) New(p job.File) Codec    { c.set(p); return &c }
+func (c CodecH264) New(p job.File) Codec   { c.set(p); return &c }
+func (c CodecH265) New(p job.File) Codec   { c.set(p); return &c }
+func (c CodecOpus) New(p job.File) Codec   { c.set(p); return &c }
+func (c CodecVorbis) New(p job.File) Codec { c.set(p); return &c }
+func (c CodecVP8) New(p job.File) Codec    { c.set(p); return &c }
 
 func (c *CodecAAC) Create(api *bitmovin.BitmovinApi) (ok bool) {
 	create := api.Encoding.Configurations.Audio.Aac.Create

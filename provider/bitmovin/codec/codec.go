@@ -57,7 +57,7 @@ type codec struct {
 	err      error
 }
 
-func (c *codec) setVideo(cfg VideoPTR, p job.Preset) bool {
+func (c *codec) setVideo(cfg VideoPTR, p job.File) bool {
 	*cfg.Name = strings.ToLower(p.Name)
 	if n := int32(p.Video.Width); n != 0 && cfg.Width != nil {
 		*cfg.Width = &n
@@ -65,25 +65,22 @@ func (c *codec) setVideo(cfg VideoPTR, p job.Preset) bool {
 	if n := int32(p.Video.Height); n != 0 && cfg.Height != nil {
 		*cfg.Height = &n
 	}
-	if n := int64(p.Video.Bitrate); n != 0 && cfg.Bitrate != nil {
+	if n := int64(p.Video.Bitrate.BPS); n != 0 && cfg.Bitrate != nil {
 		*cfg.Bitrate = &n
 	}
 
-	gopSize := int32(p.Video.GopSize)
-	if gopSize != 0 {
-		switch strings.ToLower(p.Video.GopUnit) {
-		case job.GopUnitFrames, "":
-			if cfg.MinGop != nil && cfg.MaxGop != nil {
-				*cfg.MinGop = &gopSize
-				*cfg.MaxGop = &gopSize
-			}
-		case job.GopUnitSeconds:
+	size := int32(p.Video.Gop.Size)
+	if size != 0 {
+		if p.Video.Gop.Seconds() {
 			if cfg.MinKeyframeInterval != nil && cfg.MaxKeyframeInterval != nil {
-				*cfg.MinKeyframeInterval = &p.Video.GopSize
-				*cfg.MaxKeyframeInterval = &p.Video.GopSize
+				*cfg.MinKeyframeInterval = &p.Video.Gop.Size
+				*cfg.MaxKeyframeInterval = &p.Video.Gop.Size
 			}
-		default:
-			return c.errorf("GopUnit %v not recognized", p.Video.GopUnit)
+		} else {
+			if cfg.MinGop != nil && cfg.MaxGop != nil {
+				*cfg.MinGop = &size
+				*cfg.MaxGop = &size
+			}
 		}
 	}
 
@@ -91,7 +88,7 @@ func (c *codec) setVideo(cfg VideoPTR, p job.Preset) bool {
 		// some of these can fail on single pass mode
 		// check that in the specific codecs
 		*cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
-		if p.TwoPass {
+		if p.Video.Bitrate.TwoPass {
 			*cfg.EncodingMode = model.EncodingMode_TWO_PASS
 		}
 	}

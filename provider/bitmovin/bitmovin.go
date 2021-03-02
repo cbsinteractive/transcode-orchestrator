@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"net/url"
-	"path"
 	"strings"
 	"sync"
 
@@ -93,19 +91,21 @@ type driver struct {
 }
 
 func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
-	presets := make([]Preset, len(j.Outputs))
-	for i, output := range j.Outputs {
-		if err := p.createPreset(ctx, output.Preset, &presets[i]); err != nil {
+	presets := make([]Preset, len(j.Output.File))
+	for i, f := range j.Output.File {
+		if err := p.createPreset(ctx, f, &presets[i]); err != nil {
 			return nil, fmt.Errorf("output[%d]: preset: %w", i, err)
 		}
 	}
 
-	inputID, mediaPath, err := p.inputFrom(ctx, j)
+	inputPath := j.Input.Name
+	inputID, err := p.inputFrom(ctx, j)
 	if err != nil {
 		return nil, err
 	}
 
-	outputID, destPath, err := p.outputFrom(ctx, j)
+	destPath := p.path(*j)
+	outputID, err := p.outputFrom(ctx, j)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 	inputID, err = func(inputID string) (string, error) {
 		istream, err := p.api.Encoding.Encodings.InputStreams.Ingest.Create(enc.Id, model.IngestInputStream{
 			InputId:       inputID,
-			InputPath:     mediaPath,
+			InputPath:     inputPath,
 			SelectionMode: model.StreamSelectionMode_AUTO,
 		})
 		if err != nil {
@@ -154,7 +154,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 		return nil, fmt.Errorf("ingest: %v", err)
 	}
 
-	inputID, err = p.splice(ctx, enc.Id, inputID, j.SourceSplice)
+	inputID, err = p.splice(ctx, enc.Id, inputID, j.Input.Splice)
 	if err != nil {
 		return nil, fmt.Errorf("splice: %w", err)
 	}
@@ -163,7 +163,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 	errorc := make(chan error)
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-outputs")
-	for idx, o := range j.Outputs {
+	for idx, o := range j.Output.File {
 		wg.Add(1)
 		go p.createOutput(outputCfg{
 			preset:         presets[idx],
@@ -171,7 +171,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 			audioIn:        inputID,
 			videoIn:        inputID,
 			outputID:       outputID,
-			outputFilename: o.FileName,
+			outputFilename: o.Name,
 			destPath:       destPath,
 			job:            j,
 		}, &wg, errorc)
@@ -190,7 +190,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 	}
 	subSeg.Close(nil)
 
-	if o := j.ExplicitKeyframeOffsets; len(o) > 0 {
+	if o := j.Input.ExplicitKeyframeOffsets; len(o) > 0 {
 		subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-keyframes")
 		if err = p.createExplicitKeyframes(enc.Id, o); err != nil {
 			subSeg.Close(err)
@@ -237,8 +237,8 @@ func (p *driver) Status(ctx context.Context, j *Job) (*Status, error) {
 			"messages":       task.Messages,
 			"originalStatus": task.Status,
 		},
-		Output: job.Output{
-			Destination: strings.TrimRight(p.destinationForJob(j), "/") + "/" + j.RootFolder() + "/",
+		Output: job.Dir{
+			Path: j.Location(""),
 		},
 	}
 
@@ -342,62 +342,38 @@ func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan err
 		VidMuxingStream:    videoMuxingStream,
 		ManifestID:         cfg.manifestID,
 		ManifestMasterPath: cfg.manifestMasterPath,
-		SegDuration:        cfg.job.StreamingParams.SegmentDuration,
+		SegDuration:        cfg.job.Streaming.SegmentDuration,
 	}); err != nil {
 		errorc <- err
 		return
 	}
 }
 
-func (p *driver) inputFrom(ctx context.Context, job *Job) (inputID string, srcPath string, err error) {
+func (p *driver) inputFrom(ctx context.Context, job *Job) (inputID string, err error) {
 	defer p.trace(ctx, "bitmovin-create-input", &err)()
 
-	srcPath, err = storage.PathFrom(job.SourceMedia)
-	if err != nil {
-		return "", "", err
-	}
-
 	if alias := job.ExecutionEnv.InputAlias; alias != "" {
-		return alias, srcPath, nil
+		return alias, nil
 	}
-
-	inputID, err = storage.NewInput(job.SourceMedia, storage.InputAPI{
+	return storage.NewInput(job.Input.Name, storage.InputAPI{
 		S3:    p.api.Encoding.Inputs.S3,
 		GCS:   p.api.Encoding.Inputs.Gcs,
 		HTTP:  p.api.Encoding.Inputs.Http,
 		HTTPS: p.api.Encoding.Inputs.Https,
 	}, p.cfg)
-	if err != nil {
-		return "", srcPath, err
-	}
-
-	return inputID, srcPath, nil
 }
 
-func (p *driver) outputFrom(ctx context.Context, job *Job) (inputID string, destPath string, err error) {
+func (p *driver) outputFrom(ctx context.Context, job *Job) (id string, err error) {
 	defer p.trace(ctx, "bitmovin-create-output", &err)()
 
-	destBasePath := p.destinationForJob(job)
-	destURL, err := url.Parse(destBasePath)
-	if err != nil {
-		return "", "", err
-	}
-
-	destPath = path.Join(destURL.Path, job.RootFolder())
-
 	if alias := job.ExecutionEnv.OutputAlias; alias != "" {
-		return alias, destPath, nil
+		return alias, nil
 	}
 
-	outputID, err := storage.NewOutput(destBasePath, storage.OutputAPI{
+	return storage.NewOutput(p.path(*job), storage.OutputAPI{
 		S3:  p.api.Encoding.Outputs.S3,
 		GCS: p.api.Encoding.Outputs.Gcs,
 	}, p.cfg)
-	if err != nil {
-		return "", destPath, err
-	}
-
-	return outputID, destPath, nil
 }
 
 func (p *driver) encodingCloudRegionFrom(j *Job) (model.CloudRegion, error) {
@@ -464,7 +440,7 @@ func (p *driver) createExplicitKeyframes(encodingID string, offsets []float64) e
 	return nil
 }
 
-func (p *driver) createPreset(_ context.Context, preset job.Preset, summary *Preset) error {
+func (p *driver) createPreset(_ context.Context, preset job.File, summary *Preset) error {
 	vc, _ := codec.New(preset.Video.Codec, preset)
 	ac, _ := codec.New(preset.Audio.Codec, preset)
 	c := []codec.Codec{}
@@ -558,21 +534,19 @@ func (p *driver) enrichStreams(s Status) (Status, error) {
 	}
 
 	s.Input = job.File{
-		Duration:   time.Duration(floatValue(streamInput.Duration) * float64(time.Second)),
-		Width:      width,
-		Height:     height,
-		VideoCodec: vidCodec,
+		Duration: time.Duration(floatValue(streamInput.Duration) * float64(time.Second)),
+		Video:    job.Video{Width: width, Height: height, Codec: vidCodec},
 	}
 
 	return s, nil
 
 }
 
-func (p *driver) destinationForJob(job *Job) string {
-	if path := job.DestinationBasePath; path != "" {
-		return path
+func (p *driver) path(j Job) string {
+	if j.Output.Path == "" {
+		j.Output.Path = p.cfg.Destination
 	}
-	return p.cfg.Destination
+	return j.Location("")
 }
 
 // Healthcheck returns an error if a call to List Encodings with a limit of one

@@ -9,7 +9,7 @@ import (
 )
 
 func TestGenerateMPEG2(t *testing.T) {
-	p := job.Preset{}
+	p := job.File{}
 	p.Video.Codec = "hd422"
 	p.Video.GopSize = 6000
 	p.Video.Bitrate = 6000

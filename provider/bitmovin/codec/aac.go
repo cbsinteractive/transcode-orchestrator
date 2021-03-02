@@ -12,7 +12,7 @@ type CodecAAC struct {
 	cfg model.AacAudioConfiguration
 }
 
-func (c *CodecAAC) set(p job.Preset) (ok bool) {
+func (c *CodecAAC) set(p job.File) (ok bool) {
 	abr := int64(p.Audio.Bitrate)
 	c.cfg.Name = fmt.Sprintf("aac_%d_%d", abr, int(AudioSampleRate))
 	c.cfg.Bitrate = &abr

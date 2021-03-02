@@ -10,7 +10,7 @@ import (
 func TestAudioDownmixMapping(t *testing.T) {
 	tests := []struct {
 		name    string
-		ad      job.AudioDownmix
+		ad      job.Downmix
 		want    [][]bool
 		wantErr bool
 	}{

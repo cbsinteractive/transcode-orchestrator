@@ -22,7 +22,7 @@ var timecodePositionMap = map[int]mc.TimecodeBurninPosition{
 	8: mc.TimecodeBurninPositionBottomRight,
 }
 
-func outputFrom(preset job.Preset, sourceInfo job.File) (mc.Output, error) {
+func outputFrom(preset job.File, sourceInfo job.File) (mc.Output, error) {
 	container, err := containerFrom(preset.Container)
 	if err != nil {
 		return mc.Output{}, fmt.Errorf("container: %w", err)
@@ -120,7 +120,7 @@ func containerSettingsFrom(container mc.ContainerType) *mc.ContainerSettings {
 	return cs
 }
 
-func videoPresetFrom(preset job.Preset, sourceInfo job.File) (*mc.VideoDescription, error) {
+func videoPresetFrom(preset job.File, sourceInfo job.File) (*mc.VideoDescription, error) {
 	videoPreset := mc.VideoDescription{
 		ScalingBehavior:   mc.ScalingBehaviorDefault,
 		TimecodeInsertion: mc.VideoTimecodeInsertionDisabled,
@@ -205,7 +205,7 @@ var (
 )
 
 type setter struct {
-	dst job.Preset
+	dst job.File
 	src job.File
 }
 
@@ -357,7 +357,7 @@ func audioSplit(a mc.AudioDescription) (split []mc.AudioDescription) {
 	return split
 }
 
-func audioPresetFrom(preset job.Preset) (mc.AudioDescription, error) {
+func audioPresetFrom(preset job.File) (mc.AudioDescription, error) {
 	audioPreset := mc.AudioDescription{}
 
 	if preset.Audio.Normalization {

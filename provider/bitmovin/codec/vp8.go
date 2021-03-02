@@ -10,7 +10,7 @@ type CodecVP8 struct {
 	cfg model.Vp8VideoConfiguration
 }
 
-func (c *CodecVP8) set(preset job.Preset) (ok bool) {
+func (c *CodecVP8) set(preset job.File) (ok bool) {
 	return c.setVideo(VideoPTR{
 		Name:         &c.cfg.Name,
 		Width:        &c.cfg.Width,
