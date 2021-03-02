@@ -82,6 +82,10 @@ type Dir struct {
 	File []File `json:"files,omitempty"`
 }
 
+func (d *Dir) Len() int {
+	return len(d.File)
+}
+
 func (d *Dir) Add(f ...File) {
 	d.File = append(d.File, f...)
 }

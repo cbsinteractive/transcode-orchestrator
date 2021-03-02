@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
-	"strings"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
@@ -92,7 +91,10 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 }
 
 func (p *driver) create(j *Job) ([]byte, error) {
-	c := p.jobRequest(j)
+	c, err := p.jobRequest(j)
+	if err != nil {
+		return nil, err
+	}
 	return json.MarshalIndent(c, "", "\t")
 }
 
@@ -118,17 +120,14 @@ func tag(j *Job, name string, fallback ...string) []string {
 	return []string{v}
 }
 
-// jobRequest assumes j was already validated, error conditions
-// are impossible by design as they are overridden by defaults
-func (p *driver) jobRequest(j *Job) hy.CreateJob {
-	eg, err := p.assemble(j)
-	if err != nil {
-		println(err.Error()) // TODO(as): fix return
+func (p *driver) jobRequest(j *Job) (*hy.CreateJob, error) {
+	if err := p.validate(j); err != nil {
+		return nil, err
 	}
 	conn := []hy.Connection{}
 	task := []hy.Element{p.srcFrom(j)}
 	prev := task
-	for _, eg := range eg {
+	for _, eg := range p.assemble(j) {
 		src := []hy.ConnectionFrom{}
 		dst := []hy.ToSuccess{}
 		for _, e := range prev {
@@ -145,13 +144,13 @@ func (p *driver) jobRequest(j *Job) hy.CreateJob {
 		prev = eg
 	}
 
-	return hy.CreateJob{
+	return &hy.CreateJob{
 		Name: fmt.Sprintf("Job %s [%s]", j.ID, path.Base(j.Input.Name)),
 		Payload: hy.CreateJobPayload{
 			Elements:    task,
 			Connections: conn,
 		},
-	}
+	}, nil
 }
 
 func (p *driver) StorageFallback() (path string) {
@@ -187,7 +186,7 @@ func (p *driver) Status(_ context.Context, j *Job) (*Status, error) {
 			return &Status{}, err
 		}
 
-		output = job.Output{}
+		output = job.Dir{}
 		for _, task := range result.Tasks {
 			files, found, err := filesFrom(task)
 			if err != nil {
@@ -208,10 +207,13 @@ func (p *driver) Status(_ context.Context, j *Job) (*Status, error) {
 	}, nil
 }
 
-func features(job *Job) *hy.SegmentedRendering {
-	v, has := job.ExecutionFeatures["segmentedRendering"]
-	if !has || !canSegment(j.Input) {
-		return feat, nil
+func features(j *Job) *hy.SegmentedRendering {
+	v, has := j.ExecutionFeatures["segmentedRendering"]
+	if !has || j.Input.Provider() == "http" {
+		// TODO(as): this check for http is a direct copy from the old
+		// version, but is http the only thing that doesn't support
+		// segmented rendering? what about https?
+		return nil
 	}
 	data, _ := json.Marshal(v)
 	sr := hy.SegmentedRendering{}
@@ -228,7 +230,7 @@ func (p *driver) Cancel(_ context.Context, id string) error {
 
 func videoTarget(v job.Video) *hy.VideoTarget {
 	if (v == job.Video{}) {
-		return nil, nil
+		return nil
 	}
 
 	var frames, seconds int
@@ -238,17 +240,14 @@ func videoTarget(v job.Video) *hy.VideoTarget {
 		frames = int(v.Gop.Size)
 	}
 
-	profile := strings.ToLower(preset.Profile)
-	level := preset.Level
-
 	// TODO: Understand video-transcoding-api profile + level settings in relation to vp8
 	// For now, we will omit and leave to encoder defaults
-	if v.Codec == "vp8" {
-		profile = ""
-		level = ""
+	if canon(v.Codec) == "vp8" {
+		v.Profile = ""
+		v.Level = ""
 	}
 
-	w, h := &preset.Width, &preset.Height
+	w, h := &v.Width, &v.Height
 	if *w == 0 {
 		w = nil
 	}
@@ -256,20 +255,20 @@ func videoTarget(v job.Video) *hy.VideoTarget {
 		h = nil
 	}
 	return &hy.VideoTarget{
+		Codec:             v.Codec,
 		Width:             w,
 		Height:            h,
-		BitrateMode:       strings.ToLower(preset.Bitrate.Mode),
 		BitrateKb:         v.Bitrate.Kbps(),
-		Preset:            "slow",
-		Codec:             preset.Codec,
-		ChromaFormat:      chromaFormatYUV420P,
-		Profile:           profile,
-		Level:             level,
+		BitrateMode:       canon(v.Bitrate.Control),
+		Profile:           canon(v.Profile),
+		Level:             canon(v.Level),
 		ExactGOPFrames:    frames,
 		ExactKeyFrame:     seconds,
-		InterlaceMode:     preset.InterlaceMode,
+		InterlaceMode:     v.Scantype,
+		Preset:            "slow",
+		ChromaFormat:      chromaFormatYUV420P,
 		UseSceneDetection: false,
-	}, nil
+	}
 }
 
 func audioTarget(a job.Audio) []hy.AudioTarget {

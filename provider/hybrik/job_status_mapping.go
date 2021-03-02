@@ -1,7 +1,6 @@
 package hybrik
 
 import (
-	"fmt"
 	"path"
 	"regexp"
 	"strings"
@@ -50,9 +49,9 @@ func filesFrom(task hy.TaskResult) (files []job.File, ok bool, err error) {
 	for _, document := range task.Documents {
 		for _, assetVersion := range document.ResultPayload.Payload.AssetVersions {
 			for _, component := range assetVersion.AssetComponents {
-				normalizedPath := strings.TrimRight(assetVersion.Location.Path, "/")
 				files = append(files, job.File{
-					Path:      fmt.Sprintf("%s/%s", normalizedPath, component.Name),
+					// TODO(as): path.Join probably doesn't work here because its a url, reconsider
+					Name:      path.Join(assetVersion.Location.Path, component.Name),
 					Container: containerFrom(component),
 					Size:      int64(component.Descriptor.Size),
 				})

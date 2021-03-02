@@ -36,10 +36,10 @@ func storageBugfix(provider string, sa *hy.StorageAccess) *hy.StorageAccess {
 		// GCS sources
 		sa.MaxCrossRegionMB = -1
 	}
-	return
+	return sa
 }
 
-func (p *driver) access(f job.File, creds string) *hy.StorageAccess {
+func (p *driver) access(f *job.File, creds string) *hy.StorageAccess {
 	if creds == "" {
 		if f.Provider() != "gcs" {
 			return nil
@@ -49,7 +49,7 @@ func (p *driver) access(f job.File, creds string) *hy.StorageAccess {
 	return storageBugfix(f.Provider(), &hy.StorageAccess{CredentialsKey: creds})
 }
 
-func (p *driver) location(f job.File, creds string) hy.TranscodeLocation {
+func (p *driver) location(f *job.File, creds string) hy.TranscodeLocation {
 	return hy.TranscodeLocation{
 		StorageProvider: f.Provider(),
 		Path:            f.Name,
@@ -57,15 +57,15 @@ func (p *driver) location(f job.File, creds string) hy.TranscodeLocation {
 	}
 }
 
-func (p *driver) assetURL(f job.File, creds string) hy.AssetURL {
+func (p *driver) assetURL(f *job.File, creds string) hy.AssetURL {
 	return hy.AssetURL{
 		StorageProvider: f.Provider(),
 		URL:             f.Name,
-		Access:          p.access(f.Provider(), creds),
+		Access:          p.access(f, creds),
 	}
 }
 
-func (p *driver) asset(f job.File, creds string, content []hy.AssetContents) hy.AssetPayload {
+func (p *driver) asset(f *job.File, creds string, content ...hy.AssetContents) hy.AssetPayload {
 	return hy.AssetPayload{
 		StorageProvider: f.Provider(),
 		URL:             f.Name,

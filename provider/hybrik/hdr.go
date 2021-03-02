@@ -130,7 +130,7 @@ func (p *driver) dolbyVisionMezzQC(j *Job) hy.Element {
 		Payload: hy.DoViV2MezzanineQCPayload{
 			Module: "mezzanine_qc",
 			Params: hy.DoViV2MezzanineQCPayloadParams{
-				Location:    p.location(job.File{Name: j.Location("mezzanine_qc")}, auth(j).Write),
+				Location:    p.location(&job.File{Name: j.Location("mezzanine_qc")}, p.auth(j).Write), // TODO(as)
 				FilePattern: fmt.Sprintf("%s_mezz_qc_report.txt", j.ID),
 			},
 		},
@@ -145,7 +145,7 @@ func (p *driver) dolbyVisionTranscode(j *Job) (e []hy.Element) {
 		a := []hy.DoViMP4MuxElementaryStream{}
 		if (f.Audio != job.Audio{}) {
 			a = append(a, hy.DoViMP4MuxElementaryStream{
-				AssetURL: p.assetURL(f, j.auth.write),
+				AssetURL: p.assetURL(&f, p.auth(j).Write),
 			})
 		}
 
@@ -160,7 +160,7 @@ func (p *driver) dolbyVisionTranscode(j *Job) (e []hy.Element) {
 			},
 			Payload: hy.DolbyVisionV2TaskPayload{
 				Module: "encoder", Profile: 5,
-				Location: p.location(f, j.auth.write),
+				Location: p.location(&f, p.auth(j).Write),
 				Preprocessing: hy.DolbyVisionV2Preprocessing{
 					Task: hy.TaskTags{Tags: tag},
 				},
