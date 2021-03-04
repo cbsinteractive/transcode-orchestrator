@@ -8,7 +8,7 @@ import (
 )
 
 func (p *driver) audioElements(j *job.Job) (a []hy.Element) {
-	tags := tag(j, job.ComputeClassTranscodeDefault)
+	tags := tag(j, job.TagTranscodeDefault)
 	for i, f := range j.Output.File {
 		if f.Audio.Codec == "" {
 			continue

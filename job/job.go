@@ -26,15 +26,14 @@ type Job struct {
 
 	Streaming Streaming
 
-	ExecutionFeatures  ExecutionFeatures
-	ExecutionEnv       ExecutionEnvironment
-	ExecutionCfgReport string
+	Features Features
+	Env      Env
 
-	SidecarAssets map[SidecarAssetKind]string
+	ExtraFiles map[string]string
 }
 
 func (j *Job) Asset(sidecar string) *File {
-	loc := j.SidecarAssets[sidecar]
+	loc := j.ExtraFiles[sidecar]
 	if loc == "" {
 		return nil
 	}
@@ -113,31 +112,28 @@ func (j Job) rootFolder() string {
 	return j.ID
 }
 
-type SidecarAssetKind = string
+const DolbyVisionMetadata = "dolbyVisionMetadata"
 
-const SidecarAssetKindDolbyVisionMetadata SidecarAssetKind = "dolbyVisionMetadata"
-
-// ExecutionEnvironment contains configurations for the environment used while transcoding
-type ExecutionEnvironment struct {
+// Env contains configurations for the environment used while transcoding
+type Env struct {
 	Cloud       string
 	Region      string
-	ComputeTags map[ComputeClass]string
 	InputAlias  string
 	OutputAlias string
+
+	Tags map[string]string
 }
 
-// ComputeClass represents a group of resources with similar capability
-type ComputeClass = string
-
-// ComputeClassTranscodeDefault runs any default transcodes
-// ComputeClassDolbyVisionTranscode runs Dolby Vision transcodes
-// ComputeClassDolbyVisionPreprocess runs Dolby Vision pre-processing
-// ComputeClassDolbyVisionMezzQC runs QC check on the mezzanine
+// TagTranscodeDefault runs any default transcodes
+// TagDolbyVisionTranscode runs Dolby Vision transcodes
+// TagDolbyVisionPreprocess runs Dolby Vision pre-processing
+// TagDolbyVisionMezzQC runs QC check on the mezzanine
 const (
-	ComputeClassTranscodeDefault      ComputeClass = "transcodeDefault"
-	ComputeClassDolbyVisionTranscode  ComputeClass = "doViTranscode"
-	ComputeClassDolbyVisionPreprocess ComputeClass = "doViPreprocess"
-	ComputeClassDolbyVisionMezzQC     ComputeClass = "doViMezzQC"
+	TagTranscodeDefault      = "transcodeDefault"
+	TagDolbyVisionTranscode  = "doViTranscode"
+	TagDolbyVisionPreprocess = "doViPreprocess"
+	TagDolbyVisionMezzQC     = "doViMezzQC"
+	TagDolbyVisionMetadata   = "dolbyVisionMetadata" // inconsistent
 )
 
 // Streaming configures Adaptive Streaming jobs
@@ -187,9 +183,9 @@ type Downmix struct {
 	Dst []AudioChannel
 }
 
-// ExecutionFeatures is a map whose key is a custom feature name and value is a json string
+// Features is a map whose key is a custom feature name and value is a json string
 // representing the corresponding custom feature definition
-type ExecutionFeatures map[string]interface{}
+type Features map[string]interface{}
 
 // File
 type File struct {
@@ -204,9 +200,9 @@ type File struct {
 	Video     Video         `json:"video,omitempty"`
 	Audio     Audio         `json:"audio,omitempty"`
 
-	Splice                  timecode.Splice `json:"splice,omitempty"`
-	Downmix                 *Downmix
-	ExplicitKeyframeOffsets []float64
+	Splice  timecode.Splice `json:"splice,omitempty"`
+	Downmix *Downmix
+	// ExplicitKeyframeOffsets []float64
 }
 
 func (f File) URL() url.URL {
@@ -241,6 +237,14 @@ type Video struct {
 	DolbyVision DolbyVision `json:"dolbyVision"`
 	Overlays    *Overlays   `json:"overlays,omitempty"`
 	Crop        video.Crop  `json:"crop"`
+}
+
+// Audio defines audio transcoding parameters
+type Audio struct {
+	Codec     string `json:"codec,omitempty"`
+	Bitrate   int    `json:"bitrate,omitempty"`
+	Normalize bool   `json:"normalize,omitempty"`
+	Discrete  bool   `json:"discrete,omitempty"`
 }
 
 type Bitrate struct {
@@ -300,12 +304,4 @@ type HDR10 struct {
 // DolbyVision settings
 type DolbyVision struct {
 	Enabled bool `json:"enabled"`
-}
-
-// Audio defines audio transcoding parameters
-type Audio struct {
-	Codec     string `json:"codec,omitempty"`
-	Bitrate   int    `json:"bitrate,omitempty"`
-	Normalize bool   `json:"normalize,omitempty"`
-	Discrete  bool   `json:"discrete,omitempty"`
 }

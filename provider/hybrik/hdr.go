@@ -123,7 +123,7 @@ func (p *driver) dolbyVisionJob(j *Job) (e [][]hy.Element) {
 }
 
 func (p *driver) dolbyVisionMezzQC(j *Job) hy.Element {
-	tag := tag(j, job.ComputeClassDolbyVisionPreprocess, "preproc")
+	tag := tag(j, job.TagDolbyVisionPreprocess, "preproc")
 	return hy.Element{
 		UID: "mezzanine_qc", Kind: "dolby_vision",
 		Task: &hy.ElementTaskOptions{Name: "Mezzanine QC", Tags: tag},
@@ -139,7 +139,7 @@ func (p *driver) dolbyVisionMezzQC(j *Job) hy.Element {
 
 func (p *driver) dolbyVisionTranscode(j *Job) (e []hy.Element) {
 	txcode := p.transcodeElems(mute(*j))
-	tag := tag(j, job.ComputeClassDolbyVisionPreprocess, "preproc")
+	tag := tag(j, job.TagDolbyVisionPreprocess, "preproc")
 
 	for i, f := range j.Output.File {
 		a := []hy.DoViMP4MuxElementaryStream{}

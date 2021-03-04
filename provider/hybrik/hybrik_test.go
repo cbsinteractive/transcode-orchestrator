@@ -1,81 +1,60 @@
 package hybrik
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
-	"github.com/cbsinteractive/hybrik-sdk-go"
+	hy "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/google/go-cmp/cmp"
 )
 
-type elementKind = string
-
 const (
-	elementKindTranscode   elementKind = "transcode"
-	elementKindSource      elementKind = "source"
-	elementKindPackage     elementKind = "package"
-	elementKindDolbyVision elementKind = "dolby_vision"
+	elementKindTranscode   = "transcode"
+	elementKindSource      = "source"
+	elementKindPackage     = "package"
+	elementKindDolbyVision = "dolby_vision"
 )
 
 var (
-	testoutput = job.File{
-		Name:      "file1.mp4",
-		Container: "mp4",
+	defaultPreset = job.File{
+		Name: "file1.mp4", Container: "mp4",
 		Video: job.Video{
-			Profile:  "high",
-			Level:    "4.1",
-			Width:    300,
-			Height:   400,
-			Codec:    "h264",
-			Bitrate:  job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
-			Gop:      job.Gop{Size: 120},
-			Scantype: "progressive",
+			Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h264",
+			Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
+			Gop:     job.Gop{Size: 120}, Scantype: "progressive",
 		},
-		Audio: job.Audio{
-			Codec:   "aac",
-			Bitrate: 20000,
-		},
+		Audio: job.Audio{Codec: "aac", Bitrate: 20000},
 	}
 
+	defaultJob    = testjob
+	jobGopSeconds = testjob
+
 	testjob = job.Job{
-		ID:       "jobID",
-		Provider: Name,
-		Input:    job.File{Name: "s3://some/path.mp4"},
+		ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/path.mp4"},
 		Output: job.Dir{
-			File: []job.File{testoutput},
+			File: []job.File{{
+				Name: "file1.mp4",
+				Video: job.Video{
+					Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h264",
+					Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
+					Gop:     job.Gop{Size: 120}, Scantype: "progressive",
+				},
+				Audio: job.Audio{Codec: "aac", Bitrate: 20000}}},
 		},
 	}
 )
 
-// preset job.File, uid string, destination storageLocation, filename string,
-//	execFeatures executionFeatures, computeTags map[job.ComputeClass]string
-type transcodeCfg struct {
-	uid                  string
-	destination          storageLocation
-	filename             string
-	execFeatures         executionFeatures
-	computeTags          map[job.ComputeClass]string
-	executionEnvironment job.ExecutionEnvironment
-}
-
-// updates default preset for quick test of gop structs
-func updateGopStruct(gopSize float64, gopUnit string) job.File {
-	var p = defaultPreset
-	p.Video.GopSize = gopSize
-	p.Video.GopUnit = gopUnit
-
-	return p
+func init() {
+	jobGopSeconds.Output.File[0].Video.Gop = job.Gop{Size: 2, Unit: "seconds"}
 }
 
 func TestPreset(t *testing.T) {
 	tests := []struct {
 		name                 string
+		input                *job.Job
 		provider             *driver
-		preset               job.File
-		transcodeCfg         transcodeCfg
 		wantTranscodeElement hy.TranscodePayload
 		wantTags             []string
 		wantErr              bool
@@ -88,21 +67,26 @@ func TestPreset(t *testing.T) {
 					GCPCredentialsKey: "some_key",
 				},
 			},
-			preset: defaultPreset,
-			transcodeCfg: transcodeCfg{
-				uid: "some_uid",
-				destination: storageLocation{
-					provider: storageProviderGCS,
-					path:     "gs://some_bucket/encodes",
+			input: &job.Job{
+				ID: "some_uid", Provider: Name,
+				Input: job.File{Name: "s3://some/path.mp4"},
+				Output: job.Dir{
+					Path: "gs://some_bucket/encodes",
+					File: []job.File{{
+						Name: "output.mp4", Container: "mp4",
+						Video: job.Video{
+							Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h264",
+							Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
+							Gop:     job.Gop{Size: 120}, Scantype: "progressive",
+						},
+						Audio: job.Audio{Codec: "aac", Bitrate: 20000},
+					}},
 				},
-				filename: "output.mp4",
-				execFeatures: executionFeatures{
-					segmentedRendering: &hy.SegmentedRendering{
-						Duration: 60,
-					},
+				Features: map[string]interface{}{
+					"segmentedRendering": &hy.SegmentedRendering{Duration: 60},
 				},
-				computeTags: map[job.ComputeClass]string{
-					job.ComputeClassTranscodeDefault: "transcode_default_tag",
+				Env: job.Env{
+					Tags: map[string]string{job.TagTranscodeDefault: "transcode_default_tag"},
 				},
 			},
 			wantTranscodeElement: hy.TranscodePayload{
@@ -152,18 +136,8 @@ func TestPreset(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := tt.provider.transcodeElementFromPreset(tt.preset, tt.transcodeCfg.uid, jobCfg{
-				destination:       tt.transcodeCfg.destination,
-				executionFeatures: tt.transcodeCfg.execFeatures,
-				computeTags:       tt.transcodeCfg.computeTags,
-			}, tt.transcodeCfg.filename)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("driver.transcodeElementFromPreset() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
+			p := tt.provider.transcodeElems(tt.input)[0]
 			if g, e := p.Payload, tt.wantTranscodeElement; !reflect.DeepEqual(g, e) {
 				t.Fatalf("driver.transcodeElementFromPreset() wrong transcode payload\nWant %+v\nGot %+v\nDiff %s", e,
 					g, cmp.Diff(e, g))
@@ -181,46 +155,50 @@ func TestPreset(t *testing.T) {
 
 func TestTranscodePreset(t *testing.T) {
 	tests := []struct {
-		name           string
-		presetModifier func(preset job.File) job.File
-		transcodeCfg   transcodeCfg
-		assertion      func(hy.TranscodePayload, *testing.T)
-		wantErrMsg     string
+		name       string
+		input      *job.Job
+		assertion  func(hy.TranscodePayload, *testing.T)
+		wantErrMsg string
 	}{
 		{
 			name: "HDR10",
-			presetModifier: func(p job.File) job.File {
-				p.Video.Codec = "h265"
-				p.Video.Profile = ""
-
-				p.Video.HDR10 = job.HDR10{
-					Enabled:       true,
-					MaxCLL:        10000,
-					MaxFALL:       400,
-					MasterDisplay: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
-				}
-				return p
+			input: &job.Job{
+				ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/path.mp4"},
+				Output: job.Dir{
+					File: []job.File{{
+						Name: "file1.mp4",
+						Video: job.Video{
+							Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h265",
+							Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
+							Gop:     job.Gop{Size: 120}, Scantype: "progressive",
+							HDR10: job.HDR10{
+								Enabled: true, MaxCLL: 10000, MaxFALL: 400,
+								MasterDisplay: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
+							},
+						},
+						Audio: job.Audio{Codec: "aac", Bitrate: 20000}}},
+				},
 			},
 			assertion: func(input hy.TranscodePayload, t *testing.T) {
 				transcodeTargets, ok := input.Targets.([]hy.TranscodeTarget)
 				if !ok {
 					t.Errorf("targets are not TranscodeTargets")
 				}
-				firstTarget := transcodeTargets[0]
+				t0 := transcodeTargets[0]
 
 				tests := []struct {
 					name      string
 					got, want interface{}
 				}{
-					{"masterdisplay", firstTarget.Video.HDR10.MasterDisplay, "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)"},
-					{"maxcll", firstTarget.Video.HDR10.MaxCLL, 10000},
-					{"maxfall", firstTarget.Video.HDR10.MaxFALL, 400},
-					{"colortrc", firstTarget.Video.ColorTRC, colorTRCSMPTE2084},
-					{"colormatrix", firstTarget.Video.ColorMatrix, colorMatrixBT2020NC},
-					{"colorformat", firstTarget.Video.ChromaFormat, chromaFormatYUV420P10LE},
-					{"colorprimaries", firstTarget.Video.ColorPrimaries, colorPrimaryBT2020},
-					{"codecprofile", firstTarget.Video.Profile, "main10"},
-					{"vtag", firstTarget.Video.VTag, "hvc1"},
+					{"masterdisplay", t0.Video.HDR10.MasterDisplay, "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)"},
+					{"maxcll", t0.Video.HDR10.MaxCLL, 10000},
+					{"maxfall", t0.Video.HDR10.MaxFALL, 400},
+					{"colortrc", t0.Video.ColorTRC, colorTRCSMPTE2084},
+					{"colormatrix", t0.Video.ColorMatrix, colorMatrixBT2020NC},
+					{"colorformat", t0.Video.ChromaFormat, chromaFormatYUV420P10LE},
+					{"colorprimaries", t0.Video.ColorPrimaries, colorPrimaryBT2020},
+					{"codecprofile", t0.Video.Profile, "main10"},
+					{"vtag", t0.Video.VTag, "hvc1"},
 				}
 
 				for _, tt := range tests {
@@ -235,21 +213,22 @@ func TestTranscodePreset(t *testing.T) {
 		},
 		{
 			name: "hevc/hdr10/mxf",
-			presetModifier: func(p job.File) job.File {
-				p.Video.Codec = "h265"
-				p.Video.Profile = ""
-				p.SourceContainer = "mxf"
-				p.Video.HDR10 = job.HDR10{
-					Enabled:       true,
-					MaxCLL:        10000,
-					MaxFALL:       400,
-					MasterDisplay: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
-				}
-
-				// setting twoPass to false to ensure it's forced to true
-				p.TwoPass = false
-
-				return p
+			input: &job.Job{
+				ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/in.mxf"},
+				Output: job.Dir{
+					File: []job.File{{
+						Name: "file1.mp4",
+						Video: job.Video{
+							Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h265",
+							Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: false},
+							Gop:     job.Gop{Size: 120}, Scantype: "progressive",
+							HDR10: job.HDR10{
+								Enabled: true, MaxCLL: 10000, MaxFALL: 400,
+								MasterDisplay: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
+							},
+						},
+						Audio: job.Audio{Codec: "aac", Bitrate: 20000}}},
+				},
 			},
 			assertion: func(input hy.TranscodePayload, t *testing.T) {
 				transcodeTargets, ok := input.Targets.([]hy.TranscodeTarget)
@@ -279,10 +258,22 @@ func TestTranscodePreset(t *testing.T) {
 		},
 		{
 			name: "vbr",
-			presetModifier: func(preset job.File) job.File {
-				preset.RateControl = "vbr"
-				preset.Video.Bitrate = 10000000
-				return preset
+			input: &job.Job{
+				ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/in.mxf"},
+				Output: job.Dir{
+					File: []job.File{{
+						Name: "file1.mp4",
+						Video: job.Video{
+							Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h265",
+							Bitrate: job.Bitrate{BPS: 10000000, Control: "vbr", TwoPass: true},
+							Gop:     job.Gop{Size: 120}, Scantype: "progressive",
+							HDR10: job.HDR10{
+								Enabled: true, MaxCLL: 10000, MaxFALL: 400,
+								MasterDisplay: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
+							},
+						},
+						Audio: job.Audio{Codec: "aac", Bitrate: 20000}}},
+				},
 			},
 			assertion: func(input hy.TranscodePayload, t *testing.T) {
 				transcodeTargets, ok := input.Targets.([]hy.TranscodeTarget)
@@ -295,7 +286,7 @@ func TestTranscodePreset(t *testing.T) {
 					name      string
 					got, want interface{}
 				}{
-					{"ratecontrol", firstTarget.Video.BitrateMode, rateControlModeVBR},
+					{"ratecontrol", firstTarget.Video.BitrateMode, "vbr"},
 					{"bitrate", firstTarget.Video.BitrateKb, 10000},
 					{"min", firstTarget.Video.MinBitrateKb, 10000 * (100 - vbrVariabilityPercent) / 100},
 					{"max", firstTarget.Video.MaxBitrateKb, 10000 * (100 + vbrVariabilityPercent) / 100},
@@ -311,61 +302,9 @@ func TestTranscodePreset(t *testing.T) {
 				}
 			},
 		},
-		{
-			name: "ratecontrolErr",
-			presetModifier: func(preset job.File) job.File {
-				preset.RateControl = "fake_mode"
-				return preset
-			},
-			wantErrMsg: `running "rateControl" transcode payload modifier: rate control mode "fake_mode" is not ` +
-				`supported in hybrik, the currently supported modes are map[cbr:{} vbr:{}]`,
-		},
-		{
-			name: "aws/maxCrossRegionMB/unset",
-			transcodeCfg: transcodeCfg{
-				destination: storageLocation{
-					provider: storageProviderS3,
-					path:     "s3://some_bucket/encodes",
-				},
-				executionEnvironment: job.ExecutionEnvironment{
-					OutputAlias: "test_alias",
-				},
-			},
-			presetModifier: func(p job.File) job.File {
-				return p
-			},
-			assertion: func(payload hy.TranscodePayload, t *testing.T) {
-				if maxCrossRegionMB := payload.Location.Access.MaxCrossRegionMB; maxCrossRegionMB != 0 {
-					t.Errorf("maxCrossRegionMB was %d, expected it to be 0", maxCrossRegionMB)
-				}
-			},
-		},
-		{
-			name: "gcs/maxCrossRegionMB/unlimited",
-			transcodeCfg: transcodeCfg{
-				uid: "some_uid",
-				destination: storageLocation{
-					provider: storageProviderGCS,
-					path:     "gs://some_bucket/encodes",
-				},
-				filename: "output.mp4",
-				executionEnvironment: job.ExecutionEnvironment{
-					OutputAlias: "test_alias",
-				},
-			},
-			presetModifier: func(p job.File) job.File {
-				return p
-			},
-			assertion: func(payload hy.TranscodePayload, t *testing.T) {
-				if maxCrossRegionMB := payload.Location.Access.MaxCrossRegionMB; maxCrossRegionMB != -1 {
-					t.Errorf("maxCrossRegionMB was %d, expected it to be -1", maxCrossRegionMB)
-				}
-			},
-		},
 	}
 
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
 			p := &driver{
 				config: &config.Hybrik{
@@ -373,16 +312,7 @@ func TestTranscodePreset(t *testing.T) {
 				},
 			}
 
-			gotElement, err := p.transcodeElementFromPreset(tt.presetModifier(defaultPreset), tt.transcodeCfg.uid, jobCfg{
-				destination:          tt.transcodeCfg.destination,
-				executionFeatures:    tt.transcodeCfg.execFeatures,
-				computeTags:          tt.transcodeCfg.computeTags,
-				executionEnvironment: tt.transcodeCfg.executionEnvironment,
-			}, tt.transcodeCfg.filename)
-			if err != nil && tt.wantErrMsg != err.Error() {
-				t.Errorf("driver.transcodeElementFromPreset()error = %v, wantErr %q", err, tt.wantErrMsg)
-				return
-			}
+			gotElement := p.transcodeElems(tt.input)[0]
 
 			if tt.assertion != nil {
 				tt.assertion(gotElement.Payload.(hy.TranscodePayload), t)
@@ -469,7 +399,7 @@ func TestPresetConversion(t *testing.T) {
 		{
 			name:   "gopSeconds",
 			job:    defaultJob,
-			preset: updateGopStruct(2, "seconds"),
+			preset: jobGopSeconds.Output.File[0],
 			wantJob: hy.CreateJob{
 				Name: "Job jobID [path.mp4]",
 				Payload: hy.CreateJobPayload{
@@ -662,20 +592,12 @@ func TestPresetConversion(t *testing.T) {
 			name: "mp4dolbyVision",
 			job:  defaultJob,
 			preset: job.File{
-				Name:        defaultPreset.Name,
-				Description: defaultPreset.Description,
-				Container:   "mp4",
+				Name: defaultPreset.Name, Container: "mp4",
 				Video: job.Video{
-					Profile:       "main10",
-					Width:         300,
-					Codec:         "h265",
-					Bitrate:       12000,
-					GopSize:       120,
-					GopMode:       "fixed",
-					InterlaceMode: "progressive",
-					DolbyVision: job.DolbyVision{
-						Enabled: true,
-					},
+					Codec: "h265", Profile: "main10",
+					Width: 300, Scantype: "progressive",
+					Bitrate: job.Bitrate{BPS: 12000}, Gop: job.Gop{Size: 120, Mode: "fixed"},
+					DolbyVision: job.DolbyVision{Enabled: true},
 				},
 			},
 			wantJob: hy.CreateJob{
@@ -694,7 +616,7 @@ func TestPresetConversion(t *testing.T) {
 							UID:  "dolby_vision_task",
 							Kind: "dolby_vision",
 							Task: &hy.ElementTaskOptions{
-								Tags: []string{computeTagPreProcDefault},
+								Tags: []string{"preproc"},
 							},
 							Payload: hy.DolbyVisionTaskPayload{
 								Module:  "profile",
@@ -821,8 +743,8 @@ func TestPresetConversion(t *testing.T) {
 				},
 			}
 
-			tt.job.Outputs[0].Preset = tt.preset
-			got, err := p.createJobReqFrom(context.Background(), &tt.job)
+			tt.job.Output.File[0] = tt.preset
+			got, err := p.jobRequest(&tt.job)
 			if err != nil {
 				if tt.wantErr != err.Error() {
 					t.Errorf("driver.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErr)
@@ -839,6 +761,12 @@ func TestPresetConversion(t *testing.T) {
 	}
 }
 
+func lastPayload(t *testing.T, j hy.CreateJob) hy.TranscodePayload {
+	t.Helper()
+	p := j.Payload.Elements
+	return p[len(p)-1].Payload.(hy.TranscodePayload)
+}
+
 func TestTranscodeJobFields(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -849,8 +777,8 @@ func TestTranscodeJobFields(t *testing.T) {
 		{
 			name: "dolbyVision",
 			jobModifier: func(j job.Job) job.Job {
-				j.SidecarAssets = map[job.SidecarAssetKind]string{
-					job.SidecarAssetKindDolbyVisionMetadata: "s3://test_sidecar_location/path/file.xml",
+				j.ExtraFiles = map[string]string{
+					job.TagDolbyVisionMetadata: "s3://test_sidecar_location/path/file.xml",
 				}
 
 				return j
@@ -888,7 +816,7 @@ func TestTranscodeJobFields(t *testing.T) {
 		{
 			name: "pathOverride",
 			jobModifier: func(job job.Job) job.Job {
-				job.DestinationBasePath = "s3://per-job-defined-bucket/some/base/path"
+				job.Output.Path = "s3://per-job-defined-bucket/some/base/path"
 				return job
 			},
 			assertion: func(createJob hy.CreateJob, t *testing.T) {
@@ -912,8 +840,8 @@ func TestTranscodeJobFields(t *testing.T) {
 		{
 			name: "tags",
 			jobModifier: func(j job.Job) job.Job {
-				j.ExecutionEnv.ComputeTags = map[job.ComputeClass]string{
-					job.ComputeClassTranscodeDefault: "custom_tag",
+				j.Env.Tags = map[string]string{
+					job.TagTranscodeDefault: "custom_tag",
 				}
 
 				return j
@@ -930,169 +858,51 @@ func TestTranscodeJobFields(t *testing.T) {
 			},
 		},
 		{
-			name: "HLS",
-			jobModifier: func(j job.Job) job.Job {
-				j.StreamingParams = job.StreamingParams{
-					SegmentDuration: 4,
-					Protocol:        "hls",
-				}
-
-				j.ExecutionEnv.ComputeTags = map[job.ComputeClass]string{
-					job.ComputeClassTranscodeDefault: "default_transcode_class",
-				}
-
-				return j
-			},
-			assertion: func(createJob hy.CreateJob, t *testing.T) {
-				gotTask := createJob.Payload.Elements[len(createJob.Payload.Elements)-1]
-
-				expectTask := hy.Element{
-					UID:  "packager",
-					Kind: elementKindPackage,
-					Task: &hy.ElementTaskOptions{
-						Tags: []string{"default_transcode_class"},
-					},
-					Payload: hy.PackagePayload{
-						Location: hy.TranscodeLocation{
-							StorageProvider: "s3",
-							Path:            "s3://some-dest/path/jobID/hls",
-						},
-						FilePattern:        "master.m3u8",
-						Kind:               "hls",
-						SegmentationMode:   "segmented_mp4",
-						SegmentDurationSec: 4,
-						HLS: &hy.HLSPackagingSettings{
-							IncludeIFRAMEManifests: true,
-							HEVCCodecIDPrefix:      "hvc1",
-						},
-					},
-				}
-
-				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
-					t.Fatalf("driver.presetsToTranscodeJob() wrong package task\nWant %+v\nGot %+v\nDiff %s", e,
-						g, cmp.Diff(e, g))
-				}
-			},
-		},
-		{
-			name: "DASH",
-			jobModifier: func(j job.Job) job.Job {
-				j.StreamingParams = job.StreamingParams{
-					SegmentDuration: 4,
-					Protocol:        "dash",
-				}
-
-				return j
-			},
-			assertion: func(createJob hy.CreateJob, t *testing.T) {
-				gotTask := createJob.Payload.Elements[len(createJob.Payload.Elements)-1]
-
-				expectTask := hy.Element{
-					UID:  "packager",
-					Kind: elementKindPackage,
-					Payload: hy.PackagePayload{
-						Location: hy.TranscodeLocation{
-							StorageProvider: "s3",
-							Path:            "s3://some-dest/path/jobID/dash",
-						},
-						FilePattern:        "master.mpd",
-						Kind:               "dash",
-						SegmentationMode:   "segmented_mp4",
-						SegmentDurationSec: 4,
-						DASH: &hy.DASHPackagingSettings{
-							SegmentationMode:   "segmented_mp4",
-							SegmentDurationSec: "4",
-						},
-					},
-				}
-
-				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
-					t.Fatalf("driver.presetsToTranscodeJob() wrong package task\nWant %+v\nGot %+v\nDiff %s", e,
-						g, cmp.Diff(e, g))
-				}
-			},
-		},
-		{
 			name: "segmentedRenderingS3",
 			jobModifier: func(j job.Job) job.Job {
-				j.SourceMedia = "s3://bucket/path/file.mp4"
-				j.ExecutionFeatures = job.ExecutionFeatures{
-					featureSegmentedRendering: SegmentedRendering{Duration: 50},
+				j.Input.Name = "s3://bucket/path/file.mp4"
+				j.Features = job.Features{
+					"segmentedRendering": SegmentedRendering{Duration: 50},
 				}
 
 				return j
 			},
-			assertion: func(createJob hy.CreateJob, t *testing.T) {
-				elements := createJob.Payload.Elements
-				transcode, ok := elements[len(elements)-1].Payload.(hy.TranscodePayload)
-				if !ok {
-					t.Error("could not find a transcode payload in the job")
-					return
-				}
-
-				segRendering := transcode.SourcePipeline.SegmentedRendering
-				if segRendering == nil {
-					t.Error("segmented rendering was nil, expected segmented rendering to be set")
-					return
-				}
-
-				if g, e := segRendering.Duration, 50; g != e {
-					t.Fatalf("driver.presetsToTranscodeJob() wrong segmented rendering du"+
-						"ration:\nGot %d\nWant %d", g, e)
+			assertion: func(j hy.CreateJob, t *testing.T) {
+				r := lastPayload(t, j).SourcePipeline.SegmentedRendering
+				if g, e := r.Duration, 50; g != e {
+					t.Fatalf("duration:\nGot %d\nWant %d", g, e)
 				}
 			},
 		},
 		{
 			name: "segmentedRenderingGCS",
 			jobModifier: func(j job.Job) job.Job {
-				j.SourceMedia = "gs://bucket/path/file.mp4"
-				j.ExecutionFeatures = job.ExecutionFeatures{
-					featureSegmentedRendering: SegmentedRendering{Duration: 50},
+				j.Input.Name = "gs://bucket/path/file.mp4"
+				j.Features = job.Features{
+					"segmentedRendering": SegmentedRendering{Duration: 50},
 				}
 				return j
 			},
-			assertion: func(createJob hy.CreateJob, t *testing.T) {
-				elements := createJob.Payload.Elements
-				transcode, ok := elements[len(elements)-1].Payload.(hy.TranscodePayload)
-				if !ok {
-					t.Error("could not find a transcode payload in the job")
-					return
-				}
-
-				segRendering := transcode.SourcePipeline.SegmentedRendering
-				if segRendering == nil {
-					t.Error("segmented rendering was nil, expected segmented rendering to be set")
-					return
-				}
-
-				if g, e := segRendering.Duration, 50; g != e {
-					t.Fatalf("driver.presetsToTranscodeJob() wrong segmented rendering du"+
-						"ration:\nGot %d\nWant %d", g, e)
+			assertion: func(j hy.CreateJob, t *testing.T) {
+				r := lastPayload(t, j).SourcePipeline.SegmentedRendering
+				if g, e := r.Duration, 50; g != e {
+					t.Fatalf("duration:\nGot %d\nWant %d", g, e)
 				}
 			},
 		},
 		{
 			name: "segmentedRenderingHTTP",
 			jobModifier: func(j job.Job) job.Job {
-				j.SourceMedia = "http://example.com/path/file.mp4"
-				j.ExecutionFeatures = job.ExecutionFeatures{
-					featureSegmentedRendering: SegmentedRendering{Duration: 50},
+				j.Input.Name = "http://example.com/path/file.mp4"
+				j.Features = job.Features{
+					"segmentedRendering": SegmentedRendering{Duration: 50},
 				}
-
 				return j
 			},
-			assertion: func(createJob hy.CreateJob, t *testing.T) {
-				elements := createJob.Payload.Elements
-				transcode, ok := elements[len(elements)-1].Payload.(hy.TranscodePayload)
-				if !ok {
-					t.Error("could not find a transcode payload in the job")
-					return
-				}
-
-				segRendering := transcode.SourcePipeline.SegmentedRendering
-				if segRendering != nil {
-					t.Errorf("segmented rendering was %+v, expected segmented rendering to be nil", segRendering)
-					return
+			assertion: func(j hy.CreateJob, t *testing.T) {
+				r := lastPayload(t, j).SourcePipeline.SegmentedRendering
+				if r != nil {
+					t.Fatalf("segmented rendering set erroneously: %v", r)
 				}
 			},
 		},
@@ -1108,16 +918,15 @@ func TestTranscodeJobFields(t *testing.T) {
 				},
 			}
 			j := defaultJob
-			j.Outputs[0].Preset = defaultPreset
+			j.Output.File[0] = defaultPreset
 			j = tt.jobModifier(j)
-			got, err := p.createJobReqFrom(context.Background(), &j)
+			got, err := p.jobRequest(&j)
 			if err != nil && tt.wantErrMsg != err.Error() {
-				t.Errorf("driver.presetsToTranscodeJob() error = %v, wantErr %q", err, tt.wantErrMsg)
-				return
+				t.Fatalf("error = %v, wantErr %q", err, tt.wantErrMsg)
 			}
 
 			if tt.assertion != nil {
-				tt.assertion(got, t)
+				tt.assertion(*got, t)
 			}
 		})
 	}

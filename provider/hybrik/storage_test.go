@@ -1,30 +1,28 @@
 package hybrik
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/cbsinteractive/transcode-orchestrator/job"
+)
 
 func TestStorage(t *testing.T) {
 	tests := []struct {
-		name, path   string
-		wantProvider storageProvider
-		wantErr      string
+		name, path, want string
 	}{
-		{"s3", "s3://some-bucket/some-path", storageProviderS3, ""},
-		{"gcs", "gs://some-bucket/some-path", storageProviderGCS, ""},
-		{"http", "http://some-domain.com/some-path", storageProviderHTTP, ""},
-		{"https", "https://some-domain.com/some-path", storageProviderHTTP, ""},
-		{"unsupported", "fakescheme://some-bucket/some-path", "", `the scheme "fakescheme" is unsupported`},
-		{"bad", "%fsdf://some-bucket/some-path", "", `parse "%fsdf://some-bucket/some-path": first path segment in URL cannot contain colon`},
+		{"s3", "s3://some-bucket/some-path", "s3"},
+		{"gcs", "gs://some-bucket/some-path", "gcs"},
+		{"http", "http://some-domain.com/some-path", "http"},
+		{"https", "https://some-domain.com/some-path", "https"},
+		// {"unsupported", "fakescheme://some-bucket/some-path", "", `the scheme "fakescheme" is unsupported`},
+		{"bad", "%fsdf://some-bucket/some-path", ""},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			prov, err := storageProviderFrom(tt.path)
-			if shouldReturn := assertWantErr(err, tt.wantErr, "storageProviderFrom()", t); shouldReturn {
-				return
-			}
-
-			if g, e := prov, tt.wantProvider; g != e {
-				t.Fatalf("storageProviderFrom() wrong provider: got %q, expected %q", g, e)
+			h := job.File{Name: tt.path}.Provider()
+			if h != tt.want {
+				t.Fatalf("wrong provider: have %q, want %q", h, tt.want)
 			}
 		})
 	}

@@ -113,7 +113,7 @@ func (p *driver) Valid(j *Job) error {
 */
 
 func tag(j *Job, name string, fallback ...string) []string {
-	v := j.ExecutionEnv.ComputeTags[name]
+	v := j.Env.Tags[name]
 	if len(v) == 0 {
 		return fallback
 	}
@@ -208,7 +208,7 @@ func (p *driver) Status(_ context.Context, j *Job) (*Status, error) {
 }
 
 func features(j *Job) *hy.SegmentedRendering {
-	v, has := j.ExecutionFeatures["segmentedRendering"]
+	v, has := j.Features["segmentedRendering"]
 	if !has || j.Input.Provider() == "http" {
 		// TODO(as): this check for http is a direct copy from the old
 		// version, but is http the only thing that doesn't support

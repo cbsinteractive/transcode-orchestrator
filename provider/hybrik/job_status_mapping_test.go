@@ -6,9 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/cbsinteractive/hybrik-sdk-go"
+	hy "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestFiles(t *testing.T) {
@@ -16,15 +15,15 @@ func TestFiles(t *testing.T) {
 
 	tests := []struct {
 		name, file           string
-		outputFiles          []job.File
+		want                 []job.File
 		expectMissingOutputs bool
 	}{
 		{
 			name: "task_status_combine_segments.json",
 			file: "testdata/task_status_combine_segments.json",
-			outputFiles: []Out{
+			want: []Out{
 				{
-					Path:      "s3://vtg-tsymborski-test-bucket/encodes/046afa431fe57178/CBS_NCISNO_509_AA_30M_6CH_528.mp4",
+					Name:      "s3://vtg-tsymborski-test-bucket/encodes/046afa431fe57178/CBS_NCISNO_509_AA_30M_6CH_528.mp4",
 					Container: "mp4",
 					Size:      163718122,
 				},
@@ -33,9 +32,9 @@ func TestFiles(t *testing.T) {
 		{
 			name: "task_status_dovi_transcode.json",
 			file: "testdata/task_status_dovi_transcode.json",
-			outputFiles: []Out{
+			want: []Out{
 				{
-					Path:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/blackmonday_540.mp4",
+					Name:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/blackmonday_540.mp4",
 					Container: "mp4",
 					Size:      492007718,
 				},
@@ -44,9 +43,9 @@ func TestFiles(t *testing.T) {
 		{
 			name: "task_status_filename_no_extension.json",
 			file: "testdata/task_status_filename_no_extension.json",
-			outputFiles: []Out{
+			want: []Out{
 				{
-					Path:      "s3://vtg-tsymborski-test-bucket/encodes/046afa431fe57178/CBS_NCISNO_509_AA_30M_6CH_528",
+					Name:      "s3://vtg-tsymborski-test-bucket/encodes/046afa431fe57178/CBS_NCISNO_509_AA_30M_6CH_528",
 					Container: "mp4",
 					Size:      163718122,
 				},
@@ -55,9 +54,9 @@ func TestFiles(t *testing.T) {
 		{
 			name: "task_status_legacy_dovi_post_process.json",
 			file: "testdata/task_status_legacy_dovi_post_process.json",
-			outputFiles: []Out{
+			want: []Out{
 				{
-					Path:      "gs://mediahub-dev/encodes/old_structure/733cc64ccde05511/dovi_custom_filename_1.mp4",
+					Name:      "gs://mediahub-dev/encodes/old_structure/733cc64ccde05511/dovi_custom_filename_1.mp4",
 					Container: "mp4",
 					Size:      6998510,
 				},
@@ -66,39 +65,39 @@ func TestFiles(t *testing.T) {
 		{
 			name: "task_status_package.json",
 			file: "testdata/task_status_package.json",
-			outputFiles: []Out{
+			want: []Out{
 				{
-					Path:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/master.m3u8",
+					Name:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/master.m3u8",
 					Container: "m3u8",
 					Size:      1429,
 				},
 				{
-					Path:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_360_audio.m3u8",
+					Name:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_360_audio.m3u8",
 					Container: "m3u8",
 					Size:      16328,
 				},
 				{
-					Path:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_360_video.m3u8",
+					Name:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_360_video.m3u8",
 					Container: "m3u8",
 					Size:      15402,
 				},
 				{
-					Path:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_540_video.m3u8",
+					Name:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_540_video.m3u8",
 					Container: "m3u8",
 					Size:      15402,
 				},
 				{
-					Path:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_540_audio.m3u8",
+					Name:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_540_audio.m3u8",
 					Container: "m3u8",
 					Size:      16328,
 				},
 				{
-					Path:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_540-iframes.m3u8",
+					Name:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_540-iframes.m3u8",
 					Container: "m3u8",
 					Size:      22646,
 				},
 				{
-					Path:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_360-iframes.m3u8",
+					Name:      "s3://vtg-tsymborski-test-bucket/encodes/blackmonday/hls/blackmonday_360-iframes.m3u8",
 					Container: "m3u8",
 					Size:      22628,
 				},
@@ -114,32 +113,29 @@ func TestFiles(t *testing.T) {
 	for _, tt := range tests {
 
 		t.Run(tt.name, func(t *testing.T) {
-			file, err := ioutil.ReadFile(tt.file)
-			if err != nil {
-				t.Error(err)
-				return
-			}
-
 			var taskResult hy.TaskResult
-			err = json.Unmarshal(file, &taskResult)
+			file, _ := ioutil.ReadFile(tt.file)
+			err := json.Unmarshal(file, &taskResult)
 			if err != nil {
-				t.Error(err)
-				return
+				t.Fatal(err)
 			}
 
 			files, found, err := filesFrom(taskResult)
 			if err != nil {
-				t.Error(err)
-				return
+				t.Fatal(err)
 			}
 
 			if found && tt.expectMissingOutputs {
-				t.Errorf("expected no outputs to be found")
-				return
+				t.Fatal("expected no outputs to be found")
 			}
-
-			if g, e := files, tt.outputFiles; !reflect.DeepEqual(g, e) {
-				t.Errorf("wrong jobs: got %v\nexpected %v\ndiff %v", g, e, cmp.Diff(g, e))
+			for i, w := range files {
+				h := files[i]
+				if !reflect.DeepEqual(h, w) {
+					t.Fatalf("file[%d]:\n\t\thave: %v\n\t\twant: %v", i, h, w)
+				}
+			}
+			if h, w := len(file), len(tt.want); h != w {
+				t.Errorf("bad file count: have %d want %d", h, w)
 			}
 		})
 	}
