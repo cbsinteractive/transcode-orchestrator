@@ -352,7 +352,7 @@ func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan err
 func (p *driver) inputFrom(ctx context.Context, job *Job) (inputID string, err error) {
 	defer p.trace(ctx, "bitmovin-create-input", &err)()
 
-	if alias := job.ExecutionEnv.InputAlias; alias != "" {
+	if alias := job.Env.InputAlias; alias != "" {
 		return alias, nil
 	}
 	return storage.NewInput(job.Input.Name, storage.InputAPI{
@@ -366,7 +366,7 @@ func (p *driver) inputFrom(ctx context.Context, job *Job) (inputID string, err e
 func (p *driver) outputFrom(ctx context.Context, job *Job) (id string, err error) {
 	defer p.trace(ctx, "bitmovin-create-output", &err)()
 
-	if alias := job.ExecutionEnv.OutputAlias; alias != "" {
+	if alias := job.Env.OutputAlias; alias != "" {
 		return alias, nil
 	}
 
@@ -377,7 +377,7 @@ func (p *driver) outputFrom(ctx context.Context, job *Job) (id string, err error
 }
 
 func (p *driver) encodingCloudRegionFrom(j *Job) (model.CloudRegion, error) {
-	if cloud, region := j.ExecutionEnv.Cloud, j.ExecutionEnv.Region; cloud+region != "" {
+	if cloud, region := j.Env.Cloud, j.Env.Region; cloud+region != "" {
 		regions, found := regionByCloud[cloud]
 		if !found {
 			return "", fmt.Errorf("unsupported cloud %q", cloud)
@@ -400,7 +400,7 @@ func (p *driver) encodingInfrastructureFrom(j *Job) (*model.InfrastructureSettin
 		return nil, encodingCloudRegion, errors.Wrap(err, "validating and setting encoding cloud region")
 	}
 
-	if tag, found := j.ExecutionEnv.ComputeTags[job.ComputeClassTranscodeDefault]; found {
+	if tag, found := j.Env.Tags[job.TagTranscodeDefault]; found {
 		return &model.InfrastructureSettings{
 			InfrastructureId: tag,
 			CloudRegion:      encodingCloudRegion,
@@ -440,14 +440,14 @@ func (p *driver) createExplicitKeyframes(encodingID string, offsets []float64) e
 	return nil
 }
 
-func (p *driver) createPreset(_ context.Context, preset job.File, summary *Preset) error {
-	vc, _ := codec.New(preset.Video.Codec, preset)
-	ac, _ := codec.New(preset.Audio.Codec, preset)
+func (p *driver) createPreset(_ context.Context, f job.File, summary *Preset) error {
+	vc, _ := codec.New(f.Video.Codec, f)
+	ac, _ := codec.New(f.Audio.Codec, f)
 	c := []codec.Codec{}
-	if preset.Video.Codec != "" {
+	if f.Video.Codec != "" {
 		c = append(c, vc)
 	}
-	if preset.Audio.Codec != "" {
+	if f.Audio.Codec != "" {
 		c = append(c, ac)
 	}
 	for _, c := range c {
@@ -455,7 +455,7 @@ func (p *driver) createPreset(_ context.Context, preset job.File, summary *Prese
 		if c.Err() != nil {
 			return c.Err()
 		}
-		*summary = codec.Summary(c, preset, *summary)
+		*summary = codec.Summary(c, f, *summary)
 	}
 
 	if summary.HasVideo() {
@@ -469,7 +469,7 @@ func (p *driver) createPreset(_ context.Context, preset job.File, summary *Prese
 
 		summary.VideoFilters = append(summary.VideoFilters, deInterlace.Id)
 
-		if c := preset.Video.Crop; !c.Empty() {
+		if c := f.Video.Crop; !c.Empty() {
 			f, err := p.api.Encoding.Filters.Crop.Create(model.CropFilter{
 				Left:   bitmovin.Int32Ptr(int32(c.Left)),
 				Right:  bitmovin.Int32Ptr(int32(c.Right)),
@@ -483,21 +483,18 @@ func (p *driver) createPreset(_ context.Context, preset job.File, summary *Prese
 			summary.VideoFilters = append(summary.VideoFilters, f.Id)
 		}
 
-		if overlays := preset.Video.Overlays; overlays != nil && overlays.Images != nil {
-			for _, image := range overlays.Images {
-				watermark, err := p.api.Encoding.Filters.Watermark.Create(model.WatermarkFilter{
-					Name:  "imageOverlay",
-					Right: bitmovin.Int32Ptr(0),
-					Top:   bitmovin.Int32Ptr(0),
-					Unit:  model.PositionUnit_PERCENTS,
-					Image: image.URL,
-				})
-				if err != nil {
-					return fmt.Errorf("creating watermark filter: %w", err)
-				}
-
-				summary.VideoFilters = append(summary.VideoFilters, watermark.Id)
+		for _, img := range f.Video.Overlays.Images {
+			watermark, err := p.api.Encoding.Filters.Watermark.Create(model.WatermarkFilter{
+				Name:  "imageOverlay",
+				Right: bitmovin.Int32Ptr(0),
+				Top:   bitmovin.Int32Ptr(0),
+				Unit:  model.PositionUnit_PERCENTS,
+				Image: img.URL,
+			})
+			if err != nil {
+				return fmt.Errorf("creating watermark filter: %w", err)
 			}
+			summary.VideoFilters = append(summary.VideoFilters, watermark.Id)
 		}
 	}
 

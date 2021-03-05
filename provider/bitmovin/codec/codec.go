@@ -120,7 +120,7 @@ func (c *codec) errorf(fm string, a ...interface{}) bool {
 
 var zero = int32(0)
 
-func ptr(n uint) *int32 {
+func ptr(n int) *int32 {
 	i := int32(n)
 	return &i
 }

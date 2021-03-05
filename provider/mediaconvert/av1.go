@@ -2,16 +2,15 @@ package mediaconvert
 
 import (
 	"fmt"
-	"strings"
 
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
-func av1CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
-	bitrate := int64(preset.Video.Bitrate)
-	gopSize, err := av1GopSizeFrom(preset.Video.GopUnit, preset.Video.GopSize)
+func av1CodecSettingsFrom(f job.File) (*mc.VideoCodecSettings, error) {
+	bitrate := int64(f.Video.Bitrate.BPS)
+	gopSize, err := av1GopSizeFrom(f.Video.Gop)
 	if err != nil {
 		return nil, err
 	}
@@ -30,13 +29,9 @@ func av1CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
 	}, nil
 }
 
-func av1GopSizeFrom(gopUnit string, gopSize float64) (float64, error) {
-	switch strings.ToLower(gopUnit) {
-	case "", job.GopUnitFrames:
-		return gopSize, nil
-	case job.GopUnitSeconds:
-		return 0, fmt.Errorf("gop unit %q is not supported with mediaconvert and AV1", gopUnit)
-	default:
-		return 0, fmt.Errorf("gop unit %q is not supported with mediaconvert", gopUnit)
+func av1GopSizeFrom(g job.Gop) (float64, error) {
+	if g.Seconds() {
+		return 0, fmt.Errorf(`gop unit "seconds" is not supported with mediaconvert and AV1`)
 	}
+	return g.Size, nil
 }

@@ -12,19 +12,15 @@ const (
 	defaultGopUnitVP8 = "frames"
 )
 
-func vp8CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
-	if gu := preset.Video.GopUnit; len(gu) > 0 && gu != defaultGopUnitVP8 {
-		return nil, fmt.Errorf("can't configure gop unit: %v with vp8. Must use frames", preset.Video.GopUnit)
+func vp8CodecSettingsFrom(f job.File) (*mc.VideoCodecSettings, error) {
+	if f.Video.Gop.Seconds() {
+		return nil, fmt.Errorf("can't configure gop unit: seconds with vp8. Must use frames")
 	}
-
-	gopSize := preset.Video.GopSize
-	bitrate := int64(preset.Video.Bitrate)
-
 	return &mc.VideoCodecSettings{
 		Codec: mc.VideoCodecVp8,
 		Vp8Settings: &mc.Vp8Settings{
-			Bitrate:          aws.Int64(bitrate),
-			GopSize:          aws.Float64(gopSize),
+			Bitrate:          aws.Int64(int64(f.Video.Bitrate.BPS)),
+			GopSize:          aws.Float64(f.Video.Gop.Size),
 			RateControlMode:  mc.Vp8RateControlModeVbr,
 			FramerateControl: mc.Vp8FramerateControlInitializeFromSource,
 			ParControl:       mc.Vp8ParControlSpecified,

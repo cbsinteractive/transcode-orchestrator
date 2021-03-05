@@ -15,41 +15,33 @@ var (
 	ErrInvalid     = errors.New("invalid")
 )
 
-func h265CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
-	bitrate := preset.Video.Bitrate
-	gopSize := preset.Video.GopSize
-
-	gopUnit, err := h265GopUnitFrom(preset.Video.GopUnit)
-	if err != nil {
-		return nil, err
-	}
-
-	rateControl, err := h265RateControlModeFrom(preset.RateControl)
+func h265CodecSettingsFrom(f job.File) (*mc.VideoCodecSettings, error) {
+	rateControl, err := h265RateControl(f.Video.Bitrate.Control)
 	if err != nil {
 		return nil, err
 	}
 
 	profile := mc.H265CodecProfileMainMain
-	if preset.Video.HDR10.Enabled {
+	if f.Video.HDR10.Enabled {
 		profile = mc.H265CodecProfileMain10Main
 	}
 
-	level, err := h265CodecLevelFrom(preset.Video.Level)
+	level, err := h265CodecLevelFrom(f.Video.Level)
 	if err != nil {
 		return nil, err
 	}
 
-	tuning := mc.H265QualityTuningLevelSinglePassHq
-	if preset.TwoPass {
-		tuning = mc.H265QualityTuningLevelMultiPassHq
+	passes := mc.H265QualityTuningLevelSinglePassHq
+	if f.Video.Bitrate.TwoPass {
+		passes = mc.H265QualityTuningLevelMultiPassHq
 	}
 
 	return &mc.VideoCodecSettings{
 		Codec: mc.VideoCodecH265,
 		H265Settings: &mc.H265Settings{
-			Bitrate:                        aws.Int64(int64(bitrate)),
-			GopSize:                        aws.Float64(gopSize),
-			GopSizeUnits:                   gopUnit,
+			Bitrate:                        aws.Int64(int64(f.Video.Bitrate.BPS)),
+			GopSize:                        aws.Float64(f.Video.Gop.Size),
+			GopSizeUnits:                   h265GopUnit(f.Video.Gop),
 			RateControlMode:                rateControl,
 			CodecProfile:                   profile,
 			CodecLevel:                     level,
@@ -57,7 +49,7 @@ func h265CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
 			ParControl:                     mc.H265ParControlSpecified,
 			ParNumerator:                   aws.Int64(1),
 			ParDenominator:                 aws.Int64(1),
-			QualityTuningLevel:             tuning,
+			QualityTuningLevel:             passes,
 			WriteMp4PackagingType:          mc.H265WriteMp4PackagingTypeHvc1,
 			AlternateTransferFunctionSei:   mc.H265AlternateTransferFunctionSeiDisabled,
 			SpatialAdaptiveQuantization:    mc.H265SpatialAdaptiveQuantizationEnabled,
@@ -70,18 +62,17 @@ func h265CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
 	}, nil
 }
 
-func h265GopUnitFrom(v string) (mc.H265GopSizeUnits, error) {
-	switch strings.ToLower(v) {
-	case "", job.GopUnitFrames:
-		return mc.H265GopSizeUnitsFrames, nil
-	case job.GopUnitSeconds:
-		return mc.H265GopSizeUnitsSeconds, nil
-	default:
-		return "", fmt.Errorf("h265: %w: gop unit %q", ErrUnsupported, v)
+func h265GopUnit(g job.Gop) mc.H265GopSizeUnits {
+	//  mc.H265GopSizeUnitsSeconds and  mc.H264GopSizeUnitsSeconds
+	// are the same thing
+	// aws = worst api ever
+	if g.Seconds() {
+		return mc.H265GopSizeUnitsSeconds
 	}
+	return mc.H265GopSizeUnitsFrames
 }
 
-func h265RateControlModeFrom(v string) (mc.H265RateControlMode, error) {
+func h265RateControl(v string) (mc.H265RateControlMode, error) {
 	switch strings.ToLower(v) {
 	case "vbr":
 		return mc.H265RateControlModeVbr, nil

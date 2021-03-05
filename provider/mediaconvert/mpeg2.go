@@ -32,17 +32,17 @@ func (m mpeg2) validate(p job.File) error {
 }
 
 func (m mpeg2) apply(p job.File) mpeg2 {
-	if p.Video.Profile != "" {
-		m.CodecProfile = mpeg2profiles[p.Video.Profile]
+	if v := p.Video.Profile; v != "" {
+		m.CodecProfile = mpeg2profiles[v]
 	}
-	if p.Video.Bitrate != 0 {
-		m.Bitrate = aws.Int64(int64(p.Video.Bitrate))
+	if v := p.Video.Bitrate.BPS; v != 0 {
+		m.Bitrate = aws.Int64(int64(v))
 	}
-	if p.Video.GopSize != 0 {
-		m.GopSize = &p.Video.GopSize
+	if v := p.Video.Gop.Size; v != 0 {
+		m.GopSize = &v
 	}
-	if p.RateControl != "" {
-		m.RateControlMode = mc.Mpeg2RateControlMode(p.RateControl)
+	if v := p.Video.Bitrate.Control; v != "" {
+		m.RateControlMode = mc.Mpeg2RateControlMode(v)
 	}
 	return m
 }

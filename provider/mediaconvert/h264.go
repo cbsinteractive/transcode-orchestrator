@@ -17,41 +17,29 @@ var RateControl = map[string]string{
 	"vbr":  "VBR",
 	"qvbr": "QVBR",
 }
-var GopUnits = map[string]string{
-	"":                 "FRAMES",
-	job.GopUnitFrames:  "FRAMES",
-	job.GopUnitSeconds: "SECONDS",
-}
 
-func h264CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
-	bitrate := preset.Video.Bitrate
-	gopSize := preset.Video.GopSize
-	gopUnit, err := h264GopUnitFrom(preset.Video.GopUnit)
+func h264CodecSettingsFrom(f job.File) (*mc.VideoCodecSettings, error) {
+	rateControl, err := h264RateControl(f.Video.Bitrate.Control)
 	if err != nil {
 		return nil, err
 	}
 
-	rateControl, err := h264RateControlModeFrom(preset.RateControl)
+	profile, err := h264CodecProfileFrom(f.Video.Profile)
 	if err != nil {
 		return nil, err
 	}
 
-	profile, err := h264CodecProfileFrom(preset.Video.Profile)
-	if err != nil {
-		return nil, err
-	}
-
-	tuning := mc.H264QualityTuningLevelSinglePassHq
-	if preset.TwoPass {
-		tuning = mc.H264QualityTuningLevelMultiPassHq
+	passes := mc.H264QualityTuningLevelSinglePassHq
+	if f.Video.Bitrate.TwoPass {
+		passes = mc.H264QualityTuningLevelMultiPassHq
 	}
 
 	return &mc.VideoCodecSettings{
 		Codec: mc.VideoCodecH264,
 		H264Settings: &mc.H264Settings{
-			Bitrate:            aws.Int64(int64(bitrate)),
-			GopSize:            aws.Float64(gopSize),
-			GopSizeUnits:       gopUnit,
+			Bitrate:            aws.Int64(int64(f.Video.Bitrate.BPS)),
+			GopSize:            aws.Float64(f.Video.Gop.Size),
+			GopSizeUnits:       h264GopUnit(f.Video.Gop),
 			RateControlMode:    rateControl,
 			CodecProfile:       profile,
 			CodecLevel:         mc.H264CodecLevelAuto,
@@ -59,23 +47,19 @@ func h264CodecSettingsFrom(preset job.File) (*mc.VideoCodecSettings, error) {
 			ParControl:         mc.H264ParControlSpecified,
 			ParNumerator:       aws.Int64(1),
 			ParDenominator:     aws.Int64(1),
-			QualityTuningLevel: tuning,
+			QualityTuningLevel: passes,
 		},
 	}, nil
 }
 
-func h264GopUnitFrom(v string) (mc.H264GopSizeUnits, error) {
-	switch strings.ToLower(v) {
-	case "", job.GopUnitFrames:
-		return mc.H264GopSizeUnitsFrames, nil
-	case job.GopUnitSeconds:
-		return mc.H264GopSizeUnitsSeconds, nil
-	default:
-		return "", fmt.Errorf("h264: %w: gop unit: %q", ErrUnsupported, v)
+func h264GopUnit(g job.Gop) mc.H264GopSizeUnits {
+	if g.Seconds() {
+		return mc.H264GopSizeUnitsSeconds
 	}
+	return mc.H264GopSizeUnitsFrames
 }
 
-func h264RateControlModeFrom(v string) (mc.H264RateControlMode, error) {
+func h264RateControl(v string) (mc.H264RateControlMode, error) {
 	switch strings.ToLower(v) {
 	case "vbr":
 		return mc.H264RateControlModeVbr, nil

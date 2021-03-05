@@ -229,7 +229,7 @@ func (p *driver) Cancel(_ context.Context, id string) error {
 }
 
 func videoTarget(v job.Video) *hy.VideoTarget {
-	if (v == job.Video{}) {
+	if !v.On() {
 		return nil
 	}
 

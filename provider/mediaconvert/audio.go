@@ -4,7 +4,6 @@ import (
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
-	"github.com/cbsinteractive/transcode-orchestrator/service"
 )
 
 type mapSettings map[bool]int64
@@ -16,59 +15,60 @@ var (
 	}
 )
 
-func audioSelectorFrom(audioDownmix *job.AudioDownmix, audioSelector *mc.AudioSelector) error {
-	audioSelector.Offset = aws.Int64(0)
-	audioSelector.ProgramSelection = aws.Int64(1)
-	audioSelector.SelectorType = mc.AudioSelectorTypeTrack
-	audioSelector.Tracks = trackListFrom(*audioDownmix)
+func audioSelectorFrom(ad *job.Downmix, s *mc.AudioSelector) error {
+	if ad == nil {
+		return nil
+	}
+	s.Offset = aws.Int64(0)
+	s.ProgramSelection = aws.Int64(1)
+	s.SelectorType = mc.AudioSelectorTypeTrack
+	s.Tracks = uniqueTracks(ad)
 
-	channelMapping, err := audioChannelMappingFrom(*audioDownmix)
+	cmap, err := audioChannelMappingFrom(ad)
 	if err != nil {
 		return err
 	}
 
-	audioSelector.RemixSettings = &mc.RemixSettings{
-		ChannelsIn:     aws.Int64(int64(len(audioDownmix.SrcChannels))),
-		ChannelsOut:    aws.Int64(int64(len(audioDownmix.DestChannels))),
-		ChannelMapping: channelMapping,
+	s.RemixSettings = &mc.RemixSettings{
+		ChannelsIn:     aws.Int64(int64(len(ad.Src))),
+		ChannelsOut:    aws.Int64(int64(len(ad.Dst))),
+		ChannelMapping: cmap,
 	}
 
 	return nil
 }
 
-func trackListFrom(audioDownmix job.AudioDownmix) (tracks []int64) {
-	uniqueTracks := make(map[int]struct{})
+func uniqueTracks(ad *job.Downmix) (tracks []int64) {
+	seen := map[int64]bool{}
 
-	for _, channel := range audioDownmix.SrcChannels {
-		if _, found := uniqueTracks[channel.TrackIdx]; !found {
-			tracks = append(tracks, int64(channel.TrackIdx))
-			uniqueTracks[channel.TrackIdx] = struct{}{}
+	for _, channel := range ad.Src {
+		idx := int64(channel.TrackIdx)
+		if !seen[idx] {
+			seen[idx] = true
+			tracks = append(tracks, idx)
 		}
 	}
 
 	return tracks
 }
 
-func audioChannelMappingFrom(audioDownmix job.AudioDownmix) (*mc.ChannelMapping, error) {
-	var outputChannelMapping []mc.OutputChannelMapping
+func audioChannelMappingFrom(ad *job.Downmix) (*mc.ChannelMapping, error) {
+	var out []mc.OutputChannelMapping
 
-	mapping, err := service.AudioDownmixMapping(audioDownmix)
+	mapping, err := job.AudioDownmixMapping(ad)
 	if err != nil {
 		return &mc.ChannelMapping{}, err
 	}
 
 	for _, channel := range mapping {
-		var outputChannel []int64
-
-		for _, setting := range channel {
-			outputChannel = append(outputChannel, channelSet[setting])
+		var gain []int64
+		for _, on := range channel {
+			gain = append(gain, channelSet[on])
 		}
-
-		outputChannelMapping = append(outputChannelMapping,
-			mc.OutputChannelMapping{InputChannels: outputChannel})
+		out = append(out, mc.OutputChannelMapping{InputChannels: gain})
 	}
 
 	return &mc.ChannelMapping{
-		OutputChannels: outputChannelMapping,
+		OutputChannels: out,
 	}, nil
 }

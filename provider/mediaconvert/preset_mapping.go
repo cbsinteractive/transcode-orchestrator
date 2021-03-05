@@ -22,37 +22,37 @@ var timecodePositionMap = map[int]mc.TimecodeBurninPosition{
 	8: mc.TimecodeBurninPositionBottomRight,
 }
 
-func outputFrom(preset job.File, sourceInfo job.File) (mc.Output, error) {
-	container, err := containerFrom(preset.Container)
+func outputFrom(f job.File, input job.File) (mc.Output, error) {
+	container, err := containerFrom(f.Container)
 	if err != nil {
 		return mc.Output{}, fmt.Errorf("container: %w", err)
 	}
 
-	var videoPreset *mc.VideoDescription
-	if preset.Video != (job.Video{}) {
-		videoPreset, err = videoPresetFrom(preset, sourceInfo)
+	var mvideo *mc.VideoDescription
+	if f.Video.On() {
+		mvideo, err = videoPresetFrom(f, input)
 		if err != nil {
 			return mc.Output{}, fmt.Errorf("video: %w", err)
 		}
 	}
 
-	var audioPresets []mc.AudioDescription
-	if preset.Audio != (job.Audio{}) {
-		audioPreset, err := audioPresetFrom(preset)
+	var maudio []mc.AudioDescription
+	if f.Audio.On() {
+		audio, err := audioPresetFrom(f)
 		if err != nil {
 			return mc.Output{}, fmt.Errorf("audio: %w", err)
 		}
-		if preset.Audio.DiscreteTracks {
-			audioPresets = audioSplit(audioPreset)
+		if f.Audio.Discrete {
+			maudio = audioSplit(audio)
 		} else {
-			audioPresets = append(audioPresets, audioPreset)
+			maudio = append(maudio)
 		}
 	}
 
 	output := mc.Output{
 		ContainerSettings: containerSettingsFrom(container),
-		VideoDescription:  videoPreset,
-		AudioDescriptions: audioPresets,
+		VideoDescription:  mvideo,
+		AudioDescriptions: maudio,
 	}
 
 	return output, nil
@@ -120,75 +120,75 @@ func containerSettingsFrom(container mc.ContainerType) *mc.ContainerSettings {
 	return cs
 }
 
-func videoPresetFrom(preset job.File, sourceInfo job.File) (*mc.VideoDescription, error) {
-	videoPreset := mc.VideoDescription{
+func videoPresetFrom(f job.File, input job.File) (*mc.VideoDescription, error) {
+	mv := mc.VideoDescription{
 		ScalingBehavior:   mc.ScalingBehaviorDefault,
 		TimecodeInsertion: mc.VideoTimecodeInsertionDisabled,
 		AntiAlias:         mc.AntiAliasEnabled,
 		RespondToAfd:      mc.RespondToAfdNone,
 	}
 
-	if preset.Video.Width != 0 {
-		videoPreset.Width = aws.Int64(int64(preset.Video.Width))
+	if f.Video.Width != 0 {
+		mv.Width = aws.Int64(int64(f.Video.Width))
 	}
-	if preset.Video.Height != 0 {
-		videoPreset.Height = aws.Int64(int64(preset.Video.Height))
+	if f.Video.Height != 0 {
+		mv.Height = aws.Int64(int64(f.Video.Height))
 	}
 
 	var s *mc.VideoCodecSettings
 	var err error
 
-	codec := strings.ToLower(preset.Video.Codec)
+	codec := strings.ToLower(f.Video.Codec)
 	switch codec {
 	case "xdcam":
-		s, err = mpeg2XDCAM.generate(preset)
+		s, err = mpeg2XDCAM.generate(f)
 		defer func() {
-			if videoPreset.VideoPreprocessors != nil {
-				videoPreset.VideoPreprocessors.Deinterlacer = nil
+			if mv.VideoPreprocessors != nil {
+				mv.VideoPreprocessors.Deinterlacer = nil
 			}
 		}()
 	case "h264":
-		s, err = h264CodecSettingsFrom(preset)
+		s, err = h264CodecSettingsFrom(f)
 	case "h265":
-		s, err = h265CodecSettingsFrom(preset)
+		s, err = h265CodecSettingsFrom(f)
 	case "vp8":
-		s, err = vp8CodecSettingsFrom(preset)
+		s, err = vp8CodecSettingsFrom(f)
 	case "av1":
-		s, err = av1CodecSettingsFrom(preset)
+		s, err = av1CodecSettingsFrom(f)
 	default:
 		return nil, fmt.Errorf("video: codec: %w: %q", ErrUnsupported, codec)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("building %s codec settings: %w", codec, err)
 	}
-	videoPreset.CodecSettings = s
+	mv.CodecSettings = s
 
-	videoPreprocessors, err := videoPreprocessorsFrom(preset.Video)
+	videoPreprocessors, err := videoPreprocessorsFrom(f.Video)
 	if err != nil {
 		return nil, errors.Wrap(err, "building videoPreprocessors")
 	}
-	videoPreset.VideoPreprocessors = videoPreprocessors
+	mv.VideoPreprocessors = videoPreprocessors
 
-	if preset.Video.InterlaceMode != "progressive" {
-		return &videoPreset, nil
+	if f.Video.Scantype != "progressive" {
+		return &mv, nil
 	}
-	switch sourceInfo.ScanType {
-	case job.ScanTypeProgressive:
-	case job.ScanTypeInterlaced:
-		videoPreset.VideoPreprocessors.Deinterlacer = &mc.Deinterlacer{
+	switch input.Video.Scantype {
+	case job.ScanProgressive:
+	case job.ScanInterlaced:
+		mv.VideoPreprocessors.Deinterlacer = &mc.Deinterlacer{
 			Algorithm: mc.DeinterlaceAlgorithmInterpolate,
 			Control:   mc.DeinterlacerControlNormal,
 			Mode:      mc.DeinterlacerModeDeinterlace,
 		}
 	default:
-		videoPreset.VideoPreprocessors.Deinterlacer = &mc.Deinterlacer{
+		mv.VideoPreprocessors.Deinterlacer = &mc.Deinterlacer{
 			Algorithm: mc.DeinterlaceAlgorithmInterpolate,
 			Control:   mc.DeinterlacerControlNormal,
 			Mode:      mc.DeinterlacerModeAdaptive,
 		}
 	}
 
-	return &videoPreset, nil
+	return &mv, nil
 }
 
 var (
@@ -209,11 +209,11 @@ type setter struct {
 	src job.File
 }
 
-func (s setter) ScanType(v *mc.VideoDescription) *mc.VideoDescription {
+func (s setter) Scan(v *mc.VideoDescription) *mc.VideoDescription {
 	const (
 		// constants have same value for src/dst, but different types...
-		progressive = string(job.ScanTypeProgressive)
-		interlaced  = string(job.ScanTypeInterlaced)
+		progressive = string(job.ScanProgressive)
+		interlaced  = string(job.ScanInterlaced)
 	)
 	if v == nil {
 		v = &mc.VideoDescription{}
@@ -222,17 +222,12 @@ func (s setter) ScanType(v *mc.VideoDescription) *mc.VideoDescription {
 		v.VideoPreprocessors = &mc.VideoPreprocessor{}
 	}
 
-	switch s.dst.Video.InterlaceMode {
+	switch s.dst.Video.Scantype {
 	case interlaced:
-		switch string(s.src.ScanType) {
-		case progressive:
-		case interlaced:
-		default:
-		}
 	case progressive:
 		fallthrough
 	default: // progressive
-		switch string(s.src.ScanType) {
+		switch string(s.src.Video.Scantype) {
 		case progressive:
 		case interlaced:
 			v.VideoPreprocessors.Deinterlacer = &deinterlacerStandard
@@ -250,7 +245,7 @@ func (s setter) Crop(v *mc.VideoDescription) *mc.VideoDescription {
 
 	var (
 		crop = s.dst.Video.Crop
-		h, w = int(s.src.Height), int(s.src.Width)
+		h, w = int(s.src.Video.Height), int(s.src.Video.Width)
 	)
 	if crop.Empty() || h <= 0 || w <= 0 {
 		return v
@@ -271,53 +266,51 @@ func (s setter) Crop(v *mc.VideoDescription) *mc.VideoDescription {
 	return v
 }
 
-func videoPreprocessorsFrom(videoPreset job.Video) (*mc.VideoPreprocessor, error) {
-	videoPreprocessor := &mc.VideoPreprocessor{}
+func videoPreprocessorsFrom(v job.Video) (*mc.VideoPreprocessor, error) {
+	mvpp := &mc.VideoPreprocessor{}
 
-	if videoPreset.Overlays != nil && videoPreset.Overlays.TimecodeBurnin != nil {
-		if tcBurnin := videoPreset.Overlays.TimecodeBurnin; tcBurnin.Enabled {
-			videoPreprocessor.TimecodeBurnin = &mc.TimecodeBurnin{
-				Prefix:   &tcBurnin.Prefix,
-				FontSize: aws.Int64(int64(tcBurnin.FontSize)),
-				Position: timecodePositionMap[tcBurnin.Position],
-			}
+	if tcb := v.Overlays.TimecodeBurnin; tcb != nil {
+		mvpp.TimecodeBurnin = &mc.TimecodeBurnin{
+			Prefix:   &tcb.Prefix,
+			FontSize: aws.Int64(int64(tcb.FontSize)),
+			Position: timecodePositionMap[tcb.Position],
 		}
 	}
 
-	if hdr10 := videoPreset.HDR10; hdr10.Enabled {
-		mcHDR10Metadata := &mc.Hdr10Metadata{}
+	if hdr10 := v.HDR10; hdr10.Enabled {
+		md := &mc.Hdr10Metadata{}
 		if hdr10.MasterDisplay != "" {
-			display, err := parseMasterDisplay(hdr10.MasterDisplay)
+			d, err := parseMasterDisplay(hdr10.MasterDisplay)
 			if err != nil {
-				return videoPreprocessor, errors.Wrap(err, "parsing master display string")
+				return mvpp, fmt.Errorf("parsing master display string: %w", err)
 			}
-			mcHDR10Metadata.BluePrimaryX = aws.Int64(display.bluePrimaryX)
-			mcHDR10Metadata.BluePrimaryY = aws.Int64(display.bluePrimaryY)
-			mcHDR10Metadata.GreenPrimaryX = aws.Int64(display.greenPrimaryX)
-			mcHDR10Metadata.GreenPrimaryY = aws.Int64(display.greenPrimaryY)
-			mcHDR10Metadata.RedPrimaryX = aws.Int64(display.redPrimaryX)
-			mcHDR10Metadata.RedPrimaryY = aws.Int64(display.redPrimaryY)
-			mcHDR10Metadata.WhitePointX = aws.Int64(display.whitePointX)
-			mcHDR10Metadata.WhitePointY = aws.Int64(display.whitePointY)
-			mcHDR10Metadata.MaxLuminance = aws.Int64(display.maxLuminance)
-			mcHDR10Metadata.MinLuminance = aws.Int64(display.minLuminance)
+			md.BluePrimaryX = aws.Int64(d.bluePrimaryX)
+			md.BluePrimaryY = aws.Int64(d.bluePrimaryY)
+			md.GreenPrimaryX = aws.Int64(d.greenPrimaryX)
+			md.GreenPrimaryY = aws.Int64(d.greenPrimaryY)
+			md.RedPrimaryX = aws.Int64(d.redPrimaryX)
+			md.RedPrimaryY = aws.Int64(d.redPrimaryY)
+			md.WhitePointX = aws.Int64(d.whitePointX)
+			md.WhitePointY = aws.Int64(d.whitePointY)
+			md.MaxLuminance = aws.Int64(d.maxLuminance)
+			md.MinLuminance = aws.Int64(d.minLuminance)
 		}
 
 		if hdr10.MaxCLL != 0 {
-			mcHDR10Metadata.MaxContentLightLevel = aws.Int64(int64(hdr10.MaxCLL))
+			md.MaxContentLightLevel = aws.Int64(int64(hdr10.MaxCLL))
 		}
 
 		if hdr10.MaxFALL != 0 {
-			mcHDR10Metadata.MaxFrameAverageLightLevel = aws.Int64(int64(hdr10.MaxFALL))
+			md.MaxFrameAverageLightLevel = aws.Int64(int64(hdr10.MaxFALL))
 		}
 
-		videoPreprocessor.ColorCorrector = &mc.ColorCorrector{
-			Hdr10Metadata:        mcHDR10Metadata,
+		mvpp.ColorCorrector = &mc.ColorCorrector{
+			Hdr10Metadata:        md,
 			ColorSpaceConversion: mc.ColorSpaceConversionForceHdr10,
 		}
 	}
 
-	return videoPreprocessor, nil
+	return mvpp, nil
 }
 
 func unmute(n int, channel ...int64) []int64 {
@@ -357,22 +350,22 @@ func audioSplit(a mc.AudioDescription) (split []mc.AudioDescription) {
 	return split
 }
 
-func audioPresetFrom(preset job.File) (mc.AudioDescription, error) {
-	audioPreset := mc.AudioDescription{}
+func audioPresetFrom(f job.File) (mc.AudioDescription, error) {
+	mad := mc.AudioDescription{}
 
-	if preset.Audio.Normalization {
-		audioPreset.AudioNormalizationSettings = &mc.AudioNormalizationSettings{
+	if f.Audio.Normalize {
+		mad.AudioNormalizationSettings = &mc.AudioNormalizationSettings{
 			Algorithm:        mc.AudioNormalizationAlgorithmItuBs17703,
 			AlgorithmControl: mc.AudioNormalizationAlgorithmControlCorrectAudio,
 		}
 	}
 
-	codec := strings.ToLower(preset.Audio.Codec)
-	bitrate := int64(preset.Audio.Bitrate)
+	codec := strings.ToLower(f.Audio.Codec)
+	bitrate := int64(f.Audio.Bitrate)
 
 	switch codec {
 	case "pcm":
-		audioPreset.CodecSettings = &mc.AudioCodecSettings{
+		mad.CodecSettings = &mc.AudioCodecSettings{
 			Codec: mc.AudioCodecWav,
 			WavSettings: &mc.WavSettings{
 				BitDepth:   aws.Int64(24),
@@ -382,7 +375,7 @@ func audioPresetFrom(preset job.File) (mc.AudioDescription, error) {
 			},
 		}
 	case "aac":
-		audioPreset.CodecSettings = &mc.AudioCodecSettings{
+		mad.CodecSettings = &mc.AudioCodecSettings{
 			Codec: mc.AudioCodecAac,
 			AacSettings: &mc.AacSettings{
 				SampleRate:      aws.Int64(defaultAudioSampleRate),
@@ -393,7 +386,7 @@ func audioPresetFrom(preset job.File) (mc.AudioDescription, error) {
 			},
 		}
 	case "opus":
-		audioPreset.CodecSettings = &mc.AudioCodecSettings{
+		mad.CodecSettings = &mc.AudioCodecSettings{
 			Codec: mc.AudioCodecOpus,
 			OpusSettings: &mc.OpusSettings{
 				Channels:   aws.Int64(2),
@@ -402,7 +395,7 @@ func audioPresetFrom(preset job.File) (mc.AudioDescription, error) {
 			},
 		}
 	case "vorbis":
-		audioPreset.CodecSettings = &mc.AudioCodecSettings{
+		mad.CodecSettings = &mc.AudioCodecSettings{
 			Codec: mc.AudioCodecVorbis,
 			VorbisSettings: &mc.VorbisSettings{
 				Channels:   aws.Int64(2),
@@ -414,7 +407,7 @@ func audioPresetFrom(preset job.File) (mc.AudioDescription, error) {
 		return mc.AudioDescription{}, fmt.Errorf("%w: %q", ErrUnsupported, codec)
 	}
 
-	return audioPreset, nil
+	return mad, nil
 }
 
 func vbrLevel(bitrate int64) int64 {

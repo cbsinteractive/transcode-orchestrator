@@ -143,14 +143,11 @@ type Streaming struct {
 	PlaylistFileName string
 }
 
-// ScanType is a string that represents the scan type of the content.
-type ScanType string
-
-// ScanTypeProgressive and other supported types
+// ScanProgressive and other supported types
 const (
-	ScanTypeProgressive ScanType = "progressive"
-	ScanTypeInterlaced  ScanType = "interlaced"
-	ScanTypeUnknown     ScanType = "unknown"
+	ScanProgressive = "progressive"
+	ScanInterlaced  = "interlaced"
+	ScanUnknown     = "unknown"
 )
 
 //ChannelLayout describes layout of an audio channel
@@ -200,9 +197,9 @@ type File struct {
 	Video     Video         `json:"video,omitempty"`
 	Audio     Audio         `json:"audio,omitempty"`
 
-	Splice  timecode.Splice `json:"splice,omitempty"`
-	Downmix *Downmix
-	// ExplicitKeyframeOffsets []float64
+	Splice                  timecode.Splice `json:"splice,omitempty"`
+	Downmix                 *Downmix
+	ExplicitKeyframeOffsets []float64
 }
 
 func (f File) URL() url.URL {
@@ -235,8 +232,12 @@ type Video struct {
 
 	HDR10       HDR10       `json:"hdr10"`
 	DolbyVision DolbyVision `json:"dolbyVision"`
-	Overlays    *Overlays   `json:"overlays,omitempty"`
+	Overlays    Overlays    `json:"overlays,omitempty"`
 	Crop        video.Crop  `json:"crop"`
+}
+
+func (v *Video) On() bool {
+	return v != nil && !(v.Codec == "" && v.Height == 0 && v.Width == 0)
 }
 
 // Audio defines audio transcoding parameters
@@ -245,6 +246,10 @@ type Audio struct {
 	Bitrate   int    `json:"bitrate,omitempty"`
 	Normalize bool   `json:"normalize,omitempty"`
 	Discrete  bool   `json:"discrete,omitempty"`
+}
+
+func (a *Audio) On() bool {
+	return a != nil && *a != (Audio{})
 }
 
 type Bitrate struct {
@@ -266,14 +271,6 @@ type Gop struct {
 func (g Gop) Seconds() bool {
 	return g.Unit == "seconds"
 }
-
-// GopUnit defines the unit used to measure gops
-type GopUnit = string
-
-const (
-	GopUnitFrames  GopUnit = "frames"
-	GopUnitSeconds GopUnit = "seconds"
-)
 
 //Overlays defines all the overlay settings for a Video preset
 type Overlays struct {

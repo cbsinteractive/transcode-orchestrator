@@ -71,7 +71,7 @@ func (s *Server) serve() bool {
 }
 
 func (s *Server) provider0(job *job.Job) (transcoding.Provider, error) {
-	fn, err := transcoding.GetFactory(job.ProviderName)
+	fn, err := transcoding.GetFactory(job.Provider)
 	if err != nil {
 		return nil, err
 	}
