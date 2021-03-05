@@ -46,14 +46,14 @@ func filesFrom(task hy.TaskResult) (files []job.File, ok bool, err error) {
 		return nil, false, nil
 	}
 
-	for _, document := range task.Documents {
-		for _, assetVersion := range document.ResultPayload.Payload.AssetVersions {
-			for _, component := range assetVersion.AssetComponents {
+	for _, d := range task.Documents {
+		for _, a := range d.ResultPayload.Payload.AssetVersions {
+			dir := job.File{Name: a.Location.Path}
+			for _, c := range a.AssetComponents {
 				files = append(files, job.File{
-					// TODO(as): path.Join probably doesn't work here because its a url, reconsider
-					Name:      path.Join(assetVersion.Location.Path, component.Name),
-					Container: containerFrom(component),
-					Size:      int64(component.Descriptor.Size),
+					Name:      dir.Join(c.Name).Name,
+					Container: containerFrom(c),
+					Size:      int64(c.Descriptor.Size),
 				})
 			}
 		}

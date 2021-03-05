@@ -11,7 +11,7 @@ func TestStorage(t *testing.T) {
 		name, path, want string
 	}{
 		{"s3", "s3://some-bucket/some-path", "s3"},
-		{"gcs", "gs://some-bucket/some-path", "gcs"},
+		{"gs", "gs://some-bucket/some-path", "gs"},
 		{"http", "http://some-domain.com/some-path", "http"},
 		{"https", "https://some-domain.com/some-path", "https"},
 		// {"unsupported", "fakescheme://some-bucket/some-path", "", `the scheme "fakescheme" is unsupported`},

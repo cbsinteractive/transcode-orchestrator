@@ -30,7 +30,7 @@ func Supported(f job.File) bool {
 }
 
 func storageBugfix(provider string, sa *hy.StorageAccess) *hy.StorageAccess {
-	if provider == "gcs" {
+	if provider == "gs" {
 		// Hybrik has a bug where they identify multi-region GCS -> region GCP
 		// transfers as triggering egress costs, so we remove their validation for
 		// GCS sources
@@ -41,7 +41,7 @@ func storageBugfix(provider string, sa *hy.StorageAccess) *hy.StorageAccess {
 
 func (p *driver) access(f *job.File, creds string) *hy.StorageAccess {
 	if creds == "" {
-		if f.Provider() != "gcs" {
+		if f.Provider() != "gs" {
 			return nil
 		}
 		creds = p.config.GCPCredentialsKey
@@ -49,11 +49,11 @@ func (p *driver) access(f *job.File, creds string) *hy.StorageAccess {
 	return storageBugfix(f.Provider(), &hy.StorageAccess{CredentialsKey: creds})
 }
 
-func (p *driver) location(f *job.File, creds string) hy.TranscodeLocation {
+func (p *driver) location(f job.File, creds string) hy.TranscodeLocation {
 	return hy.TranscodeLocation{
 		StorageProvider: f.Provider(),
-		Path:            f.Name,
-		Access:          p.access(f, creds),
+		Path:            f.Dir(),
+		Access:          p.access(&f, creds),
 	}
 }
 

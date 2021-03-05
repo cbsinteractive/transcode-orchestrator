@@ -96,7 +96,7 @@ func TestHDRRequest(t *testing.T) {
 
 	d := &driver{cfg: config.MediaConvert{Destination: "s3://some_dest"}}
 	req, err := d.createRequest(nil, &job.Job{
-		Outputs: []job.TranscodeOutput{{Preset: p}},
+		Output: job.Dir{File: []job.File{p}},
 	})
 	if err != nil {
 		t.Fatalf("error: %v", err)

@@ -1,14 +1,17 @@
 package hybrik
 
+import "github.com/cbsinteractive/transcode-orchestrator/job"
+
 const (
-	vbrVariabilityPercent = 10
+	vbrVariability = 10
 )
 
-var RateControl = map[string]bool{
-	"cbr": true,
-	"vbr": true,
+var RateControl = map[string]int{
+	"vbr": 1,
+	"cbr": 0,
 }
 
-func percentTargetOf(bitrate, percent int) int {
-	return bitrate * (100 + percent) / 100
+func percentTarget(b job.Bitrate, percent int) int {
+	on := RateControl[canon(b.Control)]
+	return on * b.BPS * (100 + percent) / 100
 }

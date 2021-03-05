@@ -34,6 +34,7 @@ var (
 	testjob = job.Job{
 		ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/path.mp4"},
 		Output: job.Dir{
+			Path: "s3://some-dest/path",
 			File: []job.File{{
 				Name: "file1.mp4",
 				Video: job.Video{
@@ -83,7 +84,7 @@ func TestPreset(t *testing.T) {
 					}},
 				},
 				Features: map[string]interface{}{
-					"segmentedRendering": &hy.SegmentedRendering{Duration: 60},
+					"segmentedRendering": &SegmentedRendering{Duration: 60},
 				},
 				Env: job.Env{
 					Tags: map[string]string{job.TagTranscodeDefault: "transcode_default_tag"},
@@ -165,6 +166,7 @@ func TestTranscodePreset(t *testing.T) {
 			input: &job.Job{
 				ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/path.mp4"},
 				Output: job.Dir{
+					Path: "gs://some_bucket/encodes",
 					File: []job.File{{
 						Name: "file1.mp4",
 						Video: job.Video{
@@ -288,8 +290,8 @@ func TestTranscodePreset(t *testing.T) {
 				}{
 					{"ratecontrol", firstTarget.Video.BitrateMode, "vbr"},
 					{"bitrate", firstTarget.Video.BitrateKb, 10000},
-					{"min", firstTarget.Video.MinBitrateKb, 10000 * (100 - vbrVariabilityPercent) / 100},
-					{"max", firstTarget.Video.MaxBitrateKb, 10000 * (100 + vbrVariabilityPercent) / 100},
+					{"min", firstTarget.Video.MinBitrateKb, 9000},
+					{"max", firstTarget.Video.MaxBitrateKb, 11000},
 				}
 
 				for _, tt := range tests {
@@ -753,7 +755,7 @@ func TestPresetConversion(t *testing.T) {
 				return
 			}
 
-			if g, e := got, tt.wantJob; !reflect.DeepEqual(g, e) {
+			if g, e := *got, tt.wantJob; !reflect.DeepEqual(g, e) {
 				t.Fatalf("driver.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
 					g, cmp.Diff(e, g))
 			}
@@ -767,96 +769,78 @@ func lastPayload(t *testing.T, j hy.CreateJob) hy.TranscodePayload {
 	return p[len(p)-1].Payload.(hy.TranscodePayload)
 }
 
-func TestTranscodeJobFields(t *testing.T) {
-	tests := []struct {
-		name        string
-		jobModifier func(job job.Job) job.Job
-		assertion   func(hy.CreateJob, *testing.T)
-		wantErrMsg  string
+func TestDolbyVisionMetadata(t *testing.T) {
+	j := job.Job{
+		ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/path.mp4"},
+		ExtraFiles: map[string]string{
+			job.TagDolbyVisionMetadata: "s3://test_sidecar_location/path/file.xml",
+		},
+		Output: job.Dir{
+			Path: "s3://some-dest/path",
+			File: []job.File{{
+				Name: "file1.mp4",
+				Video: job.Video{
+					Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h264",
+					Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
+					Gop:     job.Gop{Size: 120}, Scantype: "progressive",
+				},
+				Audio: job.Audio{Codec: "aac", Bitrate: 20000}}},
+		},
+	}
+
+	want := hy.Element{
+		UID: "source_file", Kind: "source",
+		Payload: hy.ElementPayload{
+			Kind: "asset_urls",
+			Payload: []hy.AssetPayload{
+				{StorageProvider: "s3", URL: "s3://some/path.mp4"},
+				{StorageProvider: "s3", URL: "s3://test_sidecar_location/path/file.xml",
+					Contents: []hy.AssetContents{{Kind: "metadata", Payload: hy.AssetContentsPayload{Standard: "dolbyvision_metadata"}}},
+				},
+			},
+		},
+	}
+
+	p := &driver{
+		config: &config.Hybrik{
+			Destination: "s3://some-dest/path",
+			PresetPath:  "some_preset_path",
+		},
+	}
+	jr, err := p.jobRequest(&j)
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := jr.Payload.Elements[0]
+	if !reflect.DeepEqual(have, want) {
+		t.Fatalf("\n\t\thave: +%v\n\t\twant: +%v", have, want)
+	}
+}
+
+func TestSegmentedRendering(t *testing.T) {
+	j := job.Job{
+		Features: job.Features{"segmentedRendering": SegmentedRendering{Duration: 50}},
+		Output:   job.Dir{Path: "s3://path", File: []job.File{{Name: "1.mp4", Video: job.Video{Codec: "h264"}}}}}
+	t.Log(features(&j))
+
+	p := &driver{config: &config.Hybrik{}}
+	for _, tc := range []struct {
+		input string
+		want  *hy.SegmentedRendering
 	}{
-		{
-			name: "dolbyVision",
-			jobModifier: func(j job.Job) job.Job {
-				j.ExtraFiles = map[string]string{
-					job.TagDolbyVisionMetadata: "s3://test_sidecar_location/path/file.xml",
-				}
+		{"s3://file.mp4", &hy.SegmentedRendering{Duration: 50}},
+		{"gs://file.mp4", &hy.SegmentedRendering{Duration: 50}},
+		{"http://file.mp4", nil},
+	} {
+		j.Input.Name = tc.input
+		jr, _ := p.jobRequest(&j)
+		have := lastPayload(t, *jr).SourcePipeline.SegmentedRendering
+		if !reflect.DeepEqual(have, tc.want) {
+			t.Fatalf("%q: \n\t\thave: %+v\n\t\twant: %+v", tc.input, have, tc.want)
+		}
+	}
 
-				return j
-			},
-			assertion: func(createJob hy.CreateJob, t *testing.T) {
-				gotSource := createJob.Payload.Elements[0]
-
-				expectSource := hy.Element{
-					UID:  "source_file",
-					Kind: "source",
-					Payload: hy.ElementPayload{
-						Kind: "asset_urls",
-						Payload: []hy.AssetPayload{
-							{StorageProvider: "s3", URL: "s3://some/path.mp4"},
-							{
-								StorageProvider: "s3",
-								URL:             "s3://test_sidecar_location/path/file.xml",
-								Contents: []hy.AssetContents{
-									{
-										Kind:    "metadata",
-										Payload: hy.AssetContentsPayload{Standard: "dolbyvision_metadata"},
-									},
-								},
-							},
-						},
-					},
-				}
-
-				if g, e := gotSource, expectSource; !reflect.DeepEqual(g, e) {
-					t.Fatalf("driver.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
-						g, cmp.Diff(e, g))
-				}
-			},
-		},
-		{
-			name: "pathOverride",
-			jobModifier: func(job job.Job) job.Job {
-				job.Output.Path = "s3://per-job-defined-bucket/some/base/path"
-				return job
-			},
-			assertion: func(createJob hy.CreateJob, t *testing.T) {
-				if len(createJob.Payload.Elements) < 2 {
-					t.Error("job has less than two elements, tried to pull the second element (transcode)")
-					return
-				}
-				gotTranscode := createJob.Payload.Elements[1]
-
-				payload, ok := gotTranscode.Payload.(hy.TranscodePayload)
-				if !ok {
-					t.Error("transcode payload was not a map of string to map[string]interface{}")
-					return
-				}
-
-				if g, e := payload.Location.Path, "s3://per-job-defined-bucket/some/base/path/jobID"; g != e {
-					t.Errorf("destination location path: got %q, expected %q", g, e)
-				}
-			},
-		},
-		{
-			name: "tags",
-			jobModifier: func(j job.Job) job.Job {
-				j.Env.Tags = map[string]string{
-					job.TagTranscodeDefault: "custom_tag",
-				}
-
-				return j
-			},
-			assertion: func(createJob hy.CreateJob, t *testing.T) {
-				gotTask := createJob.Payload.Elements[1].Task
-
-				expectTask := &hy.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{"custom_tag"}}
-
-				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
-					t.Fatalf("driver.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
-						g, cmp.Diff(e, g))
-				}
-			},
-		},
+	/*
 		{
 			name: "segmentedRenderingS3",
 			jobModifier: func(j job.Job) job.Job {
@@ -903,6 +887,48 @@ func TestTranscodeJobFields(t *testing.T) {
 				r := lastPayload(t, j).SourcePipeline.SegmentedRendering
 				if r != nil {
 					t.Fatalf("segmented rendering set erroneously: %v", r)
+				}
+			},
+		},
+	*/
+}
+
+func TestTranscodeJobFields(t *testing.T) {
+	tests := []struct {
+		name        string
+		jobModifier func(job job.Job) job.Job
+		assertion   func(hy.CreateJob, *testing.T)
+		wantErrMsg  string
+	}{
+		{
+			name: "pathOverride",
+			jobModifier: func(job job.Job) job.Job {
+				job.Output.Path = "s3://per-job-defined-bucket/some/base/path"
+				return job
+			},
+			assertion: func(c hy.CreateJob, t *testing.T) {
+				if g, e := c.Payload.Elements[1].Payload.(hy.TranscodePayload).Location.Path, "s3://per-job-defined-bucket/some/base/path/jobID"; g != e {
+					t.Errorf("destination location path: got %q, expected %q", g, e)
+				}
+			},
+		},
+		{
+			name: "tags",
+			jobModifier: func(j job.Job) job.Job {
+				j.Env.Tags = map[string]string{
+					job.TagTranscodeDefault: "custom_tag",
+				}
+
+				return j
+			},
+			assertion: func(createJob hy.CreateJob, t *testing.T) {
+				gotTask := createJob.Payload.Elements[1].Task
+
+				expectTask := &hy.ElementTaskOptions{Name: "Transcode - file1.mp4", Tags: []string{"custom_tag"}}
+
+				if g, e := gotTask, expectTask; !reflect.DeepEqual(g, e) {
+					t.Fatalf("driver.presetsToTranscodeJob() wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
+						g, cmp.Diff(e, g))
 				}
 			},
 		},

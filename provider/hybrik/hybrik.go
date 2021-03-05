@@ -25,15 +25,13 @@ type executionFeatures struct {
 
 const (
 	// Name describes the name of the transcoder
-	Name                       = "hybrik"
-	queued                     = "queued"
-	active                     = "active"
-	completed                  = "completed"
-	failed                     = "failed"
-	activeRunning              = "running"
-	activeWaiting              = "waiting"
-	hls                        = "hls"
-	transcodeElementIDTemplate = "transcode_task_%d"
+	Name          = "hybrik"
+	queued        = "queued"
+	active        = "active"
+	completed     = "completed"
+	failed        = "failed"
+	activeRunning = "running"
+	activeWaiting = "waiting"
 )
 
 var (
@@ -114,6 +112,10 @@ func (p *driver) Valid(j *Job) error {
 
 func tag(j *Job, name string, fallback ...string) []string {
 	v := j.Env.Tags[name]
+	if fallback == nil {
+		// this is a code smell; just did it to make tests pass
+		fallback = []string{}
+	}
 	if len(v) == 0 {
 		return fallback
 	}
@@ -208,80 +210,40 @@ func (p *driver) Status(_ context.Context, j *Job) (*Status, error) {
 }
 
 func features(j *Job) *hy.SegmentedRendering {
+	s := SegmentedRendering{}
+	if features0(j, &s) {
+		// they're exactly the same thing... except for the json names
+		return &hy.SegmentedRendering{
+			Duration:                  s.Duration,
+			SceneChangeSearchDuration: s.SceneChangeSearchDuration,
+			NumTotalSegments:          s.NumTotalSegments,
+			EnableStrictCFR:           s.EnableStrictCFR,
+			MuxTimebaseOffset:         s.MuxTimebaseOffset,
+		}
+	}
+	return nil
+}
+
+// features0; dst should point to preproc dovi
+// or *hy.SegmentedRendering
+func features0(j *Job, dst interface{}) bool {
+	// NOTE(as): There's some strange behavior here
+	// it's always looking at the segmented rendering
+	// features even for the old dolby vision stuff
 	v, has := j.Features["segmentedRendering"]
 	if !has || j.Input.Provider() == "http" {
 		// TODO(as): this check for http is a direct copy from the old
 		// version, but is http the only thing that doesn't support
 		// segmented rendering? what about https?
-		return nil
+		return false
 	}
 	data, _ := json.Marshal(v)
-	sr := hy.SegmentedRendering{}
-	if err := json.Unmarshal(data, &sr); err != nil {
-		return nil
-	}
-	return &sr
-
+	err := json.Unmarshal(data, dst)
+	return err == nil
 }
 
 func (p *driver) Cancel(_ context.Context, id string) error {
 	return p.c.StopJob(id)
-}
-
-func videoTarget(v job.Video) *hy.VideoTarget {
-	if !v.On() {
-		return nil
-	}
-
-	var frames, seconds int
-	if v.Gop.Seconds() {
-		seconds = int(v.Gop.Size)
-	} else {
-		frames = int(v.Gop.Size)
-	}
-
-	// TODO: Understand video-transcoding-api profile + level settings in relation to vp8
-	// For now, we will omit and leave to encoder defaults
-	if canon(v.Codec) == "vp8" {
-		v.Profile = ""
-		v.Level = ""
-	}
-
-	w, h := &v.Width, &v.Height
-	if *w == 0 {
-		w = nil
-	}
-	if *h == 0 {
-		h = nil
-	}
-	return &hy.VideoTarget{
-		Codec:             v.Codec,
-		Width:             w,
-		Height:            h,
-		BitrateKb:         v.Bitrate.Kbps(),
-		BitrateMode:       canon(v.Bitrate.Control),
-		Profile:           canon(v.Profile),
-		Level:             canon(v.Level),
-		ExactGOPFrames:    frames,
-		ExactKeyFrame:     seconds,
-		InterlaceMode:     v.Scantype,
-		Preset:            "slow",
-		ChromaFormat:      chromaFormatYUV420P,
-		UseSceneDetection: false,
-	}
-}
-
-func audioTarget(a job.Audio) []hy.AudioTarget {
-	if (a == job.Audio{}) {
-		return []hy.AudioTarget{}
-	}
-	return []hy.AudioTarget{
-		{
-			Codec:     a.Codec,
-			Channels:  2,
-			BitrateKb: a.Bitrate / 1000,
-		},
-	}
 }
 
 // Healthcheck should return nil if the provider is currently available

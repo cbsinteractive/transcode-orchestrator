@@ -1,23 +1,21 @@
-package service
+package job
 
 import (
 	"reflect"
 	"testing"
-
-	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
 func TestAudioDownmixMapping(t *testing.T) {
 	tests := []struct {
 		name    string
-		ad      job.Downmix
+		ad      Downmix
 		want    [][]bool
 		wantErr bool
 	}{
 		{
 			name: "5.1Source",
-			ad: job.AudioDownmix{
-				SrcChannels: []job.AudioChannel{
+			ad: Downmix{
+				Src: []AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 2, ChannelIdx: 1, Layout: "R"},
 					{TrackIdx: 3, ChannelIdx: 1, Layout: "C"},
@@ -25,7 +23,7 @@ func TestAudioDownmixMapping(t *testing.T) {
 					{TrackIdx: 5, ChannelIdx: 1, Layout: "Ls"},
 					{TrackIdx: 6, ChannelIdx: 1, Layout: "Rs"},
 				},
-				DestChannels: []job.AudioChannel{
+				Dst: []AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 				},
@@ -37,8 +35,8 @@ func TestAudioDownmixMapping(t *testing.T) {
 		},
 		{
 			name: "DestinationChannelsNotStereo",
-			ad: job.AudioDownmix{
-				SrcChannels: []job.AudioChannel{
+			ad: Downmix{
+				Src: []AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 2, ChannelIdx: 1, Layout: "R"},
 					{TrackIdx: 3, ChannelIdx: 1, Layout: "C"},
@@ -46,7 +44,7 @@ func TestAudioDownmixMapping(t *testing.T) {
 					{TrackIdx: 5, ChannelIdx: 1, Layout: "Ls"},
 					{TrackIdx: 6, ChannelIdx: 1, Layout: "Rs"},
 				},
-				DestChannels: []job.AudioChannel{
+				Dst: []AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "C"},
@@ -58,7 +56,7 @@ func TestAudioDownmixMapping(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := AudioDownmixMapping(tt.ad)
+			got, err := AudioDownmixMapping(&tt.ad)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AudioDownmixMapping() error = %v, wantErr %v", err, tt.wantErr)
 				return

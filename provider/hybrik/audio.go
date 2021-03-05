@@ -21,7 +21,7 @@ func (p *driver) audioElements(j *job.Job) (a []hy.Element) {
 				Name: "Audio Encode",
 			},
 			Payload: hy.LocationTargetPayload{
-				Location: p.location(&f, p.auth(j).Write),
+				Location: p.location(f, p.auth(j).Write),
 				Targets: []hy.TranscodeTarget{{
 					FilePattern:   fmt.Sprintf("audio_output_%d.%s", i, f.Audio.Codec),
 					ExistingFiles: "replace",

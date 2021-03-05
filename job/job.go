@@ -97,12 +97,18 @@ func (d Dir) Location() url.URL {
 	return *u
 }
 
+func (j *Job) Dir() File {
+	return File{Name: j.Location("")}
+}
 func (j Job) Location(file string) string {
 	u := j.Output.Location()
 	u.Path = path.Join(u.Path, j.rootFolder(), file)
 	return u.String()
 }
-
+func (j *Job) Abs(f File) File {
+	f.Name = j.Location(f.Name)
+	return f
+}
 func (j Job) rootFolder() string {
 	if j.Name != "" {
 		if _, err := uuid.FromString(j.Name); err == nil {
@@ -186,10 +192,6 @@ type Features map[string]interface{}
 
 // File
 type File struct {
-	// Description     string `json:"description,omitempty"`
-	// SourceContainer string `json:"sourceContainer,omitempty"`
-	// TwoPass         bool   `json:"twoPass"`
-
 	Size      int64         `json:"size,omitempty"`
 	Duration  time.Duration `json:"dur,omitempty"`
 	Name      string        `json:"name,omitempty"`
@@ -200,6 +202,13 @@ type File struct {
 	Splice                  timecode.Splice `json:"splice,omitempty"`
 	Downmix                 *Downmix
 	ExplicitKeyframeOffsets []float64
+}
+
+func (f File) Join(name string) File {
+	u := f.URL()
+	u.Path = path.Join(u.Path, name)
+	f.Name = u.String()
+	return f
 }
 
 func (f File) URL() url.URL {
@@ -214,6 +223,17 @@ func (f File) Provider() string {
 }
 func (f File) Type() string {
 	return strings.TrimPrefix(path.Ext(f.URL().Path), ".")
+}
+func (f File) Dir() string {
+	if f.Type() == "" {
+		return f.Name
+	}
+	u := f.URL()
+	u.Path = path.Dir(u.Path)
+	return u.String()
+}
+func (f File) Base() string {
+	return path.Base(f.URL().Path)
 }
 
 // Video transcoding parameters
@@ -256,6 +276,14 @@ type Bitrate struct {
 	BPS     int    `json:"bps"`
 	Control string `json:"control"`
 	TwoPass bool   `json:"twopass"`
+}
+
+// Percent adjusts the bitrate by n percent
+// where n is a number in the range [-100, +100]
+func (b Bitrate) Percent(n int) Bitrate {
+	// operate on bits to keep precision
+	b.BPS = b.BPS * (100 + n) / 100
+	return b
 }
 
 func (b Bitrate) Kbps() int {

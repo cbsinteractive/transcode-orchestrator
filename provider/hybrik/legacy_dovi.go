@@ -1,182 +1,96 @@
 package hybrik
 
-/*
-// TODO remove once Hybrik fixes bugs with the new Dolby Vision job structure
+import (
+	"fmt"
 
-const (
-	dolbyVisionElementID                  = "dolby_vision_task"
-	doViModuleProfile                     = "profile"
-	doViNBCPreProcOutputPathTmpl          = "%s/tmp"
-	doViVESMuxOutputPathTmpl              = "%s/tmp"
-	doViVESMuxFilenameDefault             = "ves.h265"
-	doViMetadataPostProcOutputPathTmpl    = "%s/tmp"
-	doViMetadataPostProcFilenameDefault   = "postproc.265"
-	doViMetadataPostProcQCOutputPathTmpl  = "%s/tmp"
-	doViMetadataPostProcQCFilenameDefault = "metadata_postproc_qc_report.txt"
-	doViMP4MuxQCOutputPathTmpl            = "%s/tmp"
-	doViMP4MuxQCFilenameDefault           = "mp4_qc_report.txt"
-	doViSourceDemuxOutputPathTmpl         = "%s/tmp"
-	doViLegacyMezzQCOutputPathTmpl        = "%s/tmp"
-	doViPreProcNumTasksAuto               = "auto"
-	doViPreProcIntervalLengthDefault      = 48
-	doViInputEDRAspectDefault             = "2"
-	doViInputEDRCropDefault               = "0x0x0x0"
-	doViInputEDRPadDefault                = "0x0x0x0"
-
-	retryMethodRetry  = "retry"
-	retryCountDefault = 3
-	retryDelayDefault = 30
+	hy "github.com/cbsinteractive/hybrik-sdk-go"
+	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
-func (p *driver) dolbyVisionLegacyElementAssembler(cfg jobCfg) ([][]hy.Element, error) {
-	presetsWithoutAudio := map[string]job.File{}
-	for _, outputCfg := range cfg.outputCfgs {
-		preset := outputCfg.Preset
+func (p *driver) dolbyVisionLegacy(j *Job) [][]hy.Element {
+	txcode := p.transcodeElems(mute(*j))
 
-		// removing audio so we can processing this separately
-		preset.Audio = job.Audio{}
-		presetsWithoutAudio[outputCfg.FileName] = preset
-	}
+	var preproc = struct {
+		Tasks    string `json:"doViPreProcNumTasks,omitempty"`
+		Interval int    `json:"doViPreProcIntervalLength,omitempty"`
+	}{"auto", 48}
 
-	transcodeElementsWithFilenames, err := p.transcodeElementsWithPresetsFrom(presetsWithoutAudio, cfg)
-	if err != nil {
-		return nil, err
-	}
+	features0(j, &preproc)
 
-	transcodeElements := []hy.Element{}
-	for _, transcodeWithFilename := range transcodeElementsWithFilenames {
-		transcodeElements = append(transcodeElements, transcodeWithFilename.transcodeElement)
-	}
+	tag := tag(j, job.TagDolbyVisionPreprocess, "preproc")
+	src := p.assetURL(&j.Input, p.auth(j).Write)
+	dst := p.location(j.Dir(), p.auth(j).Write)
+	tmp := p.location(j.Dir().Join("tmp"), p.auth(j).Write)
 
-	doViPreProcNumTasks := doViPreProcNumTasksAuto
-	if numTasks := cfg.executionFeatures.doViPreProcSegmentation.numTasks; numTasks != "" {
-		doViPreProcNumTasks = numTasks
-	}
-
-	doViPreProcIntervalLength := doViPreProcIntervalLengthDefault
-	if intervalLength := cfg.executionFeatures.doViPreProcSegmentation.intervalLength; intervalLength != 0 {
-		doViPreProcIntervalLength = intervalLength
-	}
-
-	preprocComputeTag := computeTagPreProcDefault
-	if tag, found := cfg.computeTags[job.ComputeClassDolbyVisionPreprocess]; found {
-		preprocComputeTag = tag
-	}
-
-	destStorageLocation := p.transcodeLocationFrom(storageLocation{
-		provider: cfg.destination.provider,
-		path:     cfg.destination.path,
-	}, cfg.executionEnvironment.OutputAlias)
-
-	demuxOutputStorageLocation := p.transcodeLocationFrom(storageLocation{
-		provider: cfg.destination.provider,
-		path:     fmt.Sprintf(doViSourceDemuxOutputPathTmpl, cfg.destination.path),
-	}, cfg.executionEnvironment.OutputAlias)
+	// src := p.assetURLFrom(storageLocation{provider: cfg.sourceLocation.provider, path: cfg.sourceLocation.path}, cfg.executionEnvironment.OutputAlias)
+	//dst := p.transcodeLocationFrom(storageLocation{provider: cfg.destination.provider,path:     cfg.destination.path,}, cfg.executionEnvironment.OutputAlias)
+	// tmp := p.transcodeLocationFrom(storageLocation{provider: cfg.destination.provider, path: fmt.Sprintf("%s/tmp", cfg.destination.path)}, cfg.executionEnvironment.OutputAlias)
 
 	return [][]hy.Element{{{
-		UID:  dolbyVisionElementID,
-		Kind: elementKindDolbyVision,
-		Task: &hy.ElementTaskOptions{
-			Tags: []string{preprocComputeTag},
-		},
+		UID:  "dolby_vision_task",
+		Kind: "dolby_vision",
+		Task: &hy.ElementTaskOptions{Tags: tag},
 		Payload: hy.DolbyVisionTaskPayload{
-			Module:  doViModuleProfile,
-			Profile: doViProfile5,
+			Module: "profile", Profile: 5,
 			MezzanineQC: hy.DoViMezzanineQC{
-				Enabled: false,
-				Location: p.transcodeLocationFrom(storageLocation{
-					provider: cfg.destination.provider,
-					path:     fmt.Sprintf(doViLegacyMezzQCOutputPathTmpl, cfg.destination.path),
-				}, cfg.executionEnvironment.OutputAlias),
-				Task: hy.TaskTags{
-					Tags: []string{preprocComputeTag},
-				},
-				FilePattern: fmt.Sprintf(doViMezzQCReportFilenameTmpl, cfg.jobID),
+				Enabled:  false, // NOTE(as): why is this thing even set then?
+				Location: tmp, FilePattern: fmt.Sprintf("%s_mezz_qc_report.txt", j.ID),
+				Task:        hy.TaskTags{Tags: tag},
 				ToolVersion: hy.DoViMezzQCVersionDefault,
 			},
 			NBCPreproc: hy.DoViNBCPreproc{
-				Task: hy.TaskTags{
-					Tags: []string{preprocComputeTag},
-				},
-				Location: p.transcodeLocationFrom(storageLocation{
-					provider: cfg.destination.provider,
-					path:     fmt.Sprintf(doViNBCPreProcOutputPathTmpl, cfg.destination.path),
-				}, cfg.executionEnvironment.OutputAlias),
+				Task:           hy.TaskTags{Tags: tag},
+				Location:       tmp,
 				SDKVersion:     hy.DoViSDKVersionDefault,
-				NumTasks:       doViPreProcNumTasks,
-				IntervalLength: doViPreProcIntervalLength,
+				NumTasks:       preproc.Tasks,
+				IntervalLength: preproc.Interval,
 				CLIOptions: hy.DoViNBCPreprocCLIOptions{
-					InputEDRAspect: doViInputEDRAspectDefault,
-					InputEDRPad:    doViInputEDRCropDefault,
-					InputEDRCrop:   doViInputEDRPadDefault,
+					InputEDRAspect: "2",
+					InputEDRPad:    "0x0x0x0",
+					InputEDRCrop:   "0x0x0x0",
 				},
 			},
-			Transcodes: transcodeElements,
+			Transcodes: txcode,
 			PostTranscode: hy.DoViPostTranscode{
-				Task: &hy.TaskTags{Tags: []string{preprocComputeTag}},
+				Task: &hy.TaskTags{Tags: tag},
 				VESMux: &hy.DoViVESMux{
-					Enabled: true,
-					Location: p.transcodeLocationFrom(storageLocation{
-						provider: cfg.destination.provider,
-						path:     fmt.Sprintf(doViVESMuxOutputPathTmpl, cfg.destination.path),
-					}, cfg.executionEnvironment.OutputAlias),
-					FilePattern: doViVESMuxFilenameDefault,
-					SDKVersion:  hy.DoViSDKVersionDefault,
+					Location: tmp, FilePattern: "ves.h265",
+					SDKVersion: hy.DoViSDKVersionDefault, Enabled: true,
 				},
 				MetadataPostProc: &hy.DoViMetadataPostProc{
-					Enabled: true,
-					Location: p.transcodeLocationFrom(storageLocation{
-						provider: cfg.destination.provider,
-						path:     fmt.Sprintf(doViMetadataPostProcOutputPathTmpl, cfg.destination.path),
-					}, cfg.executionEnvironment.OutputAlias),
-					FilePattern: doViMetadataPostProcFilenameDefault,
-					SDKVersion:  hy.DoViSDKVersionDefault,
+					Location: tmp, FilePattern: "postproc.265",
 					QCSettings: hy.DoViQCSettings{
-						Enabled:     true,
+						Location: tmp, FilePattern: "metadata_postproc_qc_report.txt",
 						ToolVersion: hy.DoViVesQCVersionDefault,
-						Location: p.transcodeLocationFrom(storageLocation{
-							provider: cfg.destination.provider,
-							path:     fmt.Sprintf(doViMetadataPostProcQCOutputPathTmpl, cfg.destination.path),
-						}, cfg.executionEnvironment.OutputAlias),
-						FilePattern: doViMetadataPostProcQCFilenameDefault,
+						Enabled:     true,
 					},
+					Enabled: true, SDKVersion: hy.DoViSDKVersionDefault,
 				},
 				MP4Mux: hy.DoViMP4Mux{
 					Enabled:            true,
-					Location:           &destStorageLocation,
-					FilePattern:        doViMP4MuxFilenameDefault,
+					FilePattern:        "{source_basename}.mp4",
+					Location:           &dst,
 					ToolVersion:        hy.DoViMP4MuxerVersionDefault,
 					CopySourceStartPTS: true,
-					CLIOptions:         map[string]string{doViMP4MuxDVH1FlagKey: ""},
+					CLIOptions:         map[string]string{"dvh1flag": ""},
 					QCSettings: &hy.DoViQCSettings{
 						Enabled:     true,
+						FilePattern: "mp4_qc_report.txt",
+						Location:    tmp,
 						ToolVersion: hy.DoViMP4QCVersionDefault,
-						Location: p.transcodeLocationFrom(storageLocation{
-							provider: cfg.destination.provider,
-							path:     fmt.Sprintf(doViMP4MuxQCOutputPathTmpl, cfg.destination.path),
-						}, cfg.executionEnvironment.OutputAlias),
-						FilePattern: doViMP4MuxQCFilenameDefault,
 					},
 					ElementaryStreams: []hy.DoViMP4MuxElementaryStream{{
-						AssetURL: p.assetURLFrom(storageLocation{
-							provider: cfg.sourceLocation.provider,
-							path:     cfg.sourceLocation.path,
-						}, cfg.executionEnvironment.OutputAlias),
+						AssetURL:        src,
 						ExtractAudio:    true,
-						ExtractLocation: &demuxOutputStorageLocation,
+						ExtractLocation: &tmp,
 						ExtractTask: &hy.DoViMP4MuxExtractTask{
-							RetryMethod: retryMethodRetry,
-							Retry: hy.Retry{
-								Count:    retryCountDefault,
-								DelaySec: retryDelayDefault,
-							},
-							Name: "Demux Audio",
+							RetryMethod: "retry",
+							Retry:       hy.Retry{Count: 3, DelaySec: 30},
+							Name:        "Demux Audio",
 						},
 					}},
 				},
 			},
 		},
-	}}}, nil
+	}}}
 }
-
-*/

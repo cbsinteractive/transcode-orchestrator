@@ -8,6 +8,7 @@ import (
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
 	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestFiles(t *testing.T) {
@@ -128,14 +129,8 @@ func TestFiles(t *testing.T) {
 			if found && tt.expectMissingOutputs {
 				t.Fatal("expected no outputs to be found")
 			}
-			for i, w := range files {
-				h := files[i]
-				if !reflect.DeepEqual(h, w) {
-					t.Fatalf("file[%d]:\n\t\thave: %v\n\t\twant: %v", i, h, w)
-				}
-			}
-			if h, w := len(file), len(tt.want); h != w {
-				t.Errorf("bad file count: have %d want %d", h, w)
+			if g, e := files, tt.want; !reflect.DeepEqual(g, e) {
+				t.Errorf("wrong jobs: got %v\nexpected %v\ndiff %v", g, e, cmp.Diff(g, e))
 			}
 		})
 	}
