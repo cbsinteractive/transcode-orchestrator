@@ -1,6 +1,5 @@
 package job
 
-
 const old0 = `{
 	"providers": ["mediaconvert"],
 	"preset": {

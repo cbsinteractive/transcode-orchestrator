@@ -127,7 +127,7 @@ func (p *flock) Create(ctx context.Context, j *job.Job) (*job.Status, error) {
 	}
 
 	return &job.Status{
-		ProviderName:  Name,
+		Provider:      Name,
 		ProviderJobID: fmt.Sprintf("%d", newJob.JobID),
 		State:         job.StateQueued,
 	}, nil
@@ -210,7 +210,7 @@ func (p *flock) jobStatusFrom(j *job.Job, fj *JobResponse) *job.Status {
 	status := &job.Status{
 		Progress:      fj.Progress,
 		ProviderJobID: j.ProviderJobID,
-		ProviderName:  Name,
+		Provider:      Name,
 		ProviderStatus: map[string]interface{}{
 			"create_timestamp": fj.CreateTimestamp,
 			"update_timestamp": fj.UpdateTimestamp,

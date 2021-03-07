@@ -1,5 +1,14 @@
 package job
 
+import (
+	"net/url"
+	"path"
+	"strings"
+	"time"
+
+	"github.com/cbsinteractive/pkg/timecode"
+)
+
 // File
 type File struct {
 	Size      int64         `json:"size,omitempty"`

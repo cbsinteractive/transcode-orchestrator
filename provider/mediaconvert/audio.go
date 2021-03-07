@@ -55,7 +55,7 @@ func uniqueTracks(ad *job.Downmix) (tracks []int64) {
 func audioChannelMappingFrom(ad *job.Downmix) (*mc.ChannelMapping, error) {
 	var out []mc.OutputChannelMapping
 
-	mapping, err := job.AudioDownmixMapping(ad)
+	mapping, err := ad.Map()
 	if err != nil {
 		return &mc.ChannelMapping{}, err
 	}

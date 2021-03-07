@@ -208,7 +208,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 	subSeg.Close(nil)
 
 	return &Status{
-		ProviderName:  Name,
+		Provider:      Name,
 		ProviderJobID: encResp.Id,
 		State:         job.StateQueued,
 	}, nil
@@ -229,7 +229,7 @@ func (p *driver) Status(ctx context.Context, j *Job) (*Status, error) {
 	}
 
 	s := Status{
-		ProviderName:  Name,
+		Provider:      Name,
 		ProviderJobID: j.ProviderJobID,
 		State:         state(task.Status),
 		Progress:      progress,
@@ -342,7 +342,6 @@ func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan err
 		VidMuxingStream:    videoMuxingStream,
 		ManifestID:         cfg.manifestID,
 		ManifestMasterPath: cfg.manifestMasterPath,
-		SegDuration:        cfg.job.Streaming.SegmentDuration,
 	}); err != nil {
 		errorc <- err
 		return

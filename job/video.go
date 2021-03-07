@@ -1,5 +1,7 @@
 package job
 
+import "github.com/cbsinteractive/pkg/video"
+
 // ScanProgressive and other supported types
 const (
 	ScanProgressive = "progressive"

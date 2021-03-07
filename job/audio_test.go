@@ -56,7 +56,7 @@ func TestAudioDownmixMapping(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := AudioDownmixMapping(&tt.ad)
+			got, err := tt.ad.Map()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AudioDownmixMapping() error = %v, wantErr %v", err, tt.wantErr)
 				return

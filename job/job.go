@@ -1,13 +1,9 @@
 package job
 
 import (
-	"net/url"
 	"path"
-	"strings"
 	"time"
 
-	"github.com/cbsinteractive/pkg/timecode"
-	"github.com/cbsinteractive/pkg/video"
 	"github.com/gofrs/uuid"
 )
 

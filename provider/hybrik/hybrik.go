@@ -82,7 +82,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 	}
 
 	return &Status{
-		ProviderName:  Name,
+		Provider:      Name,
 		ProviderJobID: id,
 		State:         job.StateQueued,
 	}, nil
@@ -202,7 +202,7 @@ func (p *driver) Status(_ context.Context, j *Job) (*Status, error) {
 
 	return &Status{
 		ProviderJobID: j.ProviderJobID,
-		ProviderName:  p.String(),
+		Provider:      p.String(),
 		Progress:      float64(ji.Progress),
 		State:         status,
 		Output:        output,
