@@ -46,9 +46,9 @@ func TestScanType(t *testing.T) {
 		{"p2p", "progressive", "progressive", nil},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			src.ScanType = job.ScanType(tt.src)
-			dst.Video.InterlaceMode = tt.dst
-			v := setter{dst, src}.ScanType(nil)
+			src.Video.Scantype = tt.src
+			dst.Video.Scantype = tt.dst
+			v := setter{dst, src}.Scan(nil)
 			if have := v.VideoPreprocessors.Deinterlacer; have != tt.want {
 				t.Logf("bad deinterlacer:\n\t\thave: %#v\n\t\twant: %#v", have, tt.want)
 			}

@@ -70,7 +70,7 @@ type Status struct {
 	Input  File `json:"input"`
 	Output Dir  `json:"output"`
 
-	ProviderName   string                 `json:"providerName,omitempty"`
+	Provider       string                 `json:"providerName,omitempty"`
 	ProviderJobID  string                 `json:"providerJobId,omitempty"`
 	ProviderStatus map[string]interface{} `json:"providerStatus,omitempty"`
 }

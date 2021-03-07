@@ -45,7 +45,7 @@ func outputFrom(f job.File, input job.File) (mc.Output, error) {
 		if f.Audio.Discrete {
 			maudio = audioSplit(audio)
 		} else {
-			maudio = append(maudio)
+			maudio = append(maudio, audio)
 		}
 	}
 

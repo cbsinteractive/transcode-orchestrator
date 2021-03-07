@@ -139,10 +139,45 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 		return nil, err
 	}
 	return &Status{
-		ProviderName:  Name,
+		Provider:      Name,
 		ProviderJobID: aws.StringValue(resp.Job.Id),
 		State:         job.StateQueued,
 	}, nil
+}
+
+func (p *driver) Status(ctx context.Context, job *Job) (*Status, error) {
+	jobResp, err := p.client.GetJobRequest(&mc.GetJobInput{
+		Id: aws.String(job.ProviderJobID),
+	}).Send(ctx)
+	if err != nil {
+		return &Status{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
+	}
+
+	return p.status(job, jobResp.Job), nil
+}
+
+func (p *driver) Cancel(ctx context.Context, id string) error {
+	_, err := p.client.CancelJobRequest(&mc.CancelJobInput{
+		Id: aws.String(id),
+	}).Send(ctx)
+
+	return err
+}
+
+func (p *driver) Healthcheck() error {
+	_, err := p.client.ListJobsRequest(nil).Send(context.Background()) // TODO(as): plump context
+	if err != nil {
+		return errors.Wrap(err, "listing jobs")
+	}
+	return nil
+}
+
+func (p *driver) Capabilities() provider.Capabilities {
+	return provider.Capabilities{
+		InputFormats:  []string{"h264", "h265", "hdr10"},
+		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf", "mov"},
+		Destinations:  []string{"s3"},
+	}
 }
 
 func (p *driver) outputGroupsFrom(j *Job) ([]mc.OutputGroup, error) {
@@ -184,14 +219,14 @@ func (p *driver) outputGroupsFrom(j *Job) ([]mc.OutputGroup, error) {
 		}
 		mcOutputGroup.Outputs = mcOutputs
 
-		destination := p.destinationPath(*j)
+		destination := p.destinationPath(*j, "m")
 
 		switch container {
 		case mc.ContainerTypeMp4, mc.ContainerTypeMov, mc.ContainerTypeWebm, mc.ContainerTypeMxf:
 			mcOutputGroup.OutputGroupSettings = &mc.OutputGroupSettings{
 				Type: mc.OutputGroupTypeFileGroupSettings,
 				FileGroupSettings: &mc.FileGroupSettings{
-					Destination: aws.String(destination + "m"),
+					Destination: aws.String(destination),
 				},
 			}
 		default:
@@ -204,32 +239,21 @@ func (p *driver) outputGroupsFrom(j *Job) ([]mc.OutputGroup, error) {
 	return mcOutputGroups, nil
 }
 
-func (p *driver) destinationPath(j Job) string {
+func (p *driver) destinationPath(j Job, file string) string {
 	if j.Output.Path == "" {
 		j.Output.Path = p.cfg.Destination
 	}
-	return j.Location("")
-}
-
-func (p *driver) Status(ctx context.Context, job *Job) (*Status, error) {
-	jobResp, err := p.client.GetJobRequest(&mc.GetJobInput{
-		Id: aws.String(job.ProviderJobID),
-	}).Send(ctx)
-	if err != nil {
-		return &Status{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
-	}
-
-	return p.status(job, jobResp.Job), nil
+	return j.Location(file)
 }
 
 func (p *driver) status(j *Job, mcJob *mc.Job) *Status {
 	status := &Status{
 		ProviderJobID: j.ProviderJobID,
-		ProviderName:  Name,
+		Provider:      Name,
 		State:         state(mcJob.Status),
 		Msg:           message(mcJob),
 		Output: job.Dir{
-			Path: p.destinationPath(*j),
+			Path: p.destinationPath(*j, ""),
 		},
 	}
 
@@ -305,11 +329,13 @@ func outputGroupDestinationFrom(group mc.OutputGroup) (string, error) {
 	}
 }
 
+// NOTE(as): it seems like the code in this repository wants to decouple
+// file extensions from file types for some reason, but the implementation
+// in some places resists that
 func fileExtensionFromContainer(settings *mc.ContainerSettings) (string, error) {
 	if settings == nil {
 		return "", errors.New("container settings were nil")
 	}
-
 	switch settings.Container {
 	case mc.ContainerTypeMp4:
 		return ".mp4", nil
@@ -322,11 +348,12 @@ func fileExtensionFromContainer(settings *mc.ContainerSettings) (string, error) 
 	}
 }
 
+// TODO(as): the only difference between fileExtensionFromContainer
+// and containerIdentifierFrom is a period... and the error message...
 func containerIdentifierFrom(settings *mc.ContainerSettings) (string, error) {
 	if settings == nil {
 		return "", errors.New("container settings were nil")
 	}
-
 	switch settings.Container {
 	case mc.ContainerTypeMp4:
 		return "mp4", nil
@@ -344,30 +371,6 @@ func message(job *mc.Job) string {
 		return *job.ErrorMessage
 	}
 	return string(job.CurrentPhase)
-}
-
-func (p *driver) Cancel(ctx context.Context, id string) error {
-	_, err := p.client.CancelJobRequest(&mc.CancelJobInput{
-		Id: aws.String(id),
-	}).Send(ctx)
-
-	return err
-}
-
-func (p *driver) Healthcheck() error {
-	_, err := p.client.ListJobsRequest(nil).Send(context.Background()) // TODO(as): plump context
-	if err != nil {
-		return errors.Wrap(err, "listing jobs")
-	}
-	return nil
-}
-
-func (p *driver) Capabilities() provider.Capabilities {
-	return provider.Capabilities{
-		InputFormats:  []string{"h264", "h265", "hdr10"},
-		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf", "mov"},
-		Destinations:  []string{"s3"},
-	}
 }
 
 func (p *driver) tagsFrom(labels []string) map[string]string {

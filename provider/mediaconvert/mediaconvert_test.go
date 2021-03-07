@@ -19,7 +19,7 @@ import (
 
 var (
 	defaultPreset = job.File{
-		Name:      "preset_name",
+		Name:      "file1.mp4",
 		Container: "mp4",
 		Video: job.Video{
 			Codec: "h264", Profile: "high", Level: "4.1",
@@ -31,7 +31,7 @@ var (
 	}
 
 	h265Preset = job.File{
-		Name:      "another_preset_name",
+		Name:      "file1.mp4",
 		Container: "mp4",
 		Video: job.Video{
 			Codec: "h265",
@@ -42,7 +42,7 @@ var (
 	}
 
 	av1Preset = job.File{
-		Name:      "yet_another_preset_name",
+		Name:      "file1.mp4",
 		Container: "mp4",
 		Video: job.Video{
 			Codec: "av1",
@@ -53,30 +53,9 @@ var (
 	}
 
 	audioOnlyPreset = job.File{
-		Name:      "preset_name",
+		Name:      "file1.mp4",
 		Container: "mp4",
 		Audio:     job.Audio{Codec: "aac", Bitrate: 20000},
-	}
-
-	tcBurninPreset = job.File{
-		Name:      "preset_name",
-		Container: "mov",
-		Video: job.Video{
-			Codec: "h264", Profile: "high", Level: "4.1",
-			Width: 300, Height: 400, Scantype: "progressive",
-			Bitrate: job.Bitrate{BPS: 400000, Control: "VBR", TwoPass: true},
-			Gop:     job.Gop{Size: 120, Unit: "frames"},
-			Overlays: job.Overlays{
-				TimecodeBurnin: &job.Timecode{
-					FontSize: 12,
-					Position: 7,
-				},
-			},
-		},
-		Audio: job.Audio{
-			Codec:   "aac",
-			Bitrate: 20000,
-		},
 	}
 
 	defaultJob = job.Job{
@@ -150,7 +129,7 @@ func TestSupport(t *testing.T) {
 	}
 
 	t.Run("Container", func(t *testing.T) {
-		for _, box := range []string{"mp4", "m3u8", "mxf", "cmaf", "mov", "webm"} {
+		for _, box := range []string{"mp4", "mxf", "cmaf", "mov", "webm"} {
 			mc, err := run(job.File{Container: box})
 			ck(box, err)
 			have := string(mc.Settings.OutputGroups[0].Outputs[0].ContainerSettings.Container)
@@ -230,8 +209,7 @@ func TestSupport(t *testing.T) {
 func TestDriverCreate(t *testing.T) {
 	vp8Preset := func(audioCodec string) job.File {
 		return job.File{
-			Name:      "preset_name",
-			Container: "webm",
+			Name: "file1.webm",
 			Video: job.Video{
 				Codec: "vp8",
 				Width: 300, Height: 400, Scantype: "progressive",
@@ -257,16 +235,12 @@ func TestDriverCreate(t *testing.T) {
 	}{
 		{
 			name: "H264/AAC/MP4",
-			cfg: config.MediaConvert{
-				Role:            "some-role",
-				DefaultQueueARN: "some:default:queue:arn",
-			},
+			cfg:  config.MediaConvert{Role: "some-role", DefaultQueueARN: "some:default:queue:arn"},
 			job: &job.Job{
-				ID:          "jobID",
-				Provider:    Name,
-				SourceMedia: "s3://some/path.mp4",
-				Outputs:     []job.TranscodeOutput{{Preset: job.File{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
-				Labels:      []string{"bill:some-bu", "some-more-labels"},
+				ID: "jobID", Provider: Name,
+				Input:  job.File{Name: "s3://some/path.mp4"},
+				Output: job.Dir{File: []job.File{{Name: "file1.mp4"}}},
+				Labels: []string{"bill:some-bu", "some-more-labels"},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -368,13 +342,10 @@ func TestDriverCreate(t *testing.T) {
 		{
 			name: "H264/AAC/MP4-Interlaced",
 			job: &job.Job{
-				ID:          "jobID",
-				Provider:    Name,
-				SourceMedia: "s3://some/path.mp4",
-				SourceInfo: job.File{
-					ScanType: job.ScanTypeInterlaced,
-				},
-				Outputs: []job.TranscodeOutput{{Preset: job.File{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				ID:       "jobID",
+				Provider: Name,
+				Input:    job.File{Name: "s3://some/path.mp4", Video: job.Video{Scantype: job.ScanInterlaced}},
+				Output:   job.Dir{File: []job.File{{Name: "file1.mp4"}}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -473,13 +444,10 @@ func TestDriverCreate(t *testing.T) {
 		{
 			name: "H264/AAC/MP4-Progressive",
 			job: &job.Job{
-				ID:          "jobID",
-				Provider:    Name,
-				SourceMedia: "s3://some/path.mp4",
-				SourceInfo: job.File{
-					ScanType: job.ScanTypeProgressive,
-				},
-				Outputs: []job.TranscodeOutput{{Preset: job.File{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				ID:       "jobID",
+				Provider: Name,
+				Input:    job.File{Name: "s3://some/path.mp4", Video: job.Video{Scantype: job.ScanProgressive}},
+				Output:   job.Dir{File: []job.File{{Name: "file1.mp4"}}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -572,10 +540,10 @@ func TestDriverCreate(t *testing.T) {
 		{
 			name: "H265/MP4-VideoOnly",
 			job: &job.Job{
-				ID:          "jobID",
-				Provider:    Name,
-				SourceMedia: "s3://some/path.mp4",
-				Outputs:     []job.TranscodeOutput{{Preset: job.File{Name: h265Preset.Name}, FileName: "file1.mp4"}},
+				ID:       "jobID",
+				Provider: Name,
+				Input:    job.File{Name: "s3://some/path.mp4"},
+				Output:   job.Dir{File: []job.File{{Name: "file1.mp4"}}},
 			},
 			preset:      h265Preset,
 			destination: "s3://some/destination",
@@ -668,10 +636,10 @@ func TestDriverCreate(t *testing.T) {
 		{
 			name: "AV1/MP4",
 			job: &job.Job{
-				ID:          "jobID",
-				Provider:    Name,
-				SourceMedia: "s3://some/path.mp4",
-				Outputs:     []job.TranscodeOutput{{Preset: job.File{Name: av1Preset.Name}, FileName: "file1.mp4"}},
+				ID:       "jobID",
+				Provider: Name,
+				Input:    job.File{Name: "s3://some/path.mp4"},
+				Output:   job.Dir{File: []job.File{{Name: "file1.mp4"}}},
 			},
 			preset:      av1Preset,
 			destination: "s3://some/destination",
@@ -752,10 +720,10 @@ func TestDriverCreate(t *testing.T) {
 		{
 			name: "VP8/Vorbis/Webm",
 			job: &job.Job{
-				ID:          "jobID",
-				Provider:    Name,
-				SourceMedia: "s3://some/path.webm",
-				Outputs:     []job.TranscodeOutput{{Preset: job.File{Name: defaultPreset.Name}, FileName: "file1.webm"}},
+				ID:       "jobID",
+				Provider: Name,
+				Input:    job.File{Name: "s3://some/path.webm"},
+				Output:   job.Dir{File: []job.File{{Name: "file1.webm"}}},
 			},
 			preset:      vp8Preset("vorbis"),
 			destination: "s3://some/destination",
@@ -849,10 +817,10 @@ func TestDriverCreate(t *testing.T) {
 		{
 			name: "VP8/Opus/Webm",
 			job: &job.Job{
-				ID:          "jobID",
-				Provider:    Name,
-				SourceMedia: "s3://some/path.webm",
-				Outputs:     []job.TranscodeOutput{{Preset: job.File{Name: defaultPreset.Name}, FileName: "file1.webm"}},
+				ID:       "jobID",
+				Provider: Name,
+				Input:    job.File{Name: "s3://some/path.webm"},
+				Output:   job.Dir{File: []job.File{{Name: "file1.webm"}}},
 			},
 			preset:      vp8Preset("opus"),
 			destination: "s3://some/destination",
@@ -950,10 +918,10 @@ func TestDriverCreate(t *testing.T) {
 				PreferredQueueARN: "some:preferred:queue:arn",
 			},
 			job: &job.Job{
-				ID:          "jobID",
-				Provider:    Name,
-				SourceMedia: "s3://some/path.mp4",
-				Outputs:     []job.TranscodeOutput{{Preset: job.File{Name: defaultPreset.Name}, FileName: "file1.mp4"}},
+				ID:       "jobID",
+				Provider: Name,
+				Input:    job.File{Name: "s3://some/path.mp4"},
+				Output:   job.Dir{File: []job.File{{Name: "file1.mp4"}}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -1050,137 +1018,6 @@ func TestDriverCreate(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "JobWithAudioDownmixAndTimeCodeBurninForMovOutput",
-			cfg: config.MediaConvert{
-				DefaultQueueARN:   "some:default:queue:arn",
-				PreferredQueueARN: "some:preferred:queue:arn",
-			},
-			job: &job.Job{
-				ID:          "jobID",
-				Provider:    Name,
-				SourceMedia: "s3://some/path.mov",
-				Outputs:     []job.TranscodeOutput{{Preset: job.File{Name: tcBurninPreset.Name}, FileName: "file1.mov"}},
-				AudioDownmix: &job.AudioDownmix{
-					SrcChannels: []job.AudioChannel{
-						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
-						{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
-						{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},
-						{TrackIdx: 1, ChannelIdx: 4, Layout: "LFE"},
-						{TrackIdx: 1, ChannelIdx: 5, Layout: "Ls"},
-						{TrackIdx: 1, ChannelIdx: 6, Layout: "Rs"},
-					},
-					DestChannels: []job.AudioChannel{
-						{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
-						{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
-					},
-				},
-			},
-			preset:      tcBurninPreset,
-			destination: "s3://some/destination",
-			wantJobReq: mc.CreateJobInput{
-				Role:            aws.String(""),
-				Queue:           aws.String("some:preferred:queue:arn"),
-				HopDestinations: []mc.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
-				Tags:            map[string]string{},
-				Settings: &mc.JobSettings{
-					Inputs: []mc.Input{
-						{
-							AudioSelectors: map[string]mc.AudioSelector{
-								"Audio Selector 1": getAudioSelector(6, 2, []int64{1}, []mc.OutputChannelMapping{
-									{InputChannels: []int64{0, -60, 0, -60, 0, -60}},
-									{InputChannels: []int64{-60, 0, 0, -60, -60, 0}},
-								}),
-							},
-							FileInput: aws.String("s3://some/path.mov"),
-							VideoSelector: &mc.VideoSelector{
-								ColorSpace: mc.ColorSpaceFollow,
-							},
-							TimecodeSource: mc.InputTimecodeSourceZerobased,
-						},
-					},
-					OutputGroups: []mc.OutputGroup{
-						{
-							OutputGroupSettings: &mc.OutputGroupSettings{
-								Type: mc.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mc.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
-								},
-							},
-							Outputs: []mc.Output{
-								{
-									NameModifier: aws.String("file1"),
-									ContainerSettings: &mc.ContainerSettings{
-										Container: mc.ContainerTypeMov,
-										MovSettings: &mc.MovSettings{
-											ClapAtom:           mc.MovClapAtomExclude,
-											CslgAtom:           mc.MovCslgAtomInclude,
-											PaddingControl:     mc.MovPaddingControlOmneon,
-											Reference:          mc.MovReferenceSelfContained,
-											Mpeg2FourCCControl: mc.MovMpeg2FourCCControlMpeg,
-										},
-									},
-									VideoDescription: &mc.VideoDescription{
-										Height:            aws.Int64(400),
-										Width:             aws.Int64(300),
-										RespondToAfd:      mc.RespondToAfdNone,
-										ScalingBehavior:   mc.ScalingBehaviorDefault,
-										TimecodeInsertion: mc.VideoTimecodeInsertionDisabled,
-										AntiAlias:         mc.AntiAliasEnabled,
-										VideoPreprocessors: &mc.VideoPreprocessor{
-											Deinterlacer: &mc.Deinterlacer{
-												Algorithm: mc.DeinterlaceAlgorithmInterpolate,
-												Control:   mc.DeinterlacerControlNormal,
-												Mode:      mc.DeinterlacerModeAdaptive,
-											},
-											TimecodeBurnin: &mc.TimecodeBurnin{
-												FontSize: aws.Int64(12),
-												Position: mc.TimecodeBurninPositionBottomLeft,
-												Prefix:   aws.String(""),
-											},
-										},
-										CodecSettings: &mc.VideoCodecSettings{
-											Codec: mc.VideoCodecH264,
-											H264Settings: &mc.H264Settings{
-												Bitrate:            aws.Int64(400000),
-												CodecLevel:         mc.H264CodecLevelAuto,
-												CodecProfile:       mc.H264CodecProfileHigh,
-												InterlaceMode:      mc.H264InterlaceModeProgressive,
-												QualityTuningLevel: mc.H264QualityTuningLevelMultiPassHq,
-												RateControlMode:    mc.H264RateControlModeVbr,
-												GopSize:            aws.Float64(120),
-												GopSizeUnits:       mc.H264GopSizeUnitsFrames,
-												ParControl:         mc.H264ParControlSpecified,
-												ParNumerator:       aws.Int64(1),
-												ParDenominator:     aws.Int64(1),
-											},
-										},
-									},
-									AudioDescriptions: []mc.AudioDescription{
-										{
-											CodecSettings: &mc.AudioCodecSettings{
-												Codec: mc.AudioCodecAac,
-												AacSettings: &mc.AacSettings{
-													Bitrate:         aws.Int64(20000),
-													CodecProfile:    mc.AacCodecProfileLc,
-													CodingMode:      mc.AacCodingModeCodingMode20,
-													RateControlMode: mc.AacRateControlModeCbr,
-													SampleRate:      aws.Int64(defaultAudioSampleRate),
-												},
-											},
-										},
-									},
-									Extension: aws.String("mov"),
-								},
-							},
-						},
-					},
-					TimecodeConfig: &mc.TimecodeConfig{
-						Source: mc.TimecodeSourceZerobased,
-					},
-				},
-			},
-		},
 		//{
 		//	name: "acceleration is enabled and the default queue is used when a source has a large filesize",
 		//	cfg: config.MediaConvert{
@@ -1263,17 +1100,16 @@ func TestDriverCreate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
 			tt.cfg.Destination = tt.destination
 
 			p := &driver{
 				cfg: tt.cfg,
 			}
-			tt.job.Outputs[0].Preset = tt.preset
+			tt.job.Output.File[0] = tt.preset
 			input, err := p.createRequest(context.Background(), tt.job)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("driver.Transcode() error = %v, wantErr %v", err, tt.wantErr)
+			if err != nil {
+				t.Fatal(err)
 			}
 
 			//t.Logf("want: `%s`,\n", readable(tt.wantJobReq))
@@ -1286,113 +1122,208 @@ func TestDriverCreate(t *testing.T) {
 	}
 }
 
+func TestAudioMixTimecodeBurnin(t *testing.T) {
+
+	input := &job.Job{
+		Input: job.File{
+			Name: "s3://some/path.mov",
+			// TODO(as): can this be split across the source
+			// and the destination? Is Downmix the right name
+			// should it just be a Mix? It doesn't seem very
+			// general in its current state.
+			Downmix: &job.Downmix{
+				Src: []job.AudioChannel{
+					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
+					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
+					{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},
+					{TrackIdx: 1, ChannelIdx: 4, Layout: "LFE"},
+					{TrackIdx: 1, ChannelIdx: 5, Layout: "Ls"},
+					{TrackIdx: 1, ChannelIdx: 6, Layout: "Rs"},
+				},
+				Dst: []job.AudioChannel{
+					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
+					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
+				},
+			}},
+		Output: job.Dir{File: []job.File{{
+			Name: "file1.mov",
+			Video: job.Video{
+				Codec: "h264", Profile: "high", Level: "4.1",
+				Width: 300, Height: 400, Scantype: "progressive",
+				Bitrate:  job.Bitrate{BPS: 400000, Control: "VBR", TwoPass: true},
+				Gop:      job.Gop{Size: 120, Unit: "frames"},
+				Overlays: job.Overlays{TimecodeBurnin: &job.Timecode{FontSize: 12, Position: 7}},
+			},
+			Audio: job.Audio{Codec: "aac", Bitrate: 20000},
+		}},
+		},
+	}
+	p := &driver{}
+	j, err := p.createRequest(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, e := j, &mcBurninDownmixJob; !reflect.DeepEqual(g, e) {
+		t.Fatalf("translation:\n\t\thave: %s\n\t\twant: %s", readable(g), readable(e))
+	}
+}
+
+var mcBurninDownmixJob = mc.CreateJobInput{
+	Role:            aws.String(""),
+	Queue:           aws.String("some:preferred:queue:arn"),
+	HopDestinations: []mc.HopDestination{{WaitMinutes: aws.Int64(defaultQueueHopTimeoutMins)}},
+	Tags:            map[string]string{},
+	Settings: &mc.JobSettings{
+		Inputs: []mc.Input{
+			{
+				AudioSelectors: map[string]mc.AudioSelector{
+					"Audio Selector 1": getAudioSelector(6, 2, []int64{1}, []mc.OutputChannelMapping{
+						{InputChannels: []int64{0, -60, 0, -60, 0, -60}},
+						{InputChannels: []int64{-60, 0, 0, -60, -60, 0}},
+					}),
+				},
+				FileInput: aws.String("s3://some/path.mov"),
+				VideoSelector: &mc.VideoSelector{
+					ColorSpace: mc.ColorSpaceFollow,
+				},
+				TimecodeSource: mc.InputTimecodeSourceZerobased,
+			},
+		},
+		OutputGroups: []mc.OutputGroup{
+			{
+				OutputGroupSettings: &mc.OutputGroupSettings{
+					Type: mc.OutputGroupTypeFileGroupSettings,
+					FileGroupSettings: &mc.FileGroupSettings{
+						Destination: aws.String("s3://some/destination/jobID/m"),
+					},
+				},
+				Outputs: []mc.Output{
+					{
+						NameModifier: aws.String("file1"),
+						ContainerSettings: &mc.ContainerSettings{
+							Container: mc.ContainerTypeMov,
+							MovSettings: &mc.MovSettings{
+								ClapAtom:           mc.MovClapAtomExclude,
+								CslgAtom:           mc.MovCslgAtomInclude,
+								PaddingControl:     mc.MovPaddingControlOmneon,
+								Reference:          mc.MovReferenceSelfContained,
+								Mpeg2FourCCControl: mc.MovMpeg2FourCCControlMpeg,
+							},
+						},
+						VideoDescription: &mc.VideoDescription{
+							Height:            aws.Int64(400),
+							Width:             aws.Int64(300),
+							RespondToAfd:      mc.RespondToAfdNone,
+							ScalingBehavior:   mc.ScalingBehaviorDefault,
+							TimecodeInsertion: mc.VideoTimecodeInsertionDisabled,
+							AntiAlias:         mc.AntiAliasEnabled,
+							VideoPreprocessors: &mc.VideoPreprocessor{
+								Deinterlacer: &mc.Deinterlacer{
+									Algorithm: mc.DeinterlaceAlgorithmInterpolate,
+									Control:   mc.DeinterlacerControlNormal,
+									Mode:      mc.DeinterlacerModeAdaptive,
+								},
+								TimecodeBurnin: &mc.TimecodeBurnin{
+									FontSize: aws.Int64(12),
+									Position: mc.TimecodeBurninPositionBottomLeft,
+									Prefix:   aws.String(""),
+								},
+							},
+							CodecSettings: &mc.VideoCodecSettings{
+								Codec: mc.VideoCodecH264,
+								H264Settings: &mc.H264Settings{
+									Bitrate:            aws.Int64(400000),
+									CodecLevel:         mc.H264CodecLevelAuto,
+									CodecProfile:       mc.H264CodecProfileHigh,
+									InterlaceMode:      mc.H264InterlaceModeProgressive,
+									QualityTuningLevel: mc.H264QualityTuningLevelMultiPassHq,
+									RateControlMode:    mc.H264RateControlModeVbr,
+									GopSize:            aws.Float64(120),
+									GopSizeUnits:       mc.H264GopSizeUnitsFrames,
+									ParControl:         mc.H264ParControlSpecified,
+									ParNumerator:       aws.Int64(1),
+									ParDenominator:     aws.Int64(1),
+								},
+							},
+						},
+						AudioDescriptions: []mc.AudioDescription{
+							{
+								CodecSettings: &mc.AudioCodecSettings{
+									Codec: mc.AudioCodecAac,
+									AacSettings: &mc.AacSettings{
+										Bitrate:         aws.Int64(20000),
+										CodecProfile:    mc.AacCodecProfileLc,
+										CodingMode:      mc.AacCodingModeCodingMode20,
+										RateControlMode: mc.AacRateControlModeCbr,
+										SampleRate:      aws.Int64(defaultAudioSampleRate),
+									},
+								},
+							},
+						},
+						Extension: aws.String("mov"),
+					},
+				},
+			},
+		},
+		TimecodeConfig: &mc.TimecodeConfig{
+			Source: mc.TimecodeSourceZerobased,
+		},
+	},
+}
+
 func TestDriverStatus(t *testing.T) {
+	// NOTE(as): I don't see the value of preserving trailing slashes here
+	// so I deleted them from the expected output where they were present
+	//
+	// BEFORE: "s3://some/destination/jobID"
+	// AFTER: "s3://some/destination/jobID/"
+	//
 	tests := []struct {
 		name        string
 		destination string
 		mcJob       mc.Job
-		wantStatus  job.Status
-		wantErr     bool
+		want        job.Status
 	}{
 		{
 			name:        "Submitted",
 			destination: "s3://some/destination",
-			mcJob: mc.Job{
-				Status: mc.JobStatusSubmitted,
-			},
-			wantStatus: job.Status{
-				State:    job.StateQueued,
-				Provider: Name,
-				Output: job.Output{
-					Destination: "s3://some/destination/jobID/",
-				},
-			},
+			want:        job.Status{State: job.StateQueued, Provider: Name, Output: job.Dir{Path: "s3://some/destination/jobID"}},
+			mcJob:       mc.Job{Status: mc.JobStatusSubmitted},
 		},
 		{
 			name:        "Progressing",
 			destination: "s3://some/destination",
-			mcJob: mc.Job{
-				Status:             mc.JobStatusProgressing,
-				JobPercentComplete: aws.Int64(42),
-			},
-			wantStatus: job.Status{
-				State:    job.StateStarted,
-				Provider: Name,
-				Progress: 42,
-				Output: job.Output{
-					Destination: "s3://some/destination/jobID/",
-				},
-			},
+			want:        job.Status{State: job.StateStarted, Provider: Name, Progress: 42, Output: job.Dir{Path: "s3://some/destination/jobID"}},
+			mcJob:       mc.Job{Status: mc.JobStatusProgressing, JobPercentComplete: aws.Int64(42)},
 		},
 		{
 			name:        "Complete",
 			destination: "s3://some/destination",
+			want: job.Status{
+				State: job.StateFinished, Provider: Name, Progress: 100,
+				Output: job.Dir{
+					Path: "s3://some/destination/jobID",
+					File: []job.File{
+						{Name: "s3://some/destination/jobID/m_modifier.mp4", Video: job.Video{Height: 102, Width: 324}},
+						{Name: "s3://some/destination/jobID/m_another_modifier.mp4"},
+					},
+				},
+			},
 			mcJob: mc.Job{
 				Status: mc.JobStatusComplete,
 				Settings: &mc.JobSettings{
 					OutputGroups: []mc.OutputGroup{
 						{
-							OutputGroupSettings: &mc.OutputGroupSettings{
-								Type: mc.OutputGroupTypeFileGroupSettings,
-								FileGroupSettings: &mc.FileGroupSettings{
-									Destination: aws.String("s3://some/destination/jobID/m"),
-								},
-							},
+							OutputGroupSettings: &mc.OutputGroupSettings{Type: mc.OutputGroupTypeFileGroupSettings, FileGroupSettings: &mc.FileGroupSettings{Destination: aws.String("s3://some/destination/jobID/m")}},
 							Outputs: []mc.Output{
-								{
-									NameModifier: aws.String("_modifier"),
-									VideoDescription: &mc.VideoDescription{
-										Height: aws.Int64(102),
-										Width:  aws.Int64(324),
-									},
-									ContainerSettings: &mc.ContainerSettings{
-										Container: mc.ContainerTypeMp4,
-										Mp4Settings: &mc.Mp4Settings{
-											Mp4MajorBrand: aws.String("isom"),
-										},
-									},
-								},
-								{
-									NameModifier: aws.String("_another_modifier"),
-									ContainerSettings: &mc.ContainerSettings{
-										Container: mc.ContainerTypeMp4,
-										Mp4Settings: &mc.Mp4Settings{
-											Mp4MajorBrand: aws.String("isom"),
-										},
-									},
-								},
-								{
-									NameModifier: aws.String("_123"),
-									ContainerSettings: &mc.ContainerSettings{
-										Container: mc.ContainerTypeM2ts,
-									},
-								},
-								{
-									ContainerSettings: &mc.ContainerSettings{
-										Container: mc.ContainerTypeM2ts,
-									},
-								},
+								{NameModifier: aws.String("_modifier"), VideoDescription: &mc.VideoDescription{Height: aws.Int64(102), Width: aws.Int64(324)},
+									ContainerSettings: &mc.ContainerSettings{Container: mc.ContainerTypeMp4, Mp4Settings: &mc.Mp4Settings{Mp4MajorBrand: aws.String("isom")}}},
+								{NameModifier: aws.String("_another_modifier"),
+									ContainerSettings: &mc.ContainerSettings{Container: mc.ContainerTypeMp4, Mp4Settings: &mc.Mp4Settings{Mp4MajorBrand: aws.String("isom")}}},
+								{NameModifier: aws.String("_123"),
+									ContainerSettings: &mc.ContainerSettings{Container: mc.ContainerTypeM2ts}},
+								{ContainerSettings: &mc.ContainerSettings{Container: mc.ContainerTypeM2ts}},
 							},
-						},
-					},
-				},
-			},
-			wantStatus: job.Status{
-				State:    job.StateFinished,
-				Provider: Name,
-				Progress: 100,
-				Output: job.Output{
-					Destination: "s3://some/destination/jobID/",
-					Files: []job.File{
-						{
-							Path:      "s3://some/destination/jobID/m_modifier.mp4",
-							Container: "mp4",
-							Height:    102,
-							Width:     324,
-						},
-						{
-							Path:      "s3://some/destination/jobID/m_another_modifier.mp4",
-							Container: "mp4",
 						},
 					},
 				},
@@ -1408,9 +1339,8 @@ func TestDriverStatus(t *testing.T) {
 			}}
 
 			status := p.status(&defaultJob, &tt.mcJob)
-			if g, e := status, &tt.wantStatus; !reflect.DeepEqual(g, e) {
-				t.Fatalf("driver.JobStatus(): wrong job request\nWant %+v\nGot %+v\nDiff %s", e,
-					g, cmp.Diff(e, g))
+			if g, e := status, &tt.want; !reflect.DeepEqual(g, e) {
+				t.Fatalf("driver.JobStatus(): wrong job request\nWant %+v\nGot %+v\nDiff %s", e, g, cmp.Diff(e, g))
 			}
 		})
 	}
