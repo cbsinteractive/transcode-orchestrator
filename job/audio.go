@@ -4,25 +4,50 @@ import (
 	"fmt"
 )
 
-type downmixMap map[ChannelLayout]map[int]bool
+//ChannelLayout describes layout of an audio channel
+type ChannelLayout string
 
-var downmixMappings = map[int]downmixMap{
-	2: {
-		ChannelLayoutLFE:           nil,
-		ChannelLayoutCenter:        {0: true, 1: true},
-		ChannelLayoutLeft:          {0: true},
-		ChannelLayoutRight:         {1: true},
-		ChannelLayoutLeftSurround:  {0: true},
-		ChannelLayoutRightSurround: {1: true},
-		ChannelLayoutLeftBack:      {0: true},
-		ChannelLayoutRightBack:     {1: true},
-		ChannelLayoutLeftTotal:     {0: true},
-		ChannelLayoutRightTotal:    {1: true},
-	},
+const (
+	ChannelLayoutCenter        ChannelLayout = "C"
+	ChannelLayoutLeft          ChannelLayout = "L"
+	ChannelLayoutRight         ChannelLayout = "R"
+	ChannelLayoutLeftSurround  ChannelLayout = "Ls"
+	ChannelLayoutRightSurround ChannelLayout = "Rs"
+	ChannelLayoutLeftBack      ChannelLayout = "Lb"
+	ChannelLayoutRightBack     ChannelLayout = "Rb"
+	ChannelLayoutLeftTotal     ChannelLayout = "Lt"
+	ChannelLayoutRightTotal    ChannelLayout = "Rt"
+	ChannelLayoutLFE           ChannelLayout = "LFE"
+)
+
+// Audio defines audio transcoding parameters
+type Audio struct {
+	Codec     string `json:"codec,omitempty"`
+	Bitrate   int    `json:"bitrate,omitempty"`
+	Normalize bool   `json:"normalize,omitempty"`
+	Discrete  bool   `json:"discrete,omitempty"`
 }
 
-//AudioDownmixMapping converts
-func AudioDownmixMapping(ad *Downmix) ([][]bool, error) {
+func (a *Audio) On() bool {
+	return a != nil && *a != (Audio{})
+}
+
+// AudioChannel describes the position and attributes of a
+// single channel of audio inside a container
+type AudioChannel struct {
+	TrackIdx, ChannelIdx int
+	Layout               string
+}
+
+//AudioDownmix holds source and output channels for providers
+//to handle downmixing
+type Downmix struct {
+	Src []AudioChannel
+	Dst []AudioChannel
+}
+
+// Map converts
+func (ad *Downmix) Map() ([][]bool, error) {
 	dm, found := downmixMappings[len(ad.Dst)]
 	if !found {
 		return nil, fmt.Errorf("no downmix config found when converting %d src channels to %d destination channels",
@@ -42,3 +67,20 @@ func AudioDownmixMapping(ad *Downmix) ([][]bool, error) {
 
 	return m, nil
 }
+
+var downmixMappings = map[int]downmixMap{
+	2: {
+		ChannelLayoutLFE:           nil,
+		ChannelLayoutCenter:        {0: true, 1: true},
+		ChannelLayoutLeft:          {0: true},
+		ChannelLayoutRight:         {1: true},
+		ChannelLayoutLeftSurround:  {0: true},
+		ChannelLayoutRightSurround: {1: true},
+		ChannelLayoutLeftBack:      {0: true},
+		ChannelLayoutRightBack:     {1: true},
+		ChannelLayoutLeftTotal:     {0: true},
+		ChannelLayoutRightTotal:    {1: true},
+	},
+}
+
+type downmixMap map[ChannelLayout]map[int]bool
