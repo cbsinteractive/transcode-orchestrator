@@ -15,7 +15,7 @@ func (p *driver) auth(j *Job) (a struct{ Read, Write string }) {
 	return
 }
 
-func (p *driver) validate(j *Job) (error) {
+func (p *driver) validate(j *Job) error {
 	n := countDolbyVision(&j.Output)
 	if n > 0 && n != j.Output.Len() {
 		return ErrMixedPresets
@@ -28,7 +28,7 @@ const LegacyDolbyVision = true
 // assemble converts the job into a matrix of elements
 // callers should ensure the job was already validated
 // using p.validate
-func (p *driver) assemble(j *Job) ([][]hy.Element) {
+func (p *driver) assemble(j *Job) [][]hy.Element {
 	if countDolbyVision(&j.Output) == 0 {
 		return [][]hy.Element{p.transcodeElems(j)}
 	}
@@ -72,10 +72,10 @@ func (p *driver) transcodeElems(j *Job) (e []hy.Element) {
 			Audio:         audioTarget(f.Audio),
 		}
 		var opts *hy.TranscodeTaskOptions
-		if applyHDR(&target, f){
+		if applyHDR(&target, f) {
 			opts = &hy.TranscodeTaskOptions{Pipeline: &hy.PipelineOptions{EncoderVersion: hy.EncoderVersion4_10bit}}
 		}
-		if j.Input.Type() == "mxf"{
+		if j.Input.Type() == "mxf" {
 			applyMXF(&target, f)
 		}
 		e = append(e, hy.Element{
@@ -86,7 +86,7 @@ func (p *driver) transcodeElems(j *Job) (e []hy.Element) {
 				Tags: tag(j, job.TagTranscodeDefault),
 			},
 			Payload: hy.TranscodePayload{
-				Options: opts,
+				Options:        opts,
 				SourcePipeline: hy.TranscodeSourcePipeline{SegmentedRendering: features(j)},
 				LocationTargetPayload: hy.LocationTargetPayload{
 					Location: p.location(f, p.auth(j).Write),
@@ -130,8 +130,8 @@ func videoTarget(v job.Video) *hy.VideoTarget {
 		Width:             w,
 		Height:            h,
 		BitrateKb:         v.Bitrate.Kbps(),
-		MinBitrateKb: vbrON * v.Bitrate.Percent(-vbrVariability).Kbps(),
-		MaxBitrateKb: vbrON * v.Bitrate.Percent(+vbrVariability).Kbps(),
+		MinBitrateKb:      vbrON * v.Bitrate.Percent(-vbrVariability).Kbps(),
+		MaxBitrateKb:      vbrON * v.Bitrate.Percent(+vbrVariability).Kbps(),
 		BitrateMode:       canon(v.Bitrate.Control),
 		Profile:           canon(v.Profile),
 		Level:             canon(v.Level),
@@ -143,7 +143,6 @@ func videoTarget(v job.Video) *hy.VideoTarget {
 		UseSceneDetection: false,
 	}
 }
-
 
 func audioTarget(a job.Audio) []hy.AudioTarget {
 	if (a == job.Audio{}) {
