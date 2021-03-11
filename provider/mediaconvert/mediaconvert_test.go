@@ -129,7 +129,7 @@ func TestSupport(t *testing.T) {
 	}
 
 	t.Run("Container", func(t *testing.T) {
-		for _, box := range []string{"mp4", "mxf", "cmaf", "mov", "webm"} {
+		for _, box := range []string{"mp4", "mxf", "mov", "webm"} {
 			mc, err := run(job.File{Container: box})
 			ck(box, err)
 			have := string(mc.Settings.OutputGroups[0].Outputs[0].ContainerSettings.Container)
@@ -139,7 +139,7 @@ func TestSupport(t *testing.T) {
 			}
 		}
 
-		for _, box := range []string{"mp4", "m3u8", "mxf", "cmaf", "mov", "webm"} {
+		for _, box := range []string{"mp4", "mxf", "cmaf", "mov", "webm"} {
 			for _, codec := range []string{"", "h264", "h265", "av1", "xdcam", "vp8"} {
 				_, err := run(job.File{Container: box, Video: job.Video{Codec: codec}})
 				ck(box+"/"+codec, err)
@@ -1145,20 +1145,22 @@ func TestAudioMixTimecodeBurnin(t *testing.T) {
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 				},
 			}},
-		Output: job.Dir{File: []job.File{{
-			Name: "file1.mov",
-			Video: job.Video{
-				Codec: "h264", Profile: "high", Level: "4.1",
-				Width: 300, Height: 400, Scantype: "progressive",
-				Bitrate:  job.Bitrate{BPS: 400000, Control: "VBR", TwoPass: true},
-				Gop:      job.Gop{Size: 120, Unit: "frames"},
-				Overlays: job.Overlays{TimecodeBurnin: &job.Timecode{FontSize: 12, Position: 7}},
-			},
-			Audio: job.Audio{Codec: "aac", Bitrate: 20000},
-		}},
+		Output: job.Dir{
+			Path: "s3://some/destination/jobID",
+			File: []job.File{{
+				Name: "file1.mov",
+				Video: job.Video{
+					Codec: "h264", Profile: "high", Level: "4.1",
+					Width: 300, Height: 400, Scantype: "progressive",
+					Bitrate:  job.Bitrate{BPS: 400000, Control: "VBR", TwoPass: true},
+					Gop:      job.Gop{Size: 120, Unit: "frames"},
+					Overlays: job.Overlays{TimecodeBurnin: &job.Timecode{FontSize: 12, Position: 7}},
+				},
+				Audio: job.Audio{Codec: "aac", Bitrate: 20000},
+			}},
 		},
 	}
-	p := &driver{}
+	p := &driver{cfg: config.MediaConvert{Role: "some-role", PreferredQueueARN: "some:preferred:queue:arn", DefaultQueueARN: "some:default:queue:arn"}}
 	j, err := p.createRequest(context.Background(), input)
 	if err != nil {
 		t.Fatal(err)

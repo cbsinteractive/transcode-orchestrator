@@ -23,6 +23,9 @@ var timecodePositionMap = map[int]mc.TimecodeBurninPosition{
 }
 
 func outputFrom(f job.File, input job.File) (mc.Output, error) {
+	if f.Container == "" {
+		f.Container = f.Type() // TODO(as): remove container as a field ?
+	}
 	container, err := containerFrom(f.Container)
 	if err != nil {
 		return mc.Output{}, fmt.Errorf("container: %w", err)
