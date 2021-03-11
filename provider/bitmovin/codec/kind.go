@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
 // Preset is a bitmovin Preset, formerly known as "PresetSummary"

@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
 	transcoding "github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/cbsinteractive/transcode-orchestrator/service/exceptions"
 	"github.com/sirupsen/logrus"

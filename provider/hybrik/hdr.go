@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
 const (

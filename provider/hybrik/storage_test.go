@@ -3,7 +3,7 @@ package hybrik
 import (
 	"testing"
 
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
 func TestStorage(t *testing.T) {

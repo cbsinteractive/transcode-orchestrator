@@ -3,8 +3,8 @@ package provider
 import (
 	"context"
 
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
 type fake struct {

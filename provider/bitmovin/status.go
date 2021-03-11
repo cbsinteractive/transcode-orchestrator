@@ -2,7 +2,7 @@ package bitmovin
 
 import (
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
 func state(bitmovin model.Status) job.State {

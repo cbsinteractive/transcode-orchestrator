@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
 type CodecAAC struct {

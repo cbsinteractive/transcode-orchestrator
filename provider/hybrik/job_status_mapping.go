@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
 type taskWithOutputMatcher struct {
@@ -51,8 +51,8 @@ func filesFrom(task hy.TaskResult) (files []job.File, ok bool, err error) {
 			dir := job.File{Name: a.Location.Path}
 			for _, c := range a.AssetComponents {
 				files = append(files, job.File{
-					Name:      dir.Join(c.Name).Name,
-					Size:      int64(c.Descriptor.Size),
+					Name: dir.Join(c.Name).Name,
+					Size: int64(c.Descriptor.Size),
 				})
 			}
 		}

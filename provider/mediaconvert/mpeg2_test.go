@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
 func TestGenerateMPEG2(t *testing.T) {

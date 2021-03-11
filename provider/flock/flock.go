@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 )
 

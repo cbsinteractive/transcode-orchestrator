@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
 )
 
 var providers = map[string]Factory{}

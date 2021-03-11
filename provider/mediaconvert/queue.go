@@ -1,6 +1,6 @@
 package mediaconvert
 
-import "github.com/cbsinteractive/transcode-orchestrator/job"
+import "github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 
 func (p *driver) canUsePreferredQueue(info job.File) bool {
 	return !p.requiresAcceleration(info)

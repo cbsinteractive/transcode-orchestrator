@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
 var ErrUnsupportedValue = errors.New("unsupported value")

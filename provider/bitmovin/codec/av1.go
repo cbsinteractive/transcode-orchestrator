@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
 var ErrGopFramesOnly = errors.New("gop unit must be frames")

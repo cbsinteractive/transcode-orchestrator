@@ -1,6 +1,6 @@
 package hybrik
 
-import "github.com/cbsinteractive/transcode-orchestrator/job"
+import "github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 
 const (
 	vbrVariability = 10

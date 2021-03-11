@@ -7,7 +7,7 @@ import (
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/bitmovin/bitmovin-api-sdk-go/query"
 	"github.com/bitmovin/bitmovin-api-sdk-go/serialization"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/storage"
 )
 

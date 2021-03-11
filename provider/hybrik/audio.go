@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/job"
+	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
 func (p *driver) audioElements(j *job.Job) (a []hy.Element) {
