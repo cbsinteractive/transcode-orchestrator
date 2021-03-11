@@ -39,6 +39,11 @@ func list(v ...interface{}) (s enum) {
 	return s
 }
 
+// VideoPTR: holds pointers to all these very similar codec structs,
+// and is used to set them all in a "generic" way. For example, h264
+// and h265 are seperate codec objects, but they both have a name,
+// so the pointer to it is assigned to this object and then that's passed
+// into codec.setVideo.
 type VideoPTR struct {
 	Name                                     *string
 	Width, Height                            **int32
