@@ -52,7 +52,6 @@ func filesFrom(task hy.TaskResult) (files []job.File, ok bool, err error) {
 			for _, c := range a.AssetComponents {
 				files = append(files, job.File{
 					Name:      dir.Join(c.Name).Name,
-					Container: containerFrom(c),
 					Size:      int64(c.Descriptor.Size),
 				})
 			}

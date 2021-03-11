@@ -98,7 +98,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 		}
 	}
 
-	inputPath := j.Input.Name
+	inputPath := j.Input.URL().Path
 	inputID, err := p.inputFrom(ctx, j)
 	if err != nil {
 		return nil, err

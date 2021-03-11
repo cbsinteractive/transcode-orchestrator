@@ -45,6 +45,7 @@ func (s *Server) serve() bool {
 			if !s.request.UnmarshalJSON(job) {
 				return false
 			}
+			log.Printf("job: %#v", job)
 			stat, err := s.putJob0(job)
 			if err != nil {
 				return s.writeerror("put job failed", 400, err)

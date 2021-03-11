@@ -11,7 +11,7 @@ require (
 	github.com/bitmovin/bitmovin-api-sdk-go v1.37.0-alpha.0
 	github.com/cbsinteractive/hybrik-sdk-go v0.0.0-20191031180025-00f04ed90532
 	github.com/cbsinteractive/pkg/timecode v0.0.0-20200805005557-c8cd96fa0686
-	github.com/cbsinteractive/pkg/video v0.0.0-20200829195108-cc8210d024ab
+	github.com/cbsinteractive/pkg/video v0.0.4
 	github.com/fsouza/ctxlogger v1.5.9
 	github.com/fsouza/gizmo-stackdriver-logging v1.3.2
 	github.com/getsentry/sentry-go v0.6.0

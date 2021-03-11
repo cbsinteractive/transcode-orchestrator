@@ -77,20 +77,12 @@ func state(status mc.JobStatus) job.State {
 
 func containerFrom(v string) (mc.ContainerType, error) {
 	switch strings.ToLower(v) {
-	case "mxf":
-		return mc.ContainerTypeMxf, nil
-	case "m3u8":
-		return mc.ContainerTypeM3u8, nil
-	case "cmaf":
-		return mc.ContainerTypeCmfc, nil
-	case "mp4":
-		return mc.ContainerTypeMp4, nil
-	case "mov":
-		return mc.ContainerTypeMov, nil
-	case "webm":
-		return mc.ContainerTypeWebm, nil
-	default:
-		return "", fmt.Errorf("%w: %q", ErrUnsupported, v)
+	case "mp4": return mc.ContainerTypeMp4, nil
+	case "mov": return mc.ContainerTypeMov, nil
+	case "mxf": return mc.ContainerTypeMxf, nil
+	case "webm": return mc.ContainerTypeWebm, nil
+	case "cmaf": return mc.ContainerTypeCmfc, nil
+	default: return "", fmt.Errorf("%w: %q", ErrUnsupported, v)
 	}
 }
 
@@ -104,8 +96,9 @@ func containerSettingsFrom(container mc.ContainerType) *mc.ContainerSettings {
 		// NOTE(as): AWS claims to auto-detect profile
 	case mc.ContainerTypeMp4:
 		cs.Mp4Settings = &mc.Mp4Settings{
-			//ISO specification for base media file format
+			// ISO specification for base media file format
 			Mp4MajorBrand: aws.String("isom"),
+			//MoovPlacement: mc.Mp4MoovPlacementProgressiveDownload,
 		}
 	case mc.ContainerTypeMov:
 		cs.MovSettings = &mc.MovSettings{

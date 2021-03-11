@@ -49,8 +49,9 @@ func (a AssemblerCfg) Streams() (s []model.MuxingStream) {
 }
 func (a AssemblerCfg) Filename() string { return path.Base(a.OutputFilename) }
 func (a AssemblerCfg) Outputs() []model.EncodingOutput {
+	path := job.File{Name: a.DestPath}.Join(a.OutputFilename).Dir()
 	return []model.EncodingOutput{
-		storage.EncodingOutputFrom(a.OutputID, path.Dir(path.Join(a.DestPath, a.OutputFilename))),
+		storage.EncodingOutputFrom(a.OutputID, path),
 	}
 }
 
@@ -176,11 +177,11 @@ func (m Muxing) Output(s job.Status, t track) job.File {
 		codec = video[0].Codec
 	}
 	return job.File{
-		Name:      path.Join(s.Output.Path, m.Filename),
+		Name:      s.Output.Path,
 		Container: m.Type,
 		Size:      t.Filesize(),
 		Video:     job.Video{Codec: codec, Width: width, Height: height},
-	}
+	}.Join(m.Filename)
 }
 
 type track interface {

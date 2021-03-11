@@ -14,13 +14,19 @@ type File struct {
 	Size      int64         `json:"size,omitempty"`
 	Duration  time.Duration `json:"dur,omitempty"`
 	Name      string        `json:"name,omitempty"`
-	Container string        `json:"container,omitempty"`
 	Video     Video         `json:"video,omitempty"`
 	Audio     Audio         `json:"audio,omitempty"`
 
 	Splice                  timecode.Splice `json:"splice,omitempty"`
-	Downmix                 *Downmix
-	ExplicitKeyframeOffsets []float64
+	Downmix                 *Downmix `json:"downmix,omitempty"`
+	ExplicitKeyframeOffsets []float64 `json:",omitempty"`
+
+	// NOTE(as): I *really* hope we can deprecate this. Our
+	// mediahub code path makes it impossible for this to
+	// differ from the file's extension, but for some reason
+	// we have a test that specifically requests this impossible
+	// condition
+	Container string        `json:"container,omitempty"`
 }
 
 func (f File) Join(name string) File {
