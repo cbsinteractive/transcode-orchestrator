@@ -1160,7 +1160,7 @@ func TestAudioMixTimecodeBurnin(t *testing.T) {
 			}},
 		},
 	}
-	p := &driver{cfg: config.MediaConvert{Role: "some-role", PreferredQueueARN: "some:preferred:queue:arn", DefaultQueueARN: "some:default:queue:arn"}}
+	p := &driver{cfg: config.MediaConvert{PreferredQueueARN: "some:preferred:queue:arn", DefaultQueueARN: "some:default:queue:arn"}}
 	j, err := p.createRequest(context.Background(), input)
 	if err != nil {
 		t.Fatal(err)
