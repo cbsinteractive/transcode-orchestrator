@@ -80,6 +80,9 @@ func (s *Server) provider0(job *job.Job) (transcoding.Provider, error) {
 }
 
 func (s *Server) putJob0(job *job.Job) (*job.Status, error) {
+	if job.ID == "" {
+		job.ID = genID()
+	}
 	p, err := s.provider0(job)
 	if err != nil {
 		return nil, err
