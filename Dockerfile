@@ -1,4 +1,4 @@
-FROM golang:1.14.2-alpine AS builder
+FROM golang:1.16-alpine AS builder
 WORKDIR /vta
 RUN apk add ca-certificates
 COPY . .
@@ -11,7 +11,7 @@ RUN apk add --no-cache tzdata
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder vta .
 USER vta
-ENV HTTP_PORT=8080
+ENV HTTP_ADDR=:8080
 ENV LOG_LEVEL=debug
 EXPOSE 8080
 ENTRYPOINT ["./vta"]
