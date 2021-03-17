@@ -39,8 +39,25 @@ type AudioChannel struct {
 	Layout               string
 }
 
-//AudioDownmix holds source and output channels for providers
-//to handle downmixing
+// Downmix contains two sets of audio channels. The goal is to map
+// the channels in Src to the channels in Dst. Currently, we only use
+// this for stereo downmixing, meaning, Dst will look like a common
+// stereo track.
+//
+// This object is a bit complex because it stores both Src and Dst
+// channel lists. It would probably make more sense to have the
+// Audio object hold the channel list, and create the mapping by
+// modifying the Map (which we would move to AudioChannel) to
+// take a destination AudioChannel.
+//
+// i.e., AudioChannel.Map(dst AudioChannel) ([][]bool, error)
+//
+// with the calling convention
+//
+// src := j.Input.Audio.Channel
+// dst := j.Output[0].Audio.Channel
+// src.Map(dst)
+//
 type Downmix struct {
 	Src []AudioChannel
 	Dst []AudioChannel
