@@ -8,7 +8,15 @@ import (
 	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
 )
 
-// Preset is a bitmovin Preset, formerly known as "PresetSummary"
+var ErrUnsupported = errors.New("codec unsupported")
+
+// Preset is a bitmovin Preset. This is a summarized form of an output
+// for a bitmovin job. The Fields ending with "ID" store the identifiers
+// bitmovin provided to us as we created all these codec configurations.
+//
+// There may be room to cache very common configurations for job runs
+// to save bandwidth/cpu cycles by re-using common presets. That can
+// be done with a sync.Map quickly.
 type Preset struct {
 	Name          string
 	Container     string
@@ -22,8 +30,6 @@ type Preset struct {
 func (j Preset) HasVideo() bool {
 	return j.VideoConfigID != ""
 }
-
-var ErrUnsupported = errors.New("codec unsupported")
 
 func New(codec string, preset job.File) (Codec, error) {
 	c := enabled[strings.ToUpper(codec)]
