@@ -16,6 +16,11 @@ var AudioSampleRate = 48000.
 
 type enum []string
 
+// Set sets dst to a matching enum value, keyed by src. The
+// comparison is done in a case-insensitive way, so it is possible
+// that dst.(string) != src on a successful call to Set.
+//
+// Set returns ErrUnsupportedValue if there is no match
 func (e enum) Set(src string, dst interface{}) error {
 	if len(e) == 0 {
 		return ErrEmptyList
@@ -62,6 +67,14 @@ type codec struct {
 	err      error
 }
 
+// setVideo generalizes setting the very common fields across
+// the supported set of codecs. The caller packs pointers to the
+// the target struct fields in cfg.
+//
+// specific codecs, like h264.go:/CodecH264/ will call codec.setVideo,
+// and then follow up with their own codec-specific checks. For example,
+// the h264 codec originally set the "scene cut threshhold" to zero if the
+// GOP size was not zero.
 func (c *codec) setVideo(cfg VideoPTR, p job.File) bool {
 	*cfg.Name = strings.ToLower(p.Name)
 	if n := int32(p.Video.Width); n != 0 && cfg.Width != nil {
