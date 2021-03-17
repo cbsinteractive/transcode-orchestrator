@@ -11,14 +11,32 @@ import (
 
 // File
 type File struct {
-	Size      int64         `json:"size,omitempty"`
-	Duration  time.Duration `json:"dur,omitempty"`
-	Name      string        `json:"name,omitempty"`
-	Video     Video         `json:"video,omitempty"`
-	Audio     Audio         `json:"audio,omitempty"`
+	// Name is the name of the file, which can be a full URI
+	// absolute, relative path, or any meaningful string
+	Name string `json:"name,omitempty"`
 
-	Splice                  timecode.Splice `json:"splice,omitempty"`
-	Downmix                 *Downmix `json:"downmix,omitempty"`
+	Size  int64 `json:"size,omitempty"`
+	Video Video `json:"video,omitempty"`
+	Audio Audio `json:"audio,omitempty"`
+
+	Duration time.Duration `json:"dur,omitempty"`
+	// Splicing specifies ranges to chop and concatenate
+	Splice timecode.Splice `json:"splice,omitempty"`
+
+	// Downmix is kind of a hack here, it contains a set
+	// of audio channels for one input File and one or more
+	// output Files.
+	//
+	// We should refactor this to put the audio channel info
+	// under the Audio struct, and then compute the Mix
+	// by applying the channels from the source to the
+	// desired destination files.
+	//
+	// As of now, the Downmix object is set on the source File
+	// as a convention until we can do this part of the refactor
+	Downmix *Downmix `json:"downmix,omitempty"`
+
+	// ExplicitKeyframeOffsets should probably be in the video section
 	ExplicitKeyframeOffsets []float64 `json:",omitempty"`
 
 	// NOTE(as): I *really* hope we can deprecate this. Our
@@ -26,7 +44,7 @@ type File struct {
 	// differ from the file's extension, but for some reason
 	// we have a test that specifically requests this impossible
 	// condition
-	Container string        `json:"container,omitempty"`
+	Container string `json:"container,omitempty"`
 }
 
 func (f File) Join(name string) File {
