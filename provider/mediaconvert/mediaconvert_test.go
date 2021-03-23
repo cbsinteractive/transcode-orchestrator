@@ -139,7 +139,7 @@ func TestSupport(t *testing.T) {
 			}
 		}
 
-		for _, box := range []string{"mp4", "mxf", "cmaf", "mov", "webm"} {
+		for _, box := range []string{"mp4", "mxf", "mov", "webm"} {
 			for _, codec := range []string{"", "h264", "h265", "av1", "xdcam", "vp8"} {
 				_, err := run(job.File{Container: box, Video: job.Video{Codec: codec}})
 				ck(box+"/"+codec, err)
@@ -1306,8 +1306,8 @@ func TestDriverStatus(t *testing.T) {
 				Output: job.Dir{
 					Path: "s3://some/destination/jobID",
 					File: []job.File{
-						{Name: "s3://some/destination/jobID/m_modifier.mp4", Video: job.Video{Height: 102, Width: 324}},
-						{Name: "s3://some/destination/jobID/m_another_modifier.mp4"},
+						{Name: "s3://some/destination/jobID/m_modifier.mp4", Container: "mp4", Video: job.Video{Height: 102, Width: 324}},
+						{Name: "s3://some/destination/jobID/m_another_modifier.mp4", Container: "mp4"},
 					},
 				},
 			},

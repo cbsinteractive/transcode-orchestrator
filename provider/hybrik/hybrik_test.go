@@ -99,7 +99,7 @@ func TestPreset(t *testing.T) {
 				LocationTargetPayload: hy.LocationTargetPayload{
 					Location: hy.TranscodeLocation{
 						StorageProvider: storageProviderGCS.string(),
-						Path:            "gs://some_bucket/encodes",
+						Path:            "gs://some_bucket/encodes/some_uid",
 						Access:          &hy.StorageAccess{CredentialsKey: "some_key", MaxCrossRegionMB: -1},
 					},
 					Targets: []hy.TranscodeTarget{

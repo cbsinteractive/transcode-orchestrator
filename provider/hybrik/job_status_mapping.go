@@ -51,8 +51,9 @@ func filesFrom(task hy.TaskResult) (files []job.File, ok bool, err error) {
 			dir := job.File{Name: a.Location.Path}
 			for _, c := range a.AssetComponents {
 				files = append(files, job.File{
-					Name: dir.Join(c.Name).Name,
-					Size: int64(c.Descriptor.Size),
+					Name:      dir.Join(c.Name).Name,
+					Container: container(c),
+					Size:      int64(c.Descriptor.Size),
 				})
 			}
 		}
@@ -61,16 +62,11 @@ func filesFrom(task hy.TaskResult) (files []job.File, ok bool, err error) {
 	return files, len(files) > 0, nil
 }
 
-const assetMediaInfoType = "ASSET"
-
-func containerFrom(component hy.AssetComponentResult) string {
-	if infos := component.MediaAnalyze.MediaInfo; len(infos) > 0 {
-		for _, i := range infos {
-			if i.StreamType == assetMediaInfoType && i.ASSET.Format != "" {
-				return i.ASSET.Format
-			}
+func container(ac hy.AssetComponentResult) string {
+	for _, i := range ac.MediaAnalyze.MediaInfo {
+		if i.StreamType == "ASSET" && i.ASSET.Format != "" {
+			return i.ASSET.Format
 		}
 	}
-
-	return strings.Replace(path.Ext(component.Name), ".", "", -1)
+	return strings.TrimPrefix(path.Ext(ac.Name), ".")
 }

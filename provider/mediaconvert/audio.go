@@ -24,7 +24,7 @@ func audioSelectorFrom(ad *job.Downmix, s *mc.AudioSelector) error {
 	s.SelectorType = mc.AudioSelectorTypeTrack
 	s.Tracks = uniqueTracks(ad)
 
-	cmap, err := audioChannelMappingFrom(ad)
+	cmap, err := audioChannelMapping(ad)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func uniqueTracks(ad *job.Downmix) (tracks []int64) {
 	return tracks
 }
 
-func audioChannelMappingFrom(ad *job.Downmix) (*mc.ChannelMapping, error) {
+func audioChannelMapping(ad *job.Downmix) (*mc.ChannelMapping, error) {
 	var out []mc.OutputChannelMapping
 
 	mapping, err := ad.Map()
