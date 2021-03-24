@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 type taskWithOutputMatcher struct {
@@ -40,7 +40,7 @@ func hasOutputs(task hy.TaskResult) bool {
 	return false
 }
 
-func filesFrom(task hy.TaskResult) (files []job.File, ok bool, err error) {
+func filesFrom(task hy.TaskResult) (files []av.File, ok bool, err error) {
 	// ensure the task type results in outputs
 	if !hasOutputs(task) {
 		return nil, false, nil
@@ -48,9 +48,9 @@ func filesFrom(task hy.TaskResult) (files []job.File, ok bool, err error) {
 
 	for _, d := range task.Documents {
 		for _, a := range d.ResultPayload.Payload.AssetVersions {
-			dir := job.File{Name: a.Location.Path}
+			dir := av.File{Name: a.Location.Path}
 			for _, c := range a.AssetComponents {
-				files = append(files, job.File{
+				files = append(files, av.File{
 					Name:      dir.Join(c.Name).Name,
 					Container: container(c),
 					Size:      int64(c.Descriptor.Size),

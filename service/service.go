@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/db"
 	transcoding "github.com/cbsinteractive/transcode-orchestrator/provider"
@@ -39,7 +39,7 @@ func (s Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 func (s *Server) serve() bool {
 	switch s.chop() {
 	case "jobs":
-		job := &job.Job{ID: s.chop()}
+		job := &av.Job{ID: s.chop()}
 		switch s.method() {
 		case "POST":
 			if !s.request.UnmarshalJSON(job) {
@@ -71,7 +71,7 @@ func (s *Server) serve() bool {
 	return false
 }
 
-func (s *Server) provider0(job *job.Job) (transcoding.Provider, error) {
+func (s *Server) provider0(job *av.Job) (transcoding.Provider, error) {
 	fn, err := transcoding.GetFactory(job.Provider)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (s *Server) provider0(job *job.Job) (transcoding.Provider, error) {
 	return fn(s.Config)
 }
 
-func (s *Server) putJob0(job *job.Job) (*job.Status, error) {
+func (s *Server) putJob0(job *av.Job) (*av.Status, error) {
 	if job.ID == "" {
 		job.ID = genID()
 	}
@@ -100,7 +100,7 @@ func (s *Server) putJob0(job *job.Job) (*job.Status, error) {
 	return stat, nil
 }
 
-func (s *Server) getJob0(job *job.Job, del bool) (*job.Status, error) {
+func (s *Server) getJob0(job *av.Job, del bool) (*av.Status, error) {
 	if err := s.DB.Get(job.ID, &job); err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/codec"
@@ -29,8 +29,8 @@ func init() {
 
 type (
 	Preset = codec.Preset
-	Job    = job.Job
-	Status = job.Status
+	Job    = av.Job
+	Status = av.Status
 )
 
 const (
@@ -114,7 +114,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 
 	infrastructureSettings, encodingCloudRegion, err := p.encodingInfrastructureFrom(j)
 	if err != nil {
-		return nil, errors.Wrap(err, "validating and setting encoding infrastructure")
+		return nil, fmt.Errorf("encoding infrastructure: %w", err)
 	}
 
 	jobName := j.ID
@@ -133,7 +133,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 	})
 	if err != nil {
 		subSeg.Close(err)
-		return nil, errors.Wrap(err, "creating encoding")
+		return nil, fmt.Errorf("create: %w", err)
 	}
 	subSeg.Close(nil)
 
@@ -164,6 +164,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 
 	subSeg = p.tracer.BeginSubsegment(ctx, "bitmovin-create-outputs")
 	for idx, o := range j.Output.File {
+		idx, o := idx, o
 		wg.Add(1)
 		go p.createOutput(outputCfg{
 			preset:         presets[idx],
@@ -203,14 +204,14 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 	encResp, err := p.api.Encoding.Encodings.Start(enc.Id, model.StartEncodingRequest{})
 	if err != nil {
 		subSeg.Close(err)
-		return nil, errors.Wrap(err, "starting encoding job")
+		return nil, fmt.Errorf("start job: %w", err)
 	}
 	subSeg.Close(nil)
 
 	return &Status{
 		Provider:      Name,
 		ProviderJobID: encResp.Id,
-		State:         job.StateQueued,
+		State:         av.StateQueued,
 	}, nil
 }
 
@@ -219,7 +220,7 @@ func (p *driver) Status(ctx context.Context, j *Job) (*Status, error) {
 	task, err := p.api.Encoding.Encodings.Status(j.ProviderJobID)
 	if err != nil {
 		subSeg.Close(err)
-		return nil, errors.Wrap(err, "retrieving encoding status")
+		return nil, fmt.Errorf("status: %w", err)
 	}
 	subSeg.Close(nil)
 
@@ -237,17 +238,17 @@ func (p *driver) Status(ctx context.Context, j *Job) (*Status, error) {
 			"messages":       task.Messages,
 			"originalStatus": task.Status,
 		},
-		Output: job.Dir{
+		Output: av.Dir{
 			Path: j.Location(""),
 		},
 	}
 
-	if s.State == job.StateFinished {
+	if s.State == av.StateFinished {
 		subSeg := p.tracer.BeginSubsegment(ctx, "bitmovin-get-output-info")
 		s, err = p.enrichStreams(s)
 		if err != nil {
 			subSeg.Close(err)
-			return nil, errors.Wrap(err, "enriching status with source info")
+			return nil, fmt.Errorf("enrich streams: %w", err)
 		}
 
 		// TODO: it would be better to know which containers to include in this fetch
@@ -284,6 +285,7 @@ type outputCfg struct {
 }
 
 func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan error) {
+	// TODO(as): passes in waitgroup
 	defer wg.Done()
 	var audioMuxingStream, videoMuxingStream model.MuxingStream
 
@@ -293,10 +295,9 @@ func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan err
 			InputStreams:  []model.StreamInput{{InputStreamId: cfg.audioIn}},
 		})
 		if err != nil {
-			errorc <- errors.Wrap(err, "adding audio stream to the encoding")
+			errorc <- fmt.Errorf("audio: stream: %w", err)
 			return
 		}
-
 		audioMuxingStream = model.MuxingStream{StreamId: audStream.Id}
 	}
 
@@ -306,7 +307,7 @@ func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan err
 			InputStreams:  []model.StreamInput{{InputStreamId: cfg.videoIn}},
 		})
 		if err != nil {
-			errorc <- errors.Wrap(err, "adding video stream to the encoding")
+			errorc <- fmt.Errorf("video: stream: %w", err)
 			return
 		}
 
@@ -316,7 +317,7 @@ func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan err
 					{Id: filter, Position: bitmovin.Int32Ptr(int32(i))},
 				})
 				if err != nil {
-					errorc <- fmt.Errorf("adding filter %s to video stream: %w", filter, err)
+					errorc <- fmt.Errorf("video: filter: %q: %w", filter, err)
 					return
 				}
 			}
@@ -327,7 +328,7 @@ func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan err
 
 	container := containers[strings.ToLower(cfg.preset.Container)]
 	if container == nil {
-		errorc <- fmt.Errorf("unknown container format %q", cfg.preset.Container)
+		errorc <- fmt.Errorf("container: unsupported: %q", cfg.preset.Container)
 		return
 	}
 
@@ -343,7 +344,7 @@ func (p *driver) createOutput(cfg outputCfg, wg *sync.WaitGroup, errorc chan err
 		ManifestID:         cfg.manifestID,
 		ManifestMasterPath: cfg.manifestMasterPath,
 	}); err != nil {
-		errorc <- err
+		errorc <- fmt.Errorf("container: assemble: %w", err)
 		return
 	}
 }
@@ -399,7 +400,7 @@ func (p *driver) encodingInfrastructureFrom(j *Job) (*model.InfrastructureSettin
 		return nil, encodingCloudRegion, errors.Wrap(err, "validating and setting encoding cloud region")
 	}
 
-	if tag, found := j.Env.Tags[job.TagTranscodeDefault]; found {
+	if tag, found := j.Env.Tags[av.TagTranscodeDefault]; found {
 		return &model.InfrastructureSettings{
 			InfrastructureId: tag,
 			CloudRegion:      encodingCloudRegion,
@@ -439,7 +440,7 @@ func (p *driver) createExplicitKeyframes(encodingID string, offsets []float64) e
 	return nil
 }
 
-func (p *driver) createPreset(_ context.Context, f job.File, summary *Preset) error {
+func (p *driver) createPreset(_ context.Context, f av.File, summary *Preset) error {
 	vc, _ := codec.New(f.Video.Codec, f)
 	ac, _ := codec.New(f.Audio.Codec, f)
 	c := []codec.Codec{}
@@ -529,9 +530,9 @@ func (p *driver) enrichStreams(s Status) (Status, error) {
 		height = int(int32Value(vidStreamInput.Height))
 	}
 
-	s.Input = job.File{
+	s.Input = av.File{
 		Duration: time.Duration(floatValue(streamInput.Duration) * float64(time.Second)),
-		Video:    job.Video{Width: width, Height: height, Codec: vidCodec},
+		Video:    av.Video{Width: width, Height: height, Codec: vidCodec},
 	}
 
 	return s, nil

@@ -3,19 +3,20 @@ package hybrik
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
+	job "github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
-	"github.com/pkg/errors"
 )
 
 type (
-	Job    = job.Job
-	Status = job.Status
+	Job    = av.Job
+	Status = av.Status
 )
 
 type executionFeatures struct {
@@ -84,7 +85,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 	return &Status{
 		Provider:      Name,
 		ProviderJobID: id,
-		State:         job.StateQueued,
+		State:         av.StateQueued,
 	}, nil
 }
 
@@ -165,24 +166,24 @@ func (p *driver) Status(_ context.Context, j *Job) (*Status, error) {
 		return &Status{}, err
 	}
 
-	var status job.State
+	var status av.State
 	switch ji.Status {
 	case active:
 		fallthrough
 	case activeRunning:
 		fallthrough
 	case activeWaiting:
-		status = job.StateStarted
+		status = av.StateStarted
 	case queued:
-		status = job.StateQueued
+		status = av.StateQueued
 	case completed:
-		status = job.StateFinished
+		status = av.StateFinished
 	case failed:
-		status = job.StateFailed
+		status = av.StateFailed
 	}
 
 	var output job.Dir
-	if status == job.StateFailed || status == job.StateFinished {
+	if status == av.StateFailed || status == av.StateFinished {
 		result, err := p.c.GetJobResult(j.ProviderJobID)
 		if err != nil {
 			return &Status{}, err

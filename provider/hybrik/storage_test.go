@@ -3,7 +3,7 @@ package hybrik
 import (
 	"testing"
 
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 func TestStorage(t *testing.T) {
@@ -20,7 +20,7 @@ func TestStorage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := job.File{Name: tt.path}.Provider()
+			h := av.File{Name: tt.path}.Provider()
 			if h != tt.want {
 				t.Fatalf("wrong provider: have %q, want %q", h, tt.want)
 			}

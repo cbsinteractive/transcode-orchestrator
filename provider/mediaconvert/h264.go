@@ -6,7 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 // H265RateControlMode
@@ -18,7 +18,7 @@ var RateControl = map[string]string{
 	"qvbr": "QVBR",
 }
 
-func h264CodecSettingsFrom(f job.File) (*mc.VideoCodecSettings, error) {
+func h264CodecSettingsFrom(f av.File) (*mc.VideoCodecSettings, error) {
 	rateControl, err := h264RateControl(f.Video.Bitrate.Control)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func h264CodecSettingsFrom(f job.File) (*mc.VideoCodecSettings, error) {
 	}
 
 	passes := mc.H264QualityTuningLevelSinglePassHq
-	if f.Video.Bitrate.TwoPass {
+	if f.Video.TwoPass {
 		passes = mc.H264QualityTuningLevelMultiPassHq
 	}
 
@@ -52,7 +52,7 @@ func h264CodecSettingsFrom(f job.File) (*mc.VideoCodecSettings, error) {
 	}, nil
 }
 
-func h264GopUnit(g job.Gop) mc.H264GopSizeUnits {
+func h264GopUnit(g av.Gop) mc.H264GopSizeUnits {
 	if g.Seconds() {
 		return mc.H264GopSizeUnitsSeconds
 	}

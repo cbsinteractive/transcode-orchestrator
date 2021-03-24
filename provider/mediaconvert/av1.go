@@ -5,10 +5,10 @@ import (
 
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
-func av1CodecSettingsFrom(f job.File) (*mc.VideoCodecSettings, error) {
+func av1CodecSettingsFrom(f av.File) (*mc.VideoCodecSettings, error) {
 	bitrate := int64(f.Video.Bitrate.BPS)
 	gopSize, err := av1GopSizeFrom(f.Video.Gop)
 	if err != nil {
@@ -29,7 +29,7 @@ func av1CodecSettingsFrom(f job.File) (*mc.VideoCodecSettings, error) {
 	}, nil
 }
 
-func av1GopSizeFrom(g job.Gop) (float64, error) {
+func av1GopSizeFrom(g av.Gop) (float64, error) {
 	if g.Seconds() {
 		return 0, fmt.Errorf(`gop unit "seconds" is not supported with mediaconvert and AV1`)
 	}

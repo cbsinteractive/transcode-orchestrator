@@ -2,7 +2,7 @@ package hybrik
 
 import (
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 type storageProvider string
@@ -19,7 +19,7 @@ const (
 
 var StorageProviders = []string{"s3", "gcs", "http", "https"}
 
-func Supported(f job.File) bool {
+func Supported(f av.File) bool {
 	p := f.Provider()
 	for _, sp := range StorageProviders {
 		if p == sp {
@@ -39,7 +39,7 @@ func storageBugfix(provider string, sa *hy.StorageAccess) *hy.StorageAccess {
 	return sa
 }
 
-func (p *driver) access(f *job.File, creds string) *hy.StorageAccess {
+func (p *driver) access(f *av.File, creds string) *hy.StorageAccess {
 	if creds == "" {
 		if f.Provider() != "gs" {
 			return nil
@@ -49,7 +49,7 @@ func (p *driver) access(f *job.File, creds string) *hy.StorageAccess {
 	return storageBugfix(f.Provider(), &hy.StorageAccess{CredentialsKey: creds})
 }
 
-func (p *driver) location(f job.File, creds string) hy.TranscodeLocation {
+func (p *driver) location(f av.File, creds string) hy.TranscodeLocation {
 	return hy.TranscodeLocation{
 		StorageProvider: f.Provider(),
 		Path:            f.Dir(),
@@ -57,7 +57,7 @@ func (p *driver) location(f job.File, creds string) hy.TranscodeLocation {
 	}
 }
 
-func (p *driver) assetURL(f *job.File, creds string) hy.AssetURL {
+func (p *driver) assetURL(f *av.File, creds string) hy.AssetURL {
 	return hy.AssetURL{
 		StorageProvider: f.Provider(),
 		URL:             f.Name,
@@ -65,7 +65,7 @@ func (p *driver) assetURL(f *job.File, creds string) hy.AssetURL {
 	}
 }
 
-func (p *driver) asset(f *job.File, creds string, content ...hy.AssetContents) hy.AssetPayload {
+func (p *driver) asset(f *av.File, creds string, content ...hy.AssetContents) hy.AssetPayload {
 	return hy.AssetPayload{
 		StorageProvider: f.Provider(),
 		URL:             f.Name,

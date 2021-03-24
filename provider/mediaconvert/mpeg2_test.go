@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 func TestGenerateMPEG2(t *testing.T) {
-	p := job.File{}
+	p := av.File{}
 	p.Video.Codec = "hd422"
 	p.Video.Gop.Size = 6000
 	p.Video.Bitrate.BPS = 6000

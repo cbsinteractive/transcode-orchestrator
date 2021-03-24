@@ -7,16 +7,16 @@ import (
 	"testing"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestFiles(t *testing.T) {
-	type Out = job.File
+	type Out = av.File
 
 	tests := []struct {
 		name, file           string
-		want                 []job.File
+		want                 []av.File
 		expectMissingOutputs bool
 	}{
 		{

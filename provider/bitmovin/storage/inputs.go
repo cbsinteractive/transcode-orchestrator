@@ -6,7 +6,6 @@ import (
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -48,7 +47,7 @@ func s3Input(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID 
 		SecretKey:   cfg.SecretAccessKey,
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "creating s3 input")
+		return "", fmt.Errorf("creating s3 input: %w", err)
 	}
 
 	return input.Id, nil
@@ -64,7 +63,7 @@ func gcsInput(srcMediaURL *url.URL, api InputAPI, cfg *config.Bitmovin) (inputID
 		SecretKey:   cfg.GCSSecretAccessKey,
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "creating gcs input")
+		return "", fmt.Errorf("creating gs input: %w", err)
 	}
 
 	return input.Id, nil
@@ -75,7 +74,7 @@ func httpInput(srcMediaURL *url.URL, api InputAPI, _ *config.Bitmovin) (inputID 
 		Host: srcMediaURL.Host,
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "creating http input")
+		return "", fmt.Errorf("creating http input: %w", err)
 	}
 
 	return input.Id, nil
@@ -86,7 +85,7 @@ func httpsInput(srcMediaURL *url.URL, api InputAPI, _ *config.Bitmovin) (inputID
 		Host: srcMediaURL.Host,
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "creating https input")
+		return "", fmt.Errorf("creating https input: %w", err)
 	}
 
 	return input.Id, nil

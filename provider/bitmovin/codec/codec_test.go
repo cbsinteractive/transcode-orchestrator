@@ -3,11 +3,11 @@ package codec
 import (
 	"testing"
 
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 func TestCodec(t *testing.T) {
-	p := job.File{Name: "test", Video: job.Video{Profile: "HIGH"}}
+	p := av.File{Name: "test", Video: av.Video{Profile: "HIGH"}}
 	c := CodecH264{}
 	c.set(p)
 	if c.Err() != nil {

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 const (
@@ -34,7 +34,7 @@ const (
 var ErrMixedPresets = errors.New("job contains inconsistent DolbyVision outputs")
 var canon = strings.ToLower
 
-func checkHDR(f job.File) error {
+func checkHDR(f av.File) error {
 	if !hasHDR(f) || canon(f.Video.Codec) != h265Codec {
 		return nil
 	}
@@ -45,7 +45,7 @@ func checkHDR(f job.File) error {
 	return fmt.Errorf("hdr: h265: profile must be main10")
 }
 
-func hasHDR(f job.File) bool {
+func hasHDR(f av.File) bool {
 	return f.Video.HDR10.Enabled || f.Video.DolbyVision.Enabled
 }
 
@@ -58,7 +58,7 @@ func hasHDR(f job.File) bool {
 		}
 */
 
-func applyHDR(t *hy.TranscodeTarget, f job.File) bool {
+func applyHDR(t *hy.TranscodeTarget, f av.File) bool {
 	if t.Video == nil {
 		return false
 	}
@@ -73,7 +73,7 @@ func applyHDR(t *hy.TranscodeTarget, f job.File) bool {
 	return false
 }
 
-func applyDoVi(v *hy.VideoTarget, h job.DolbyVision) bool {
+func applyDoVi(v *hy.VideoTarget, h av.DolbyVision) bool {
 	if !h.Enabled {
 		return false
 	}
@@ -88,7 +88,7 @@ func applyDoVi(v *hy.VideoTarget, h job.DolbyVision) bool {
 	return true
 }
 
-func applyHDR10(v *hy.VideoTarget, h job.HDR10) bool {
+func applyHDR10(v *hy.VideoTarget, h av.HDR10) bool {
 	if !h.Enabled {
 		return false
 	}
@@ -123,14 +123,14 @@ func (p *driver) dolbyVisionJob(j *Job) (e [][]hy.Element) {
 }
 
 func (p *driver) dolbyVisionMezzQC(j *Job) hy.Element {
-	tag := tag(j, job.TagDolbyVisionPreprocess, "preproc")
+	tag := tag(j, av.TagDolbyVisionPreprocess, "preproc")
 	return hy.Element{
 		UID: "mezzanine_qc", Kind: "dolby_vision",
 		Task: &hy.ElementTaskOptions{Name: "Mezzanine QC", Tags: tag},
 		Payload: hy.DoViV2MezzanineQCPayload{
 			Module: "mezzanine_qc",
 			Params: hy.DoViV2MezzanineQCPayloadParams{
-				Location:    p.location(job.File{Name: j.Location("mezzanine_qc")}, p.auth(j).Write), // TODO(as)
+				Location:    p.location(av.File{Name: j.Location("mezzanine_qc")}, p.auth(j).Write), // TODO(as)
 				FilePattern: fmt.Sprintf("%s_mezz_qc_report.txt", j.ID),
 			},
 		},
@@ -139,12 +139,12 @@ func (p *driver) dolbyVisionMezzQC(j *Job) hy.Element {
 
 func (p *driver) dolbyVisionTranscode(j *Job) (e []hy.Element) {
 	txcode := p.transcodeElems(mute(*j))
-	tag := tag(j, job.TagDolbyVisionPreprocess, "preproc")
+	tag := tag(j, av.TagDolbyVisionPreprocess, "preproc")
 
 	for i, f := range j.Output.File {
 		f = j.Abs(f)
 		a := []hy.DoViMP4MuxElementaryStream{}
-		if (f.Audio != job.Audio{}) {
+		if (f.Audio != av.Audio{}) {
 			a = append(a, hy.DoViMP4MuxElementaryStream{
 				AssetURL: p.assetURL(&f, p.auth(j).Write),
 			})
@@ -182,7 +182,7 @@ func (p *driver) dolbyVisionTranscode(j *Job) (e []hy.Element) {
 	return e
 }
 
-func countDolbyVision(d *job.Dir) (enabled int) {
+func countDolbyVision(d *av.Dir) (enabled int) {
 	for _, f := range d.File {
 		if f.Video.DolbyVision.Enabled {
 			enabled++

@@ -6,12 +6,12 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 type (
-	Status = job.Status
-	Job    = job.Job
+	Status = av.Status
+	Job    = av.Job
 )
 
 const (
@@ -25,7 +25,7 @@ type Client struct {
 }
 
 // Create a job
-func (c *Client) Create(ctx context.Context, job Job) (r Status, err error) {
+func (c *Client) Create(ctx context.Context, job av.Job) (r Status, err error) {
 	return r, c.do(ctx, "POST", "/job", job, &r)
 }
 

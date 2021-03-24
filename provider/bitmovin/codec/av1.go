@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 var ErrGopFramesOnly = errors.New("gop unit must be frames")
@@ -14,7 +14,7 @@ type CodecAV1 struct {
 	cfg model.Av1VideoConfiguration
 }
 
-func (c *CodecAV1) set(preset job.File) bool {
+func (c *CodecAV1) set(preset av.File) bool {
 	if !c.setVideo(VideoPTR{
 		Name:    &c.cfg.Name,
 		Width:   &c.cfg.Width,

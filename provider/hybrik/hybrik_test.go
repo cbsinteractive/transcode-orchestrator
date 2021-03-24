@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/google/go-cmp/cmp"
 )
@@ -18,43 +18,45 @@ const (
 )
 
 var (
-	defaultPreset = job.File{
+	defaultPreset = av.File{
 		Name: "file1.mp4", Container: "mp4",
-		Video: job.Video{
+		Video: av.Video{
 			Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h264",
-			Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
-			Gop:     job.Gop{Size: 120}, Scantype: "progressive",
+			Bitrate: av.Bitrate{BPS: 400000, Control: "CBR"},
+			TwoPass: true,
+			Gop:     av.Gop{Size: 120}, Scantype: "progressive",
 		},
-		Audio: job.Audio{Codec: "aac", Bitrate: 20000},
+		Audio: av.Audio{Codec: "aac", Bitrate: 20000},
 	}
 
 	defaultJob    = testjob
 	jobGopSeconds = testjob
 
-	testjob = job.Job{
-		ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/path.mp4"},
-		Output: job.Dir{
+	testjob = av.Job{
+		ID: "jobID", Provider: Name, Input: av.File{Name: "s3://some/path.mp4"},
+		Output: av.Dir{
 			Path: "s3://some-dest/path",
-			File: []job.File{{
+			File: []av.File{{
 				Name: "file1.mp4",
-				Video: job.Video{
+				Video: av.Video{
 					Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h264",
-					Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
-					Gop:     job.Gop{Size: 120}, Scantype: "progressive",
+					Bitrate: av.Bitrate{BPS: 400000, Control: "CBR"},
+					TwoPass: true,
+					Gop:     av.Gop{Size: 120}, Scantype: "progressive",
 				},
-				Audio: job.Audio{Codec: "aac", Bitrate: 20000}}},
+				Audio: av.Audio{Codec: "aac", Bitrate: 20000}}},
 		},
 	}
 )
 
 func init() {
-	jobGopSeconds.Output.File[0].Video.Gop = job.Gop{Size: 2, Unit: "seconds"}
+	jobGopSeconds.Output.File[0].Video.Gop = av.Gop{Size: 2, Unit: "seconds"}
 }
 
 func TestPreset(t *testing.T) {
 	tests := []struct {
 		name                 string
-		input                *job.Job
+		input                *av.Job
 		provider             *driver
 		wantTranscodeElement hy.TranscodePayload
 		wantTags             []string
@@ -68,26 +70,27 @@ func TestPreset(t *testing.T) {
 					GCPCredentialsKey: "some_key",
 				},
 			},
-			input: &job.Job{
+			input: &av.Job{
 				ID: "some_uid", Provider: Name,
-				Input: job.File{Name: "s3://some/path.mp4"},
-				Output: job.Dir{
+				Input: av.File{Name: "s3://some/path.mp4"},
+				Output: av.Dir{
 					Path: "gs://some_bucket/encodes",
-					File: []job.File{{
+					File: []av.File{{
 						Name: "output.mp4", Container: "mp4",
-						Video: job.Video{
+						Video: av.Video{
 							Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h264",
-							Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
-							Gop:     job.Gop{Size: 120}, Scantype: "progressive",
+							Bitrate: av.Bitrate{BPS: 400000, Control: "CBR"},
+							TwoPass: true,
+							Gop:     av.Gop{Size: 120}, Scantype: "progressive",
 						},
-						Audio: job.Audio{Codec: "aac", Bitrate: 20000},
+						Audio: av.Audio{Codec: "aac", Bitrate: 20000},
 					}},
 				},
 				Features: map[string]interface{}{
 					"segmentedRendering": &SegmentedRendering{Duration: 60},
 				},
-				Env: job.Env{
-					Tags: map[string]string{job.TagTranscodeDefault: "transcode_default_tag"},
+				Env: av.Env{
+					Tags: map[string]string{av.TagTranscodeDefault: "transcode_default_tag"},
 				},
 			},
 			wantTranscodeElement: hy.TranscodePayload{
@@ -157,28 +160,29 @@ func TestPreset(t *testing.T) {
 func TestTranscodePreset(t *testing.T) {
 	tests := []struct {
 		name       string
-		input      *job.Job
+		input      *av.Job
 		assertion  func(hy.TranscodePayload, *testing.T)
 		wantErrMsg string
 	}{
 		{
 			name: "HDR10",
-			input: &job.Job{
-				ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/path.mp4"},
-				Output: job.Dir{
+			input: &av.Job{
+				ID: "jobID", Provider: Name, Input: av.File{Name: "s3://some/path.mp4"},
+				Output: av.Dir{
 					Path: "gs://some_bucket/encodes",
-					File: []job.File{{
+					File: []av.File{{
 						Name: "file1.mp4",
-						Video: job.Video{
+						Video: av.Video{
 							Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h265",
-							Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
-							Gop:     job.Gop{Size: 120}, Scantype: "progressive",
-							HDR10: job.HDR10{
+							Bitrate: av.Bitrate{BPS: 400000, Control: "CBR"},
+							TwoPass: true,
+							Gop:     av.Gop{Size: 120}, Scantype: "progressive",
+							HDR10: av.HDR10{
 								Enabled: true, MaxCLL: 10000, MaxFALL: 400,
 								MasterDisplay: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
 							},
 						},
-						Audio: job.Audio{Codec: "aac", Bitrate: 20000}}},
+						Audio: av.Audio{Codec: "aac", Bitrate: 20000}}},
 				},
 			},
 			assertion: func(input hy.TranscodePayload, t *testing.T) {
@@ -215,21 +219,21 @@ func TestTranscodePreset(t *testing.T) {
 		},
 		{
 			name: "hevc/hdr10/mxf",
-			input: &job.Job{
-				ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/in.mxf"},
-				Output: job.Dir{
-					File: []job.File{{
+			input: &av.Job{
+				ID: "jobID", Provider: Name, Input: av.File{Name: "s3://some/in.mxf"},
+				Output: av.Dir{
+					File: []av.File{{
 						Name: "file1.mp4",
-						Video: job.Video{
+						Video: av.Video{
 							Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h265",
-							Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: false},
-							Gop:     job.Gop{Size: 120}, Scantype: "progressive",
-							HDR10: job.HDR10{
+							Bitrate: av.Bitrate{BPS: 400000, Control: "CBR"},
+							Gop:     av.Gop{Size: 120}, Scantype: "progressive",
+							HDR10: av.HDR10{
 								Enabled: true, MaxCLL: 10000, MaxFALL: 400,
 								MasterDisplay: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
 							},
 						},
-						Audio: job.Audio{Codec: "aac", Bitrate: 20000}}},
+						Audio: av.Audio{Codec: "aac", Bitrate: 20000}}},
 				},
 			},
 			assertion: func(input hy.TranscodePayload, t *testing.T) {
@@ -260,21 +264,22 @@ func TestTranscodePreset(t *testing.T) {
 		},
 		{
 			name: "vbr",
-			input: &job.Job{
-				ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/in.mxf"},
-				Output: job.Dir{
-					File: []job.File{{
+			input: &av.Job{
+				ID: "jobID", Provider: Name, Input: av.File{Name: "s3://some/in.mxf"},
+				Output: av.Dir{
+					File: []av.File{{
 						Name: "file1.mp4",
-						Video: job.Video{
+						Video: av.Video{
 							Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h265",
-							Bitrate: job.Bitrate{BPS: 10000000, Control: "vbr", TwoPass: true},
-							Gop:     job.Gop{Size: 120}, Scantype: "progressive",
-							HDR10: job.HDR10{
+							Bitrate: av.Bitrate{BPS: 10000000, Control: "vbr"},
+							TwoPass: true,
+							Gop:     av.Gop{Size: 120}, Scantype: "progressive",
+							HDR10: av.HDR10{
 								Enabled: true, MaxCLL: 10000, MaxFALL: 400,
 								MasterDisplay: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
 							},
 						},
-						Audio: job.Audio{Codec: "aac", Bitrate: 20000}}},
+						Audio: av.Audio{Codec: "aac", Bitrate: 20000}}},
 				},
 			},
 			assertion: func(input hy.TranscodePayload, t *testing.T) {
@@ -326,8 +331,8 @@ func TestTranscodePreset(t *testing.T) {
 func TestPresetConversion(t *testing.T) {
 	tests := []struct {
 		name    string
-		job     job.Job
-		preset  job.File
+		job     av.Job
+		preset  av.File
 		wantJob hy.CreateJob
 		wantErr string
 	}{
@@ -469,11 +474,11 @@ func TestPresetConversion(t *testing.T) {
 		//{
 		//	name: "dolbyVision",
 		//	job:  &defaultJob,
-		//	preset: job.File{
+		//	preset: av.File{
 		//		Name:        defaultPreset.Name,
 		//		Description: defaultPreset.Description,
 		//		Container:   "mp4",
-		//		Video: job.Video{
+		//		Video: av.Video{
 		//			Profile:       "main10",
 		//			Width:         "300",
 		//			Codec:         "h265",
@@ -593,13 +598,13 @@ func TestPresetConversion(t *testing.T) {
 		{
 			name: "mp4dolbyVision",
 			job:  defaultJob,
-			preset: job.File{
+			preset: av.File{
 				Name: defaultPreset.Name, Container: "mp4",
-				Video: job.Video{
+				Video: av.Video{
 					Codec: "h265", Profile: "main10",
 					Width: 300, Scantype: "progressive",
-					Bitrate: job.Bitrate{BPS: 12000}, Gop: job.Gop{Size: 120, Mode: "fixed"},
-					DolbyVision: job.DolbyVision{Enabled: true},
+					Bitrate: av.Bitrate{BPS: 12000}, Gop: av.Gop{Size: 120, Mode: "fixed"},
+					DolbyVision: av.DolbyVision{Enabled: true},
 				},
 			},
 			wantJob: hy.CreateJob{
@@ -770,21 +775,22 @@ func lastPayload(t *testing.T, j hy.CreateJob) hy.TranscodePayload {
 }
 
 func TestDolbyVisionMetadata(t *testing.T) {
-	j := job.Job{
-		ID: "jobID", Provider: Name, Input: job.File{Name: "s3://some/path.mp4"},
+	j := av.Job{
+		ID: "jobID", Provider: Name, Input: av.File{Name: "s3://some/path.mp4"},
 		ExtraFiles: map[string]string{
-			job.TagDolbyVisionMetadata: "s3://test_sidecar_location/path/file.xml",
+			av.TagDolbyVisionMetadata: "s3://test_sidecar_location/path/file.xml",
 		},
-		Output: job.Dir{
+		Output: av.Dir{
 			Path: "s3://some-dest/path",
-			File: []job.File{{
+			File: []av.File{{
 				Name: "file1.mp4",
-				Video: job.Video{
+				Video: av.Video{
 					Profile: "high", Level: "4.1", Width: 300, Height: 400, Codec: "h264",
-					Bitrate: job.Bitrate{BPS: 400000, Control: "CBR", TwoPass: true},
-					Gop:     job.Gop{Size: 120}, Scantype: "progressive",
+					Bitrate: av.Bitrate{BPS: 400000, Control: "CBR"},
+					TwoPass: true,
+					Gop:     av.Gop{Size: 120}, Scantype: "progressive",
 				},
-				Audio: job.Audio{Codec: "aac", Bitrate: 20000}}},
+				Audio: av.Audio{Codec: "aac", Bitrate: 20000}}},
 		},
 	}
 
@@ -818,9 +824,9 @@ func TestDolbyVisionMetadata(t *testing.T) {
 }
 
 func TestSegmentedRendering(t *testing.T) {
-	j := job.Job{
-		Features: job.Features{"segmentedRendering": SegmentedRendering{Duration: 50}},
-		Output:   job.Dir{Path: "s3://path", File: []job.File{{Name: "1.mp4", Video: job.Video{Codec: "h264"}}}}}
+	j := av.Job{
+		Features: av.Features{"segmentedRendering": SegmentedRendering{Duration: 50}},
+		Output:   av.Dir{Path: "s3://path", File: []av.File{{Name: "1.mp4", Video: av.Video{Codec: "h264"}}}}}
 	t.Log(features(&j))
 
 	p := &driver{config: &config.Hybrik{}}
@@ -843,7 +849,7 @@ func TestSegmentedRendering(t *testing.T) {
 	/*
 		{
 			name: "segmentedRenderingS3",
-			jobModifier: func(j job.Job) job.Job {
+			jobModifier: func(j av.Job) av.Job {
 				j.Input.Name = "s3://bucket/path/file.mp4"
 				j.Features = job.Features{
 					"segmentedRendering": SegmentedRendering{Duration: 50},
@@ -860,7 +866,7 @@ func TestSegmentedRendering(t *testing.T) {
 		},
 		{
 			name: "segmentedRenderingGCS",
-			jobModifier: func(j job.Job) job.Job {
+			jobModifier: func(j av.Job) av.Job {
 				j.Input.Name = "gs://bucket/path/file.mp4"
 				j.Features = job.Features{
 					"segmentedRendering": SegmentedRendering{Duration: 50},
@@ -876,7 +882,7 @@ func TestSegmentedRendering(t *testing.T) {
 		},
 		{
 			name: "segmentedRenderingHTTP",
-			jobModifier: func(j job.Job) job.Job {
+			jobModifier: func(j av.Job) av.Job {
 				j.Input.Name = "http://example.com/path/file.mp4"
 				j.Features = job.Features{
 					"segmentedRendering": SegmentedRendering{Duration: 50},
@@ -896,13 +902,13 @@ func TestSegmentedRendering(t *testing.T) {
 func TestTranscodeJobFields(t *testing.T) {
 	tests := []struct {
 		name        string
-		jobModifier func(job job.Job) job.Job
+		jobModifier func(job av.Job) av.Job
 		assertion   func(hy.CreateJob, *testing.T)
 		wantErrMsg  string
 	}{
 		{
 			name: "pathOverride",
-			jobModifier: func(job job.Job) job.Job {
+			jobModifier: func(job av.Job) av.Job {
 				job.Output.Path = "s3://per-job-defined-bucket/some/base/path"
 				return job
 			},
@@ -914,9 +920,9 @@ func TestTranscodeJobFields(t *testing.T) {
 		},
 		{
 			name: "tags",
-			jobModifier: func(j job.Job) job.Job {
+			jobModifier: func(j av.Job) av.Job {
 				j.Env.Tags = map[string]string{
-					job.TagTranscodeDefault: "custom_tag",
+					av.TagTranscodeDefault: "custom_tag",
 				}
 
 				return j

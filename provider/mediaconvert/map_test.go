@@ -6,7 +6,7 @@ import (
 
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 func TestBitrateLevel(t *testing.T) {
@@ -31,8 +31,8 @@ func TestBitrateLevel(t *testing.T) {
 }
 
 func TestScanType(t *testing.T) {
-	dst := job.File{}
-	src := job.File{}
+	dst := av.File{}
+	src := av.File{}
 
 	for _, tt := range []struct {
 		name, src, dst string

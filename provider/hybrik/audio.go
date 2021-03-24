@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
-func (p *driver) audioElements(j *job.Job) (a []hy.Element) {
-	tags := tag(j, job.TagTranscodeDefault)
+func (p *driver) audioElements(j *av.Job) (a []hy.Element) {
+	tags := tag(j, av.TagTranscodeDefault)
 	for i, f := range j.Output.File {
 		if f.Audio.Codec == "" {
 			continue

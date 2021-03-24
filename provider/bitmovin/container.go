@@ -7,13 +7,13 @@ import (
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/bitmovin/bitmovin-api-sdk-go/query"
 	"github.com/bitmovin/bitmovin-api-sdk-go/serialization"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/cbsinteractive/transcode-orchestrator/provider/bitmovin/storage"
 )
 
 var containers = map[string]interface {
 	Assemble(*bitmovin.BitmovinApi, AssemblerCfg) error
-	Enrich(*bitmovin.BitmovinApi, job.Status) (job.Status, error)
+	Enrich(*bitmovin.BitmovinApi, av.Status) (av.Status, error)
 }{
 	"webm": &WEBM{},
 	"mp4":  &MP4{},
@@ -49,7 +49,7 @@ func (a AssemblerCfg) Streams() (s []model.MuxingStream) {
 }
 func (a AssemblerCfg) Filename() string { return path.Base(a.OutputFilename) }
 func (a AssemblerCfg) Outputs() []model.EncodingOutput {
-	path := job.File{Name: a.DestPath}.Join(a.OutputFilename).Dir()
+	path := av.File{Name: a.DestPath}.Join(a.OutputFilename).Dir()
 	return []model.EncodingOutput{
 		storage.EncodingOutputFrom(a.OutputID, path),
 	}
@@ -84,7 +84,7 @@ func (a *WEBM) Assemble(api *bitmovin.BitmovinApi, cfg AssemblerCfg) error {
 }
 
 // Enrich populates information about MOV outputs if they exist
-func (e *MOV) Enrich(api *bitmovin.BitmovinApi, s job.Status) (job.Status, error) {
+func (e *MOV) Enrich(api *bitmovin.BitmovinApi, s av.Status) (av.Status, error) {
 	get := api.Encoding.Encodings.Muxings.ProgressiveMov.Information.Get
 	mux, err := ListMuxing(api, s.ProviderJobID)
 	if err != nil {
@@ -101,7 +101,7 @@ func (e *MOV) Enrich(api *bitmovin.BitmovinApi, s job.Status) (job.Status, error
 }
 
 // Enrich populates information about MP4 outputs if they exist
-func (e *MP4) Enrich(api *bitmovin.BitmovinApi, s job.Status) (job.Status, error) {
+func (e *MP4) Enrich(api *bitmovin.BitmovinApi, s av.Status) (av.Status, error) {
 	get := api.Encoding.Encodings.Muxings.Mp4.Information.Get
 	mux, err := ListMuxing(api, s.ProviderJobID)
 	if err != nil {
@@ -118,7 +118,7 @@ func (e *MP4) Enrich(api *bitmovin.BitmovinApi, s job.Status) (job.Status, error
 }
 
 // Enrich populates information about ProgressiveWebM outputs if they exist
-func (e *WEBM) Enrich(api *bitmovin.BitmovinApi, s job.Status) (job.Status, error) {
+func (e *WEBM) Enrich(api *bitmovin.BitmovinApi, s av.Status) (av.Status, error) {
 	get := api.Encoding.Encodings.Muxings.ProgressiveWebm.Information.Get
 	mux, err := ListMuxing(api, s.ProviderJobID)
 	if err != nil {
@@ -166,7 +166,7 @@ func ListMuxing(api *bitmovin.BitmovinApi, jobID string) ([]Muxing, error) {
 	return mux, nil
 }
 
-func (m Muxing) Output(s job.Status, t track) job.File {
+func (m Muxing) Output(s av.Status, t track) av.File {
 	var (
 		height, width int
 		codec         string
@@ -176,11 +176,11 @@ func (m Muxing) Output(s job.Status, t track) job.File {
 		height, width = int(*video[0].FrameHeight), int(*video[0].FrameWidth)
 		codec = video[0].Codec
 	}
-	return job.File{
+	return av.File{
 		Name:      s.Output.Path,
 		Container: m.Type,
 		Size:      t.Filesize(),
-		Video:     job.Video{Codec: codec, Width: width, Height: height},
+		Video:     av.Video{Codec: codec, Width: width, Height: height},
 	}.Join(m.Filename)
 }
 

@@ -6,8 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
-	"github.com/pkg/errors"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 var timecodePositionMap = map[int]mc.TimecodeBurninPosition{
@@ -22,7 +21,7 @@ var timecodePositionMap = map[int]mc.TimecodeBurninPosition{
 	8: mc.TimecodeBurninPositionBottomRight,
 }
 
-func outputFrom(f job.File, input job.File) (mc.Output, error) {
+func outputFrom(f av.File, input av.File) (mc.Output, error) {
 	if f.Container == "" {
 		f.Container = f.Type() // TODO(as): remove container as a field ?
 	}
@@ -61,20 +60,20 @@ func outputFrom(f job.File, input job.File) (mc.Output, error) {
 	return output, nil
 }
 
-func state(status mc.JobStatus) job.State {
+func state(status mc.JobStatus) av.State {
 	switch status {
 	case mc.JobStatusSubmitted:
-		return job.StateQueued
+		return av.StateQueued
 	case mc.JobStatusProgressing:
-		return job.StateStarted
+		return av.StateStarted
 	case mc.JobStatusComplete:
-		return job.StateFinished
+		return av.StateFinished
 	case mc.JobStatusCanceled:
-		return job.StateCanceled
+		return av.StateCanceled
 	case mc.JobStatusError:
-		return job.StateFailed
+		return av.StateFailed
 	default:
-		return job.StateUnknown
+		return av.StateUnknown
 	}
 }
 
@@ -122,7 +121,7 @@ func containerSettingsFrom(container mc.ContainerType) *mc.ContainerSettings {
 	return cs
 }
 
-func videoPresetFrom(f job.File, input job.File) (*mc.VideoDescription, error) {
+func videoPresetFrom(f av.File, input av.File) (*mc.VideoDescription, error) {
 	mv := mc.VideoDescription{
 		ScalingBehavior:   mc.ScalingBehaviorDefault,
 		TimecodeInsertion: mc.VideoTimecodeInsertionDisabled,
@@ -167,7 +166,7 @@ func videoPresetFrom(f job.File, input job.File) (*mc.VideoDescription, error) {
 
 	videoPreprocessors, err := videoPreprocessorsFrom(f.Video)
 	if err != nil {
-		return nil, errors.Wrap(err, "building videoPreprocessors")
+		return nil, fmt.Errorf("preprocessors: %w", err)
 	}
 	mv.VideoPreprocessors = videoPreprocessors
 
@@ -175,8 +174,8 @@ func videoPresetFrom(f job.File, input job.File) (*mc.VideoDescription, error) {
 		return &mv, nil
 	}
 	switch input.Video.Scantype {
-	case job.ScanProgressive:
-	case job.ScanInterlaced:
+	case av.ScanProgressive:
+	case av.ScanInterlaced:
 		mv.VideoPreprocessors.Deinterlacer = &mc.Deinterlacer{
 			Algorithm: mc.DeinterlaceAlgorithmInterpolate,
 			Control:   mc.DeinterlacerControlNormal,
@@ -207,15 +206,15 @@ var (
 )
 
 type setter struct {
-	dst job.File
-	src job.File
+	dst av.File
+	src av.File
 }
 
 func (s setter) Scan(v *mc.VideoDescription) *mc.VideoDescription {
 	const (
 		// constants have same value for src/dst, but different types...
-		progressive = string(job.ScanProgressive)
-		interlaced  = string(job.ScanInterlaced)
+		progressive = string(av.ScanProgressive)
+		interlaced  = string(av.ScanInterlaced)
 	)
 	if v == nil {
 		v = &mc.VideoDescription{}
@@ -268,7 +267,7 @@ func (s setter) Crop(v *mc.VideoDescription) *mc.VideoDescription {
 	return v
 }
 
-func videoPreprocessorsFrom(v job.Video) (*mc.VideoPreprocessor, error) {
+func videoPreprocessorsFrom(v av.Video) (*mc.VideoPreprocessor, error) {
 	mvpp := &mc.VideoPreprocessor{}
 
 	if tcb := v.Overlays.TimecodeBurnin; tcb != nil {
@@ -286,16 +285,16 @@ func videoPreprocessorsFrom(v job.Video) (*mc.VideoPreprocessor, error) {
 			if err != nil {
 				return mvpp, fmt.Errorf("parsing master display string: %w", err)
 			}
-			md.BluePrimaryX = aws.Int64(d.bluePrimaryX)
-			md.BluePrimaryY = aws.Int64(d.bluePrimaryY)
-			md.GreenPrimaryX = aws.Int64(d.greenPrimaryX)
-			md.GreenPrimaryY = aws.Int64(d.greenPrimaryY)
-			md.RedPrimaryX = aws.Int64(d.redPrimaryX)
-			md.RedPrimaryY = aws.Int64(d.redPrimaryY)
-			md.WhitePointX = aws.Int64(d.whitePointX)
-			md.WhitePointY = aws.Int64(d.whitePointY)
-			md.MaxLuminance = aws.Int64(d.maxLuminance)
-			md.MinLuminance = aws.Int64(d.minLuminance)
+			md.BluePrimaryX = aws.Int64(d.B.x)
+			md.BluePrimaryY = aws.Int64(d.B.y)
+			md.GreenPrimaryX = aws.Int64(d.G.x)
+			md.GreenPrimaryY = aws.Int64(d.G.y)
+			md.RedPrimaryX = aws.Int64(d.R.x)
+			md.RedPrimaryY = aws.Int64(d.R.y)
+			md.WhitePointX = aws.Int64(d.WP.x)
+			md.WhitePointY = aws.Int64(d.WP.y)
+			md.MaxLuminance = aws.Int64(d.L.max())
+			md.MinLuminance = aws.Int64(d.L.min())
 		}
 
 		if hdr10.MaxCLL != 0 {
@@ -352,7 +351,7 @@ func audioSplit(a mc.AudioDescription) (split []mc.AudioDescription) {
 	return split
 }
 
-func audioPresetFrom(f job.File) (mc.AudioDescription, error) {
+func audioPresetFrom(f av.File) (mc.AudioDescription, error) {
 	mad := mc.AudioDescription{}
 
 	if f.Audio.Normalize {

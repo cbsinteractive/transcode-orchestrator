@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 const SourceUID = "source_file"
@@ -44,7 +44,7 @@ func (p *driver) srcFrom(j *Job) hy.Element {
 	creds := j.Env.InputAlias
 	assets := []hy.AssetPayload{p.asset(&j.Input, creds)}
 
-	if dolby := j.Asset(job.TagDolbyVisionMetadata); dolby != nil {
+	if dolby := j.Asset(av.TagDolbyVisionMetadata); dolby != nil {
 		assets = append(assets, p.asset(dolby, creds, hy.AssetContents{
 			Kind:    "metadata",
 			Payload: hy.AssetContentsPayload{Standard: "dolbyvision_metadata"},
@@ -83,7 +83,7 @@ func (p *driver) transcodeElems(j *Job) (e []hy.Element) {
 			UID:  fmt.Sprintf("transcode_task_%d", i),
 			Task: &hy.ElementTaskOptions{
 				Name: fmt.Sprintf("Transcode - %s", f.Base()),
-				Tags: tag(j, job.TagTranscodeDefault),
+				Tags: tag(j, av.TagTranscodeDefault),
 			},
 			Payload: hy.TranscodePayload{
 				Options:        opts,
@@ -98,7 +98,7 @@ func (p *driver) transcodeElems(j *Job) (e []hy.Element) {
 	return e
 }
 
-func videoTarget(v job.Video) *hy.VideoTarget {
+func videoTarget(v av.Video) *hy.VideoTarget {
 	if !v.On() {
 		return nil
 	}
@@ -144,8 +144,8 @@ func videoTarget(v job.Video) *hy.VideoTarget {
 	}
 }
 
-func audioTarget(a job.Audio) []hy.AudioTarget {
-	if (a == job.Audio{}) {
+func audioTarget(a av.Audio) []hy.AudioTarget {
+	if (a == av.Audio{}) {
 		return []hy.AudioTarget{}
 	}
 	return []hy.AudioTarget{
@@ -159,13 +159,13 @@ func audioTarget(a job.Audio) []hy.AudioTarget {
 
 func mute(j Job) *Job {
 	for i := range j.Output.File {
-		j.Output.File[i].Audio = job.Audio{}
+		j.Output.File[i].Audio = av.Audio{}
 	}
 	return &j
 }
 
 // TODO(as): should canonicalize this across all providers
-func (p *driver) container(f job.File) string {
+func (p *driver) container(f av.File) string {
 	for _, c := range p.Capabilities().OutputFormats {
 		if c == f.Type() {
 			return c
@@ -173,8 +173,8 @@ func (p *driver) container(f job.File) string {
 	}
 	return ""
 }
-func passes(f job.File) int {
-	if f.Video.Bitrate.TwoPass {
+func passes(f av.File) int {
+	if f.Video.TwoPass {
 		return 2
 	}
 	return 1

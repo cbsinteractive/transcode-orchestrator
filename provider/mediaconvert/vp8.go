@@ -5,14 +5,14 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 const (
 	defaultGopUnitVP8 = "frames"
 )
 
-func vp8CodecSettingsFrom(f job.File) (*mc.VideoCodecSettings, error) {
+func vp8CodecSettingsFrom(f av.File) (*mc.VideoCodecSettings, error) {
 	if f.Video.Gop.Seconds() {
 		return nil, fmt.Errorf("can't configure gop unit: seconds with vp8. Must use frames")
 	}

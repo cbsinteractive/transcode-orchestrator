@@ -1,12 +1,14 @@
-package job
+package av
 
 import "github.com/cbsinteractive/pkg/video"
 
-// ScanProgressive and other supported types
+// ScanProgressive and other supported scan types
+// TODO(as): make this an iota constant with go stringer
+// so json.Marshal can validate for us
 const (
 	ScanProgressive = "progressive"
 	ScanInterlaced  = "interlaced"
-	ScanUnknown     = "unknown"
+	ScanUnknown     = ""
 )
 
 // Video transcoding parameters
@@ -20,13 +22,14 @@ type Video struct {
 	Scantype string `json:"scantype,omitempty"`
 
 	FPS     float64 `json:"fps,omitempty"`
-	Bitrate Bitrate `json:"bitrate"`
-	Gop     Gop     `json:"gop"`
+	Bitrate Bitrate `json:"bitrate,omitempty"`
+	Gop     Gop     `json:"gop,omitempty"`
 
-	HDR10       HDR10       `json:"hdr10"`
-	DolbyVision DolbyVision `json:"dolbyVision"`
+	TwoPass     bool        `json:"twopass,omitempty"`
+	HDR10       HDR10       `json:"hdr10,omitempty"`
+	DolbyVision DolbyVision `json:"dolbyVision,omitempty"`
 	Overlays    Overlays    `json:"overlays,omitempty"`
-	Crop        video.Crop  `json:"crop"`
+	Crop        video.Crop  `json:"crop,omitempty"`
 }
 
 func (v *Video) On() bool {
@@ -34,9 +37,8 @@ func (v *Video) On() bool {
 }
 
 type Bitrate struct {
-	BPS     int    `json:"bps"`
-	Control string `json:"control"`
-	TwoPass bool   `json:"twopass"`
+	BPS     int    `json:"bps,omitempty"`
+	Control string `json:"control,omitempty"`
 }
 
 // Percent adjusts the bitrate by n percent

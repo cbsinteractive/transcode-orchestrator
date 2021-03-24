@@ -1,4 +1,4 @@
-package job
+package av
 
 const old0 = `{
 	"providers": ["mediaconvert"],

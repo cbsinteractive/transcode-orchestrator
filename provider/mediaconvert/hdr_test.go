@@ -6,7 +6,7 @@ import (
 
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 )
 
@@ -21,32 +21,22 @@ func TestHDRMasterDisplay(t *testing.T) {
 			name:       "GBRWPL",
 			encodedStr: "G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(100000000000,0)",
 			wantDisplay: masterDisplay{
-				greenPrimaryX: 8500,
-				greenPrimaryY: 39850,
-				bluePrimaryX:  6550,
-				bluePrimaryY:  2300,
-				redPrimaryX:   35400,
-				redPrimaryY:   14600,
-				whitePointX:   15635,
-				whitePointY:   16450,
-				maxLuminance:  100000000000,
-				minLuminance:  0,
+				G:  pt{8500, 39850},
+				B:  pt{6550, 2300},
+				R:  pt{35400, 14600},
+				WP: pt{15635, 16450},
+				L:  pt{100000000000, 0},
 			},
 		},
 		{
 			name:       "BGLRWP",
 			encodedStr: "B(6550,2300)G(8500,39850)L(100000000000,0)R(35400,14600)WP(15635,16450)",
 			wantDisplay: masterDisplay{
-				greenPrimaryX: 8500,
-				greenPrimaryY: 39850,
-				bluePrimaryX:  6550,
-				bluePrimaryY:  2300,
-				redPrimaryX:   35400,
-				redPrimaryY:   14600,
-				whitePointX:   15635,
-				whitePointY:   16450,
-				maxLuminance:  100000000000,
-				minLuminance:  0,
+				G:  pt{8500, 39850},
+				B:  pt{6550, 2300},
+				R:  pt{35400, 14600},
+				WP: pt{15635, 16450},
+				L:  pt{100000000000, 0},
 			},
 		},
 		{
@@ -95,8 +85,8 @@ func TestHDRRequest(t *testing.T) {
 	p.Video.HDR10.MasterDisplay = display
 
 	d := &driver{cfg: config.MediaConvert{Destination: "s3://some_dest"}}
-	req, err := d.createRequest(nil, &job.Job{
-		Output: job.Dir{File: []job.File{p}},
+	req, err := d.createRequest(nil, &av.Job{
+		Output: av.Dir{File: []av.File{p}},
 	})
 	if err != nil {
 		t.Fatalf("error: %v", err)
@@ -117,16 +107,6 @@ func BenchmarkHDR(b *testing.B) {
 	b.Run("Current", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
 			parseMasterDisplay(display)
-		}
-	})
-	b.Run("Regexp", func(b *testing.B) {
-		for n := 0; n < b.N; n++ {
-			parseMasterDisplayRegexp(display)
-		}
-	})
-	b.Run("Fast", func(b *testing.B) {
-		for n := 0; n < b.N; n++ {
-			parseMasterDisplayFast(display)
 		}
 	})
 }

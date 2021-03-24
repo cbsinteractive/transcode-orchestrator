@@ -12,56 +12,57 @@ import (
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/google/go-cmp/cmp"
 )
 
 var (
-	defaultPreset = job.File{
+	defaultPreset = av.File{
 		Name:      "file1.mp4",
 		Container: "mp4",
-		Video: job.Video{
+		Video: av.Video{
 			Codec: "h264", Profile: "high", Level: "4.1",
 			Width: 300, Height: 400, Scantype: "progressive",
-			Bitrate: job.Bitrate{BPS: 400000, Control: "VBR", TwoPass: true},
-			Gop:     job.Gop{Size: 120, Unit: "frames"},
+			Bitrate: av.Bitrate{BPS: 400000, Control: "VBR"},
+			TwoPass: true,
+			Gop:     av.Gop{Size: 120, Unit: "frames"},
 		},
-		Audio: job.Audio{Codec: "aac", Bitrate: 20000},
+		Audio: av.Audio{Codec: "aac", Bitrate: 20000},
 	}
 
-	h265Preset = job.File{
+	h265Preset = av.File{
 		Name:      "file1.mp4",
 		Container: "mp4",
-		Video: job.Video{
+		Video: av.Video{
 			Codec: "h265",
 			Width: 300, Height: 400, Scantype: "progressive",
-			Bitrate: job.Bitrate{BPS: 400000, Control: "CBR"},
-			Gop:     job.Gop{Size: 120, Unit: "frames"},
+			Bitrate: av.Bitrate{BPS: 400000, Control: "CBR"},
+			Gop:     av.Gop{Size: 120, Unit: "frames"},
 		},
 	}
 
-	av1Preset = job.File{
+	av1Preset = av.File{
 		Name:      "file1.mp4",
 		Container: "mp4",
-		Video: job.Video{
+		Video: av.Video{
 			Codec: "av1",
 			Width: 300, Height: 400, Scantype: "progressive",
-			Bitrate: job.Bitrate{BPS: 400000},
-			Gop:     job.Gop{Size: 120, Unit: "frames"},
+			Bitrate: av.Bitrate{BPS: 400000},
+			Gop:     av.Gop{Size: 120, Unit: "frames"},
 		},
 	}
 
-	audioOnlyPreset = job.File{
+	audioOnlyPreset = av.File{
 		Name:      "file1.mp4",
 		Container: "mp4",
-		Audio:     job.Audio{Codec: "aac", Bitrate: 20000},
+		Audio:     av.Audio{Codec: "aac", Bitrate: 20000},
 	}
 
-	defaultJob = job.Job{
+	defaultJob = av.Job{
 		ID: "jobID", Provider: Name,
-		Input: job.File{Name: "s3://some/path.mp4"},
-		Output: job.Dir{File: []job.File{
+		Input: av.File{Name: "s3://some/path.mp4"},
+		Output: av.Dir{File: []av.File{
 			{Name: "file1.mp4"},
 			{Name: "file2.mp4"},
 		}},
@@ -88,8 +89,8 @@ func TestHDR10(t *testing.T) {
 	p.Video.HDR10.MasterDisplay = display
 
 	d := &driver{cfg: config.MediaConvert{Destination: "s3://some_dest"}}
-	req, err := d.createRequest(nil, &job.Job{
-		Output: job.Dir{File: []job.File{p}},
+	req, err := d.createRequest(nil, &av.Job{
+		Output: av.Dir{File: []av.File{p}},
 	})
 	if err != nil {
 		t.Fatalf("error: %v", err)
@@ -107,10 +108,10 @@ func TestHDR10(t *testing.T) {
 
 func TestSupport(t *testing.T) {
 	d := &driver{}
-	run := func(p job.File) (*mc.CreateJobInput, error) {
+	run := func(p av.File) (*mc.CreateJobInput, error) {
 
-		return d.createRequest(nil, &job.Job{
-			Output: job.Dir{File: []job.File{p}},
+		return d.createRequest(nil, &av.Job{
+			Output: av.Dir{File: []av.File{p}},
 		})
 	}
 	warn := false
@@ -130,7 +131,7 @@ func TestSupport(t *testing.T) {
 
 	t.Run("Container", func(t *testing.T) {
 		for _, box := range []string{"mp4", "mxf", "mov", "webm"} {
-			mc, err := run(job.File{Container: box})
+			mc, err := run(av.File{Container: box})
 			ck(box, err)
 			have := string(mc.Settings.OutputGroups[0].Outputs[0].ContainerSettings.Container)
 			have = strings.ToLower(have)
@@ -141,7 +142,7 @@ func TestSupport(t *testing.T) {
 
 		for _, box := range []string{"mp4", "mxf", "mov", "webm"} {
 			for _, codec := range []string{"", "h264", "h265", "av1", "xdcam", "vp8"} {
-				_, err := run(job.File{Container: box, Video: job.Video{Codec: codec}})
+				_, err := run(av.File{Container: box, Video: av.Video{Codec: codec}})
 				ck(box+"/"+codec, err)
 			}
 		}
@@ -149,40 +150,40 @@ func TestSupport(t *testing.T) {
 
 	t.Run("Audio", func(t *testing.T) {
 		for i, tt := range []struct {
-			p   job.Audio
+			p   av.Audio
 			err error
 		}{
-			{job.Audio{Codec: "aac"}, nil},
-			{job.Audio{Codec: "aad"}, ErrUnsupported},
+			{av.Audio{Codec: "aac"}, nil},
+			{av.Audio{Codec: "aad"}, ErrUnsupported},
 		} {
-			_, err := run(job.File{Container: "mp4", Audio: tt.p})
+			_, err := run(av.File{Container: "mp4", Audio: tt.p})
 			ck(fmt.Sprintf("%d", i), err, tt.err)
 		}
 	})
 
 	t.Run("Video", func(t *testing.T) {
 		for i, tt := range []struct {
-			p   job.Video
+			p   av.Video
 			err error
 		}{
-			{job.Video{Codec: "vp9001"}, ErrUnsupported},
-			{job.Video{Codec: "h264", Profile: "8000"}, ErrUnsupported},
-			{job.Video{Codec: "h264", Profile: "main"}, nil},
-			{job.Video{Codec: "h264", Profile: "high"}, nil},
-			{job.Video{Codec: "h264", Profile: "main", Level: "1812"}, nil},
-			{job.Video{Codec: "h264", Profile: "main", Level: "@@@@"}, nil},
-			{job.Video{Codec: "h265", Profile: "main"}, nil},
-			{job.Video{Codec: "h265", Profile: "main", Level: "1812"}, ErrUnsupported},
-			{job.Video{Codec: "h265", Profile: "main", Level: "@@@@"}, ErrUnsupported},
+			{av.Video{Codec: "vp9001"}, ErrUnsupported},
+			{av.Video{Codec: "h264", Profile: "8000"}, ErrUnsupported},
+			{av.Video{Codec: "h264", Profile: "main"}, nil},
+			{av.Video{Codec: "h264", Profile: "high"}, nil},
+			{av.Video{Codec: "h264", Profile: "main", Level: "1812"}, nil},
+			{av.Video{Codec: "h264", Profile: "main", Level: "@@@@"}, nil},
+			{av.Video{Codec: "h265", Profile: "main"}, nil},
+			{av.Video{Codec: "h265", Profile: "main", Level: "1812"}, ErrUnsupported},
+			{av.Video{Codec: "h265", Profile: "main", Level: "@@@@"}, ErrUnsupported},
 
 			// Below: flaky tests or behavior
 			// NOTE(as): we seem to have special logic for this because of HDR support
-			//		{job.Video{Codec: "h265", Profile: "9000"}, ErrUnsupported},
-			{job.Video{Codec: "h264", Scantype: "efas"}, nil},
-			{job.Video{Codec: "h265", Scantype: "?"}, nil},
-			{job.Video{Codec: "av1", Profile: "f"}, nil},
+			//		{av.Video{Codec: "h265", Profile: "9000"}, ErrUnsupported},
+			{av.Video{Codec: "h264", Scantype: "efas"}, nil},
+			{av.Video{Codec: "h265", Scantype: "?"}, nil},
+			{av.Video{Codec: "av1", Profile: "f"}, nil},
 		} {
-			_, err := run(job.File{Container: "mp4", Video: tt.p})
+			_, err := run(av.File{Container: "mp4", Video: tt.p})
 			ck(fmt.Sprintf("video%d", i), err, tt.err)
 		}
 	})
@@ -190,16 +191,16 @@ func TestSupport(t *testing.T) {
 	t.Run("FlakyValidation", func(t *testing.T) {
 		warn = true
 		for _, codec := range []string{"h264", "h265", "av1", "xdcam", "vp8"} {
-			_, err := run(job.File{Container: "mp4", Video: job.Video{Codec: codec, Bitrate: job.Bitrate{Control: "?"}}})
+			_, err := run(av.File{Container: "mp4", Video: av.Video{Codec: codec, Bitrate: av.Bitrate{Control: "?"}}})
 			ck(codec+"/ratecontrol", err, ErrUnsupported)
 
-			_, err = run(job.File{Container: "mp4", Video: job.Video{Codec: codec, Profile: "?"}})
+			_, err = run(av.File{Container: "mp4", Video: av.Video{Codec: codec, Profile: "?"}})
 			ck(codec+"/profile", err, ErrUnsupported)
 
-			_, err = run(job.File{Container: "mp4", Video: job.Video{Codec: codec, Level: "?"}})
+			_, err = run(av.File{Container: "mp4", Video: av.Video{Codec: codec, Level: "?"}})
 			ck(codec+"/profilelevel", err, ErrUnsupported)
 
-			_, err = run(job.File{Container: "mp4", Video: job.Video{Codec: codec, Scantype: "?"}})
+			_, err = run(av.File{Container: "mp4", Video: av.Video{Codec: codec, Scantype: "?"}})
 			ck(codec+"/interlace", err, ErrUnsupported)
 		}
 	})
@@ -207,16 +208,16 @@ func TestSupport(t *testing.T) {
 }
 
 func TestDriverCreate(t *testing.T) {
-	vp8Preset := func(audioCodec string) job.File {
-		return job.File{
+	vp8Preset := func(audioCodec string) av.File {
+		return av.File{
 			Name: "file1.webm",
-			Video: job.Video{
+			Video: av.Video{
 				Codec: "vp8",
 				Width: 300, Height: 400, Scantype: "progressive",
-				Bitrate: job.Bitrate{BPS: 400000, Control: "VBR"},
-				Gop:     job.Gop{Size: 120, Unit: "frames"},
+				Bitrate: av.Bitrate{BPS: 400000, Control: "VBR"},
+				Gop:     av.Gop{Size: 120, Unit: "frames"},
 			},
-			Audio: job.Audio{
+			Audio: av.Audio{
 				Codec:     audioCodec,
 				Bitrate:   96000,
 				Normalize: true,
@@ -227,8 +228,8 @@ func TestDriverCreate(t *testing.T) {
 	tests := []struct {
 		cfg         config.MediaConvert
 		name        string
-		job         *job.Job
-		preset      job.File
+		job         *av.Job
+		preset      av.File
 		destination string
 		wantJobReq  mc.CreateJobInput
 		wantErr     bool
@@ -236,10 +237,10 @@ func TestDriverCreate(t *testing.T) {
 		{
 			name: "H264/AAC/MP4",
 			cfg:  config.MediaConvert{Role: "some-role", DefaultQueueARN: "some:default:queue:arn"},
-			job: &job.Job{
+			job: &av.Job{
 				ID: "jobID", Provider: Name,
-				Input:  job.File{Name: "s3://some/path.mp4"},
-				Output: job.Dir{File: []job.File{{Name: "file1.mp4"}}},
+				Input:  av.File{Name: "s3://some/path.mp4"},
+				Output: av.Dir{File: []av.File{{Name: "file1.mp4"}}},
 				Labels: []string{"bill:some-bu", "some-more-labels"},
 			},
 			preset:      defaultPreset,
@@ -341,11 +342,11 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "H264/AAC/MP4-Interlaced",
-			job: &job.Job{
+			job: &av.Job{
 				ID:       "jobID",
 				Provider: Name,
-				Input:    job.File{Name: "s3://some/path.mp4", Video: job.Video{Scantype: job.ScanInterlaced}},
-				Output:   job.Dir{File: []job.File{{Name: "file1.mp4"}}},
+				Input:    av.File{Name: "s3://some/path.mp4", Video: av.Video{Scantype: av.ScanInterlaced}},
+				Output:   av.Dir{File: []av.File{{Name: "file1.mp4"}}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -443,11 +444,11 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "H264/AAC/MP4-Progressive",
-			job: &job.Job{
+			job: &av.Job{
 				ID:       "jobID",
 				Provider: Name,
-				Input:    job.File{Name: "s3://some/path.mp4", Video: job.Video{Scantype: job.ScanProgressive}},
-				Output:   job.Dir{File: []job.File{{Name: "file1.mp4"}}},
+				Input:    av.File{Name: "s3://some/path.mp4", Video: av.Video{Scantype: av.ScanProgressive}},
+				Output:   av.Dir{File: []av.File{{Name: "file1.mp4"}}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -539,11 +540,11 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "H265/MP4-VideoOnly",
-			job: &job.Job{
+			job: &av.Job{
 				ID:       "jobID",
 				Provider: Name,
-				Input:    job.File{Name: "s3://some/path.mp4"},
-				Output:   job.Dir{File: []job.File{{Name: "file1.mp4"}}},
+				Input:    av.File{Name: "s3://some/path.mp4"},
+				Output:   av.Dir{File: []av.File{{Name: "file1.mp4"}}},
 			},
 			preset:      h265Preset,
 			destination: "s3://some/destination",
@@ -635,11 +636,11 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "AV1/MP4",
-			job: &job.Job{
+			job: &av.Job{
 				ID:       "jobID",
 				Provider: Name,
-				Input:    job.File{Name: "s3://some/path.mp4"},
-				Output:   job.Dir{File: []job.File{{Name: "file1.mp4"}}},
+				Input:    av.File{Name: "s3://some/path.mp4"},
+				Output:   av.Dir{File: []av.File{{Name: "file1.mp4"}}},
 			},
 			preset:      av1Preset,
 			destination: "s3://some/destination",
@@ -719,11 +720,11 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "VP8/Vorbis/Webm",
-			job: &job.Job{
+			job: &av.Job{
 				ID:       "jobID",
 				Provider: Name,
-				Input:    job.File{Name: "s3://some/path.webm"},
-				Output:   job.Dir{File: []job.File{{Name: "file1.webm"}}},
+				Input:    av.File{Name: "s3://some/path.webm"},
+				Output:   av.Dir{File: []av.File{{Name: "file1.webm"}}},
 			},
 			preset:      vp8Preset("vorbis"),
 			destination: "s3://some/destination",
@@ -816,11 +817,11 @@ func TestDriverCreate(t *testing.T) {
 		},
 		{
 			name: "VP8/Opus/Webm",
-			job: &job.Job{
+			job: &av.Job{
 				ID:       "jobID",
 				Provider: Name,
-				Input:    job.File{Name: "s3://some/path.webm"},
-				Output:   job.Dir{File: []job.File{{Name: "file1.webm"}}},
+				Input:    av.File{Name: "s3://some/path.webm"},
+				Output:   av.Dir{File: []av.File{{Name: "file1.webm"}}},
 			},
 			preset:      vp8Preset("opus"),
 			destination: "s3://some/destination",
@@ -917,11 +918,11 @@ func TestDriverCreate(t *testing.T) {
 				DefaultQueueARN:   "some:default:queue:arn",
 				PreferredQueueARN: "some:preferred:queue:arn",
 			},
-			job: &job.Job{
+			job: &av.Job{
 				ID:       "jobID",
 				Provider: Name,
-				Input:    job.File{Name: "s3://some/path.mp4"},
-				Output:   job.Dir{File: []job.File{{Name: "file1.mp4"}}},
+				Input:    av.File{Name: "s3://some/path.mp4"},
+				Output:   av.Dir{File: []av.File{{Name: "file1.mp4"}}},
 			},
 			preset:      defaultPreset,
 			destination: "s3://some/destination",
@@ -1024,12 +1025,12 @@ func TestDriverCreate(t *testing.T) {
 		//		DefaultQueueARN:   "some:default:queue:arn",
 		//		PreferredQueueARN: "some:preferred:queue:arn",
 		//	},
-		//	job: &job.Job{
+		//	job: &av.Job{
 		//		ID:           "jobID",
 		//		Provider: Name,
 		//		SourceMedia:  "s3://some/path.mp4",
-		//		SourceInfo:   job.File{FileSize: 1_000_000_000},
-		//		Outputs:      []job.TranscodeOutput{{Preset: job.File{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
+		//		SourceInfo:   av.File{FileSize: 1_000_000_000},
+		//		Outputs:      []job.TranscodeOutput{{Preset: av.File{Name: audioOnlyPreset.Name}, FileName: "file1.mp4"}},
 		//	},
 		//	preset:      audioOnlyPreset,
 		//	destination: "s3://some/destination",
@@ -1124,15 +1125,15 @@ func TestDriverCreate(t *testing.T) {
 
 func TestAudioMixTimecodeBurnin(t *testing.T) {
 
-	input := &job.Job{
-		Input: job.File{
+	input := &av.Job{
+		Input: av.File{
 			Name: "s3://some/path.mov",
 			// TODO(as): can this be split across the source
 			// and the destination? Is Downmix the right name
 			// should it just be a Mix? It doesn't seem very
 			// general in its current state.
-			Downmix: &job.Downmix{
-				Src: []job.AudioChannel{
+			Downmix: &av.Downmix{
+				Src: []av.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 					{TrackIdx: 1, ChannelIdx: 3, Layout: "C"},
@@ -1140,23 +1141,24 @@ func TestAudioMixTimecodeBurnin(t *testing.T) {
 					{TrackIdx: 1, ChannelIdx: 5, Layout: "Ls"},
 					{TrackIdx: 1, ChannelIdx: 6, Layout: "Rs"},
 				},
-				Dst: []job.AudioChannel{
+				Dst: []av.AudioChannel{
 					{TrackIdx: 1, ChannelIdx: 1, Layout: "L"},
 					{TrackIdx: 1, ChannelIdx: 2, Layout: "R"},
 				},
 			}},
-		Output: job.Dir{
+		Output: av.Dir{
 			Path: "s3://some/destination/jobID",
-			File: []job.File{{
+			File: []av.File{{
 				Name: "file1.mov",
-				Video: job.Video{
+				Video: av.Video{
 					Codec: "h264", Profile: "high", Level: "4.1",
 					Width: 300, Height: 400, Scantype: "progressive",
-					Bitrate:  job.Bitrate{BPS: 400000, Control: "VBR", TwoPass: true},
-					Gop:      job.Gop{Size: 120, Unit: "frames"},
-					Overlays: job.Overlays{TimecodeBurnin: &job.Timecode{FontSize: 12, Position: 7}},
+					Bitrate:  av.Bitrate{BPS: 400000, Control: "VBR"},
+					TwoPass:  true,
+					Gop:      av.Gop{Size: 120, Unit: "frames"},
+					Overlays: av.Overlays{TimecodeBurnin: &av.Timecode{FontSize: 12, Position: 7}},
 				},
-				Audio: job.Audio{Codec: "aac", Bitrate: 20000},
+				Audio: av.Audio{Codec: "aac", Bitrate: 20000},
 			}},
 		},
 	}
@@ -1284,29 +1286,29 @@ func TestDriverStatus(t *testing.T) {
 		name        string
 		destination string
 		mcJob       mc.Job
-		want        job.Status
+		want        av.Status
 	}{
 		{
 			name:        "Submitted",
 			destination: "s3://some/destination",
-			want:        job.Status{State: job.StateQueued, Provider: Name, Output: job.Dir{Path: "s3://some/destination/jobID"}},
+			want:        av.Status{State: av.StateQueued, Provider: Name, Output: av.Dir{Path: "s3://some/destination/jobID"}},
 			mcJob:       mc.Job{Status: mc.JobStatusSubmitted},
 		},
 		{
 			name:        "Progressing",
 			destination: "s3://some/destination",
-			want:        job.Status{State: job.StateStarted, Provider: Name, Progress: 42, Output: job.Dir{Path: "s3://some/destination/jobID"}},
+			want:        av.Status{State: av.StateStarted, Provider: Name, Progress: 42, Output: av.Dir{Path: "s3://some/destination/jobID"}},
 			mcJob:       mc.Job{Status: mc.JobStatusProgressing, JobPercentComplete: aws.Int64(42)},
 		},
 		{
 			name:        "Complete",
 			destination: "s3://some/destination",
-			want: job.Status{
-				State: job.StateFinished, Provider: Name, Progress: 100,
-				Output: job.Dir{
+			want: av.Status{
+				State: av.StateFinished, Provider: Name, Progress: 100,
+				Output: av.Dir{
 					Path: "s3://some/destination/jobID",
-					File: []job.File{
-						{Name: "s3://some/destination/jobID/m_modifier.mp4", Container: "mp4", Video: job.Video{Height: 102, Width: 324}},
+					File: []av.File{
+						{Name: "s3://some/destination/jobID/m_modifier.mp4", Container: "mp4", Video: av.Video{Height: 102, Width: 324}},
 						{Name: "s3://some/destination/jobID/m_another_modifier.mp4", Container: "mp4"},
 					},
 				},
@@ -1322,7 +1324,7 @@ func TestDriverStatus(t *testing.T) {
 									ContainerSettings: &mc.ContainerSettings{Container: mc.ContainerTypeMp4, Mp4Settings: &mc.Mp4Settings{Mp4MajorBrand: aws.String("isom")}}},
 								{NameModifier: aws.String("_another_modifier"),
 									ContainerSettings: &mc.ContainerSettings{Container: mc.ContainerTypeMp4, Mp4Settings: &mc.Mp4Settings{Mp4MajorBrand: aws.String("isom")}}},
-								{NameModifier: aws.String("_123"),
+								{NameModifier: aws.String(""),
 									ContainerSettings: &mc.ContainerSettings{Container: mc.ContainerTypeM2ts}},
 								{ContainerSettings: &mc.ContainerSettings{Container: mc.ContainerTypeM2ts}},
 							},

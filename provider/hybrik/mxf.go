@@ -2,10 +2,10 @@ package hybrik
 
 import (
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
-func applyMXF(t *hy.TranscodeTarget, f job.File) bool {
+func applyMXF(t *hy.TranscodeTarget, f av.File) bool {
 	switch {
 	case f.Video.DolbyVision.Enabled:
 		t.NumPasses = 2

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 var ErrUnsupportedValue = errors.New("unsupported value")
@@ -75,7 +75,7 @@ type codec struct {
 // and then follow up with their own codec-specific checks. For example,
 // the h264 codec originally set the "scene cut threshhold" to zero if the
 // GOP size was not zero.
-func (c *codec) setVideo(cfg VideoPTR, p job.File) bool {
+func (c *codec) setVideo(cfg VideoPTR, p av.File) bool {
 	*cfg.Name = strings.ToLower(p.Name)
 	if n := int32(p.Video.Width); n != 0 && cfg.Width != nil {
 		*cfg.Width = &n
@@ -106,7 +106,7 @@ func (c *codec) setVideo(cfg VideoPTR, p job.File) bool {
 		// some of these can fail on single pass mode
 		// check that in the specific codecs
 		*cfg.EncodingMode = model.EncodingMode_SINGLE_PASS
-		if p.Video.Bitrate.TwoPass {
+		if p.Video.TwoPass {
 			*cfg.EncodingMode = model.EncodingMode_TWO_PASS
 		}
 	}

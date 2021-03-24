@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 )
 
@@ -21,8 +21,8 @@ var (
 
 // Provider knows how to manage jobs for media transcoding
 type Provider interface {
-	Create(context.Context, *job.Job) (*job.Status, error)
-	Status(context.Context, *job.Job) (*job.Status, error)
+	Create(context.Context, *av.Job) (*av.Status, error)
+	Status(context.Context, *av.Job) (*av.Status, error)
 	Cancel(ctx context.Context, id string) error
 	Healthcheck() error
 	Capabilities() Capabilities

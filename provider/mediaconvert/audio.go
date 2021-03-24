@@ -3,7 +3,7 @@ package mediaconvert
 import (
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 type mapSettings map[bool]int64
@@ -15,7 +15,7 @@ var (
 	}
 )
 
-func audioSelectorFrom(ad *job.Downmix, s *mc.AudioSelector) error {
+func audioSelectorFrom(ad *av.Downmix, s *mc.AudioSelector) error {
 	if ad == nil {
 		return nil
 	}
@@ -38,7 +38,7 @@ func audioSelectorFrom(ad *job.Downmix, s *mc.AudioSelector) error {
 	return nil
 }
 
-func uniqueTracks(ad *job.Downmix) (tracks []int64) {
+func uniqueTracks(ad *av.Downmix) (tracks []int64) {
 	seen := map[int64]bool{}
 
 	for _, channel := range ad.Src {
@@ -52,7 +52,7 @@ func uniqueTracks(ad *job.Downmix) (tracks []int64) {
 	return tracks
 }
 
-func audioChannelMapping(ad *job.Downmix) (*mc.ChannelMapping, error) {
+func audioChannelMapping(ad *av.Downmix) (*mc.ChannelMapping, error) {
 	var out []mc.OutputChannelMapping
 
 	mapping, err := ad.Map()

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	hy "github.com/cbsinteractive/hybrik-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 func (p *driver) dolbyVisionLegacy(j *Job) [][]hy.Element {
@@ -17,7 +17,7 @@ func (p *driver) dolbyVisionLegacy(j *Job) [][]hy.Element {
 
 	features0(j, &preproc)
 
-	tag := tag(j, job.TagDolbyVisionPreprocess, "preproc")
+	tag := tag(j, av.TagDolbyVisionPreprocess, "preproc")
 	src := p.assetURL(&j.Input, p.auth(j).Write)
 	dst := p.location(j.Dir(), p.auth(j).Write)
 	tmp := p.location(j.Dir().Join("tmp"), p.auth(j).Write)

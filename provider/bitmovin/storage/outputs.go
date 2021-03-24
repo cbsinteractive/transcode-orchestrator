@@ -1,11 +1,11 @@
 package storage
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -24,12 +24,12 @@ var outputCreators = map[string]outputCreator{
 func NewOutput(destLoc string, api OutputAPI, cfg *config.Bitmovin) (outputID string, err error) {
 	mediaURL, err := url.Parse(destLoc)
 	if err != nil {
-		return "", errors.Errorf("could not parse destination media location %q: %v", destLoc, err)
+		return "", fmt.Errorf("could not parse destination media location %q: %v", destLoc, err)
 	}
 
 	creator, found := outputCreators[mediaURL.Scheme]
 	if !found {
-		return "", errors.Errorf("invalid scheme %q, only s3 and gcs outputs are supported", mediaURL.Scheme)
+		return "", fmt.Errorf("invalid scheme %q, only s3 and gcs outputs are supported", mediaURL.Scheme)
 	}
 
 	return creator(mediaURL, api, cfg)
@@ -55,7 +55,7 @@ func s3Output(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, er
 		Acl:         []model.AclEntry{{Permission: defaultOutputACL}},
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "creating s3 output")
+		return "", fmt.Errorf("creating s3 output: %w", err)
 	}
 
 	return output.Id, nil
@@ -72,7 +72,7 @@ func gcsOutput(destURL *url.URL, api OutputAPI, cfg *config.Bitmovin) (string, e
 		Acl:         []model.AclEntry{{Permission: defaultOutputACL}},
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "creating gcs output")
+		return "", fmt.Errorf("creating gs output: %w", err)
 	}
 
 	return output.Id, nil

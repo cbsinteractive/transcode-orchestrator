@@ -11,10 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/cbsinteractive/pkg/timecode"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -25,8 +24,8 @@ const (
 )
 
 type (
-	Status = job.Status
-	Job    = job.Job
+	Status = av.Status
+	Job    = av.Job
 )
 
 func init() {
@@ -141,7 +140,7 @@ func (p *driver) Create(ctx context.Context, j *Job) (*Status, error) {
 	return &Status{
 		Provider:      Name,
 		ProviderJobID: aws.StringValue(resp.Job.Id),
-		State:         job.StateQueued,
+		State:         av.StateQueued,
 	}, nil
 }
 
@@ -150,7 +149,7 @@ func (p *driver) Status(ctx context.Context, job *Job) (*Status, error) {
 		Id: aws.String(job.ProviderJobID),
 	}).Send(ctx)
 	if err != nil {
-		return &Status{}, errors.Wrap(err, "fetching job info with the mediaconvert API")
+		return &Status{}, fmt.Errorf("status: mediaconvert: %w", err)
 	}
 
 	return p.status(job, jobResp.Job), nil
@@ -167,7 +166,7 @@ func (p *driver) Cancel(ctx context.Context, id string) error {
 func (p *driver) Healthcheck() error {
 	_, err := p.client.ListJobsRequest(nil).Send(context.Background()) // TODO(as): plump context
 	if err != nil {
-		return errors.Wrap(err, "listing jobs")
+		return err
 	}
 	return nil
 }
@@ -175,7 +174,7 @@ func (p *driver) Healthcheck() error {
 func (p *driver) Capabilities() provider.Capabilities {
 	return provider.Capabilities{
 		InputFormats:  []string{"h264", "h265", "hdr10"},
-		OutputFormats: []string{"mp4", "hls", "hdr10", "cmaf", "mov"},
+		OutputFormats: []string{"mp4", "hdr10", "mov"},
 		Destinations:  []string{"s3"},
 	}
 }
@@ -252,36 +251,34 @@ func (p *driver) status(j *Job, mcJob *mc.Job) *Status {
 		Provider:      Name,
 		State:         state(mcJob.Status),
 		Msg:           message(mcJob),
-		Output: job.Dir{
+		Output: av.Dir{
 			Path: p.destinationPath(*j, ""),
 		},
 	}
 
-	if status.State == job.StateFinished {
+	if status.State == av.StateFinished {
 		status.Progress = 100
 	} else if p := mcJob.JobPercentComplete; p != nil {
 		status.Progress = float64(*p)
 	}
 
-	var files []job.File
+	var files []av.File
 	if settings := mcJob.Settings; settings != nil {
 		for _, group := range settings.OutputGroups {
-			groupDestination, err := outputGroupDestinationFrom(group)
+			dir, err := outputDir(group)
 			if err != nil {
 				continue
 			}
 			for _, output := range group.Outputs {
-				file := job.File{}
-
-				if modifier := output.NameModifier; modifier != nil {
-					if extension, err := fileExtensionFromContainer(output.ContainerSettings); err == nil {
-						file.Name = groupDestination + *modifier + extension
-					} else {
-						continue
-					}
-				} else {
+				name := output.NameModifier
+				ext := "." + strings.ToLower(string(output.ContainerSettings.Container))
+				if name == nil || *name == "" || ext == "." {
 					continue
 				}
+				file := av.File{
+					Name: dir + *name + ext,
+				}
+				file.Container = file.Type() // explicitly set it so tests pass, but its equivalent to legacy behavior
 
 				if video := output.VideoDescription; video != nil {
 					if h := video.Height; h != nil {
@@ -291,11 +288,6 @@ func (p *driver) status(j *Job, mcJob *mc.Job) *Status {
 						file.Video.Width = int(*w)
 					}
 				}
-
-				if container, err := containerIdentifierFrom(output.ContainerSettings); err == nil {
-					file.Container = container
-				}
-
 				files = append(files, file)
 			}
 		}
@@ -306,63 +298,20 @@ func (p *driver) status(j *Job, mcJob *mc.Job) *Status {
 	return status
 }
 
-func outputGroupDestinationFrom(group mc.OutputGroup) (string, error) {
-	if group.OutputGroupSettings == nil {
-		return "", errors.New("output group contained no settings")
+func outputDir(g mc.OutputGroup) (string, error) {
+	if g.OutputGroupSettings == nil {
+		return "", fmt.Errorf("output group: no settings")
 	}
 
-	switch group.OutputGroupSettings.Type {
+	switch gs := g.OutputGroupSettings; gs.Type {
 	case mc.OutputGroupTypeFileGroupSettings:
-		fsSettings := group.OutputGroupSettings.FileGroupSettings
-		if fsSettings == nil {
-			return "", errors.New("file group settings were nil")
+		fs := gs.FileGroupSettings
+		if fs == nil || fs.Destination == nil {
+			return "", fmt.Errorf("output group: %q: no destination", gs.Type)
 		}
-
-		if fsSettings.Destination == nil {
-			return "", errors.New("file group destination was nil")
-		}
-
-		return *fsSettings.Destination, nil
+		return *fs.Destination, nil
 	default:
-		return "", fmt.Errorf("output enumeration not supported for output group %q",
-			group.OutputGroupSettings.Type)
-	}
-}
-
-// NOTE(as): it seems like the code in this repository wants to decouple
-// file extensions from file types for some reason, but the implementation
-// in some places resists that
-func fileExtensionFromContainer(settings *mc.ContainerSettings) (string, error) {
-	if settings == nil {
-		return "", errors.New("container settings were nil")
-	}
-	switch settings.Container {
-	case mc.ContainerTypeMp4:
-		return ".mp4", nil
-	case mc.ContainerTypeMov:
-		return ".mov", nil
-	case mc.ContainerTypeWebm:
-		return ".webm", nil
-	default:
-		return "", fmt.Errorf("could not determine extension from output container %q", settings.Container)
-	}
-}
-
-// TODO(as): the only difference between fileExtensionFromContainer
-// and containerIdentifierFrom is a period... and the error message...
-func containerIdentifierFrom(settings *mc.ContainerSettings) (string, error) {
-	if settings == nil {
-		return "", errors.New("container settings were nil")
-	}
-	switch settings.Container {
-	case mc.ContainerTypeMp4:
-		return "mp4", nil
-	case mc.ContainerTypeMov:
-		return "mov", nil
-	case mc.ContainerTypeWebm:
-		return "webm", nil
-	default:
-		return "", fmt.Errorf("could not determine container identifier from output container %q", settings.Container)
+		return "", fmt.Errorf("output group: %q: unsupported", gs.Type)
 	}
 }
 
@@ -385,12 +334,12 @@ func (p *driver) tagsFrom(labels []string) map[string]string {
 
 func mediaconvertFactory(cfg *config.Config) (provider.Provider, error) {
 	if cfg.MediaConvert.Endpoint == "" || cfg.MediaConvert.DefaultQueueARN == "" || cfg.MediaConvert.Role == "" {
-		return nil, errors.New("incomplete MediaConvert config")
+		return nil, fmt.Errorf("incomplete MediaConvert config")
 	}
 
 	mcCfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
-		return nil, errors.Wrap(err, "loading default aws config")
+		return nil, fmt.Errorf("loading default aws config: %w", err)
 	}
 
 	if cfg.MediaConvert.AccessKeyID+cfg.MediaConvert.SecretAccessKey != "" {

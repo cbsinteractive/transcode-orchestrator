@@ -8,7 +8,7 @@ import (
 
 	mc "github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 var ErrProfileUnsupported = errors.New("unsupported profile")
@@ -22,7 +22,7 @@ func atoi(a string) int64 {
 	return int64(i)
 }
 
-func (m mpeg2) validate(p job.File) error {
+func (m mpeg2) validate(p av.File) error {
 	if profile := p.Video.Profile; profile != "" {
 		if _, ok := mpeg2profiles[profile]; !ok {
 			return fmt.Errorf("%w: %q", ErrProfileUnsupported, profile)
@@ -31,7 +31,7 @@ func (m mpeg2) validate(p job.File) error {
 	return nil
 }
 
-func (m mpeg2) apply(p job.File) mpeg2 {
+func (m mpeg2) apply(p av.File) mpeg2 {
 	if v := p.Video.Profile; v != "" {
 		m.CodecProfile = mpeg2profiles[v]
 	}
@@ -47,7 +47,7 @@ func (m mpeg2) apply(p job.File) mpeg2 {
 	return m
 }
 
-func (m mpeg2) generate(p job.File) (*mc.VideoCodecSettings, error) {
+func (m mpeg2) generate(p av.File) (*mc.VideoCodecSettings, error) {
 	s := &mc.VideoCodecSettings{
 		Codec:         mc.VideoCodecMpeg2,
 		Mpeg2Settings: &mc.Mpeg2Settings{},

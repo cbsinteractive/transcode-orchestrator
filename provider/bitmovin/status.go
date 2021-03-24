@@ -2,22 +2,22 @@ package bitmovin
 
 import (
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
-func state(bitmovin model.Status) job.State {
+func state(bitmovin model.Status) av.State {
 	switch bitmovin {
 	case model.Status_CREATED, model.Status_QUEUED:
-		return job.StateQueued
+		return av.StateQueued
 	case model.Status_RUNNING:
-		return job.StateStarted
+		return av.StateStarted
 	case model.Status_FINISHED:
-		return job.StateFinished
+		return av.StateFinished
 	case model.Status_ERROR:
-		return job.StateFailed
+		return av.StateFailed
 	case model.Status_CANCELED:
-		return job.StateCanceled
+		return av.StateCanceled
 	default:
-		return job.StateUnknown
+		return av.StateUnknown
 	}
 }

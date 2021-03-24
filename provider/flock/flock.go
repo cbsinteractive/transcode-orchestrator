@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/cbsinteractive/transcode-orchestrator/config"
 	"github.com/cbsinteractive/transcode-orchestrator/provider"
 )
@@ -90,7 +90,7 @@ type JobResponseOutput struct {
 	UpdateTimestamp float64 `json:"update_timestamp"`
 }
 
-func (p *flock) Create(ctx context.Context, j *job.Job) (*job.Status, error) {
+func (p *flock) Create(ctx context.Context, j *av.Job) (*av.Status, error) {
 	jr, err := p.flockJobRequestFrom(j)
 	if err != nil {
 		return nil, fmt.Errorf("generating flock job request: %w", err)
@@ -126,14 +126,14 @@ func (p *flock) Create(ctx context.Context, j *job.Job) (*job.Status, error) {
 		return nil, fmt.Errorf("parsing flock response: %w", err)
 	}
 
-	return &job.Status{
+	return &av.Status{
 		Provider:      Name,
 		ProviderJobID: fmt.Sprintf("%d", newJob.JobID),
-		State:         job.StateQueued,
+		State:         av.StateQueued,
 	}, nil
 }
 
-func NewRequest(j *job.Job) (*JobRequest, error) {
+func NewRequest(j *av.Job) (*JobRequest, error) {
 	fj := &JobRequest{}
 	fj.Job.Source = j.Input.Name
 	fj.Job.Labels = j.Labels
@@ -145,7 +145,7 @@ func NewRequest(j *job.Job) (*JobRequest, error) {
 			VideoCodec:       orc.Video.Codec,
 			Width:            orc.Video.Width,
 			Height:           orc.Video.Height,
-			MultiPass:        orc.Video.Bitrate.TwoPass,
+			MultiPass:        orc.Video.TwoPass,
 			VideoBitrateKbps: orc.Video.Bitrate.BPS / 1000,
 			AudioBitrateKbps: orc.Audio.Bitrate / 1000,
 			AudioCodec:       orc.Audio.Codec,
@@ -166,11 +166,11 @@ func NewRequest(j *job.Job) (*JobRequest, error) {
 	return fj, nil
 }
 
-func (p *flock) flockJobRequestFrom(j *job.Job) (*JobRequest, error) {
+func (p *flock) flockJobRequestFrom(j *av.Job) (*JobRequest, error) {
 	return NewRequest(j)
 }
 
-func (p *flock) Status(ctx context.Context, job *job.Job) (*job.Status, error) {
+func (p *flock) Status(ctx context.Context, job *av.Job) (*av.Status, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		fmt.Sprintf("%s/api/v1/jobs/%s", p.cfg.Endpoint, job.ProviderJobID), nil)
 	if err != nil {
@@ -206,8 +206,8 @@ func (p *flock) Status(ctx context.Context, job *job.Job) (*job.Status, error) {
 	return p.jobStatusFrom(job, &jobResp), nil
 }
 
-func (p *flock) jobStatusFrom(j *job.Job, fj *JobResponse) *job.Status {
-	status := &job.Status{
+func (p *flock) jobStatusFrom(j *av.Job, fj *JobResponse) *av.Status {
+	status := &av.Status{
 		Progress:      fj.Progress,
 		ProviderJobID: j.ProviderJobID,
 		Provider:      Name,
@@ -219,13 +219,13 @@ func (p *flock) jobStatusFrom(j *job.Job, fj *JobResponse) *job.Status {
 			"status":           fj.Status,
 		},
 		State:  state(fj),
-		Output: job.Dir{Path: j.Location("")},
+		Output: av.Dir{Path: j.Location("")},
 		Labels: j.Labels,
 	}
 
 	outstatus := []map[string]interface{}{}
 	for _, o := range fj.Outputs {
-		status.Output.File = append(status.Output.File, job.File{Name: o.Destination})
+		status.Output.File = append(status.Output.File, av.File{Name: o.Destination})
 		outstatus = append(outstatus, map[string]interface{}{
 			"duration":         o.Duration,
 			"destination":      o.Destination,
@@ -240,20 +240,20 @@ func (p *flock) jobStatusFrom(j *job.Job, fj *JobResponse) *job.Status {
 	return status
 }
 
-func state(j *JobResponse) job.State {
+func state(j *JobResponse) av.State {
 	switch j.Status {
 	case "submitted":
-		return job.StateQueued
+		return av.StateQueued
 	case "assigned", "transcoding":
-		return job.StateStarted
+		return av.StateStarted
 	case "complete":
-		return job.StateFinished
+		return av.StateFinished
 	case "cancelled":
-		return job.StateCanceled
+		return av.StateCanceled
 	case "error":
-		return job.StateFailed
+		return av.StateFailed
 	}
-	return job.StateUnknown
+	return av.StateUnknown
 }
 
 func (p *flock) Cancel(ctx context.Context, providerID string) error {

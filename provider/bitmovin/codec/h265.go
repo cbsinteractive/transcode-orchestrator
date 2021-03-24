@@ -2,7 +2,7 @@ package codec
 
 import (
 	"github.com/bitmovin/bitmovin-api-sdk-go/model"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 	"github.com/pkg/errors"
 )
 
@@ -24,7 +24,7 @@ type CodecH265 struct {
 	cfg model.H265VideoConfiguration
 }
 
-func (c *CodecH265) set(preset job.File) (ok bool) {
+func (c *CodecH265) set(preset av.File) (ok bool) {
 	c.Profiles = h265Profiles
 	c.Levels = h265Levels
 	if !c.setVideo(VideoPTR{
@@ -56,7 +56,7 @@ func (c *CodecH265) set(preset job.File) (ok bool) {
 	return c.ok()
 }
 
-func (c *CodecH265) setHDR10(hdr10 job.HDR10, requestedProfile string) bool {
+func (c *CodecH265) setHDR10(hdr10 av.HDR10, requestedProfile string) bool {
 	c.cfg.ColorConfig = &model.ColorConfig{
 		ColorTransfer:  model.ColorTransfer_SMPTE2084,
 		ColorPrimaries: model.ColorPrimaries_BT2020,

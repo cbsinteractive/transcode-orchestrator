@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/bitmovin/bitmovin-api-sdk-go"
-	"github.com/cbsinteractive/transcode-orchestrator/client/transcoding/job"
+	"github.com/cbsinteractive/transcode-orchestrator/av"
 )
 
 var ErrUnsupported = errors.New("codec unsupported")
@@ -31,7 +31,7 @@ func (j Preset) HasVideo() bool {
 	return j.VideoConfigID != ""
 }
 
-func New(codec string, preset job.File) (Codec, error) {
+func New(codec string, preset av.File) (Codec, error) {
 	c := enabled[strings.ToUpper(codec)]
 	if c == nil {
 		return nil, ErrUnsupported
@@ -40,7 +40,7 @@ func New(codec string, preset job.File) (Codec, error) {
 	return c, c.Err()
 }
 
-func Summary(c Codec, src job.File, dst Preset) Preset {
+func Summary(c Codec, src av.File, dst Preset) Preset {
 	if c.Err() != nil {
 		return dst
 	}
@@ -70,7 +70,7 @@ var enabled = map[string]Codec{
 }
 
 type Codec interface {
-	New(p job.File) Codec
+	New(p av.File) Codec
 	Create(*bitmovin.BitmovinApi) bool
 	Err() error
 
@@ -108,13 +108,13 @@ func (c CodecH264) video() {}
 func (c CodecH265) video() {}
 func (c CodecVP8) video()  {}
 
-func (c CodecAAC) New(p job.File) Codec    { c.set(p); return &c }
-func (c CodecAV1) New(p job.File) Codec    { c.set(p); return &c }
-func (c CodecH264) New(p job.File) Codec   { c.set(p); return &c }
-func (c CodecH265) New(p job.File) Codec   { c.set(p); return &c }
-func (c CodecOpus) New(p job.File) Codec   { c.set(p); return &c }
-func (c CodecVorbis) New(p job.File) Codec { c.set(p); return &c }
-func (c CodecVP8) New(p job.File) Codec    { c.set(p); return &c }
+func (c CodecAAC) New(p av.File) Codec    { c.set(p); return &c }
+func (c CodecAV1) New(p av.File) Codec    { c.set(p); return &c }
+func (c CodecH264) New(p av.File) Codec   { c.set(p); return &c }
+func (c CodecH265) New(p av.File) Codec   { c.set(p); return &c }
+func (c CodecOpus) New(p av.File) Codec   { c.set(p); return &c }
+func (c CodecVorbis) New(p av.File) Codec { c.set(p); return &c }
+func (c CodecVP8) New(p av.File) Codec    { c.set(p); return &c }
 
 func (c *CodecAAC) Create(api *bitmovin.BitmovinApi) (ok bool) {
 	create := api.Encoding.Configurations.Audio.Aac.Create
