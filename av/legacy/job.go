@@ -32,7 +32,7 @@ func MigrateV1toV2(o Job, op ...Preset) (n av.Job) {
 	n.Input.Size = o.SourceInfo.FileSize
 	n.Input.Video.Width = o.SourceInfo.Width
 	n.Input.Video.Height = o.SourceInfo.Height
-//	n.Input.Video.Framerate = o.SourceInfo.FrameRate
+	//	n.Input.Video.Framerate = o.SourceInfo.FrameRate
 	n.Input.Video.Scantype = o.SourceInfo.ScanType
 	n.Input.ExplicitKeyframeOffsets = o.ExplicitKeyframeOffsets
 
@@ -56,8 +56,8 @@ func MigrateV1toV2(o Job, op ...Preset) (n av.Job) {
 	for _, of := range o.Outputs {
 		p := opmap[of.PresetMap.Name]
 		n.Output.Add(av.File{
-			Name:      of.FileName,
-		//	Container: op.Container,
+			Name: of.FileName,
+			//	Container: op.Container,
 			Video: av.Video{
 				Codec:    p.Video.Codec,
 				Profile:  p.Video.Profile,
