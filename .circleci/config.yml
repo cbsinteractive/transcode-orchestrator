@@ -3,7 +3,7 @@ jobs:
 
   build:
     docker:
-      - image: circleci/golang:1.14
+      - image: circleci/golang:1.16
     steps:
       - run:
           name: Install redis-server executable
@@ -24,7 +24,7 @@ jobs:
 
   deploy_dev:
     docker:
-      - image: circleci/golang:1.13.5
+      - image: circleci/golang:1.16
     steps:
       - deploy:
           name: Trigger deploy to dev
@@ -34,7 +34,7 @@ jobs:
             
   deploy_prod:
     docker:
-      - image: circleci/golang:1.13.5
+      - image: circleci/golang:1.16
     steps:
       - deploy:
           name: Trigger deploy to prod
